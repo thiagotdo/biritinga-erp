@@ -1,91 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { obterUsuario } from '@/lib/auth'
-import { auditLog } from '@/lib/audit'
-import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
-const MidiaSchema = z.object({
-  titulo:       z.string().min(2).max(500),
-  descricao:    z.string().optional(),
-  tipo:         z.enum(['FOTO','VIDEO','DOCUMENTO','AUDIO']).default('FOTO'),
-  categoria:    z.enum(['INFRAESTRUTURA','SAUDE','EDUCACAO','CULTURA','ESPORTE','EVENTO','INSTITUCIONAL','OUTRO']).default('OUTRO'),
-  url:          z.string().min(1).max(1000),
-  urlThumb:     z.string().max(1000).optional().nullable(),
-  nomeArquivo:  z.string().max(500),
-  tamanhoBytes: z.number().int().optional().nullable(),
-  mimeType:     z.string().max(100).optional(),
-  largura:      z.number().int().optional().nullable(),
-  altura:       z.number().int().optional().nullable(),
-  duracao:      z.number().int().optional().nullable(),
-  albumId:      z.string().optional().nullable(),
-  tags:         z.string().max(500).optional(),
-  autor:        z.string().max(255).optional(),
-  dataCaptura:  z.string().datetime().optional().nullable(),
-  destaque:     z.boolean().default(false),
-})
-
-const AlbumSchema = z.object({
-  nome:      z.string().min(2).max(255),
-  descricao: z.string().optional(),
-  categoria: z.enum(['INFRAESTRUTURA','SAUDE','EDUCACAO','CULTURA','ESPORTE','EVENTO','INSTITUCIONAL','OUTRO']).default('OUTRO'),
-})
-
 export async function GET(req: NextRequest) {
   try {
-    const usuario = await obterUsuario(req)
-    if (!usuario) return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
+    const ctx = await obterUsuario(req)
+    if (!ctx) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
 
     const { searchParams } = new URL(req.url)
-    const mId       = usuario.municipioId
-    const id        = searchParams.get('id')
-    const albumId   = searchParams.get('albumId')
-    const tipo      = searchParams.get('tipo')
-    const categoria = searchParams.get('categoria')
-    const busca     = searchParams.get('busca')
-    const listarAlbuns = searchParams.get('albuns') === 'true'
-    const page  = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '24')
-    const skip  = (page - 1) * limit
+    const tipo  = searchParams.get('tipo') ?? ''
 
-    if (listarAlbuns) {
-      const albuns = await prisma.albumMidia.findMany({
-        where: { municipioId: mId, ativo: true },
+    // Listar álbuns
+    if (tipo === 'albums') {
+      const albums = await prisma.albumMidia.findMany({
+        where: { municipioId: ctx.municipioId, ativo: true },
         include: { _count: { select: { midias: true } } },
         orderBy: { criadoEm: 'desc' },
       })
-      return NextResponse.json({ albuns })
+      return NextResponse.json({ albums })
     }
 
-    if (id) {
-      const midia = await prisma.midia.findFirst({ where: { id, municipioId: mId, ativo: true }, include: { album: true } })
-      if (!midia) return NextResponse.json({ erro: 'Não encontrada' }, { status: 404 })
-      return NextResponse.json({ midia })
-    }
+    // Listar mídias
+    const pagina  = Math.max(1, Number(searchParams.get('pagina') ?? 1))
+    const limite  = Math.min(60, Number(searchParams.get('limite') ?? 20))
+    const categoria = searchParams.get('categoria') ?? ''
+    const albumId   = searchParams.get('albumId') ?? ''
+    const skip    = (pagina - 1) * limite
 
-    const where: any = { municipioId: mId, ativo: true }
-    if (albumId) where.albumId = albumId
-    if (tipo) where.tipo = tipo
+    const where: any = { municipioId: ctx.municipioId, ativo: true }
+    if (tipo)      where.tipo      = tipo
     if (categoria) where.categoria = categoria
-    if (busca) where.OR = [{ titulo: { contains: busca } }, { tags: { contains: busca } }]
+    if (albumId)   where.albumId   = albumId
 
     const [midias, total] = await Promise.all([
       prisma.midia.findMany({
-        where, orderBy: [{ destaque: 'desc' }, { criadoEm: 'desc' }],
-        skip, take: limit,
-        include: { album: { select: { id: true, nome: true } } }
+        where, skip, take: limite,
+        orderBy: { criadoEm: 'desc' },
+        select: { id: true, titulo: true, tipo: true, categoria: true, url: true, urlThumb: true, nomeArquivo: true, tamanhoBytes: true, autor: true, destaque: true, albumId: true, criadoEm: true },
       }),
       prisma.midia.count({ where }),
     ])
 
-    const kpiMap = await prisma.midia.groupBy({
-      by: ['tipo'],
-      where: { municipioId: mId, ativo: true },
-      _count: { _all: true },
-    })
-
-    return NextResponse.json({ midias, total, page, limit, kpiMap })
+    return NextResponse.json({ midias, total, pagina, limite })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
   }
@@ -93,73 +51,80 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const usuario = await obterUsuario(req)
-    if (!usuario) return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
+    const ctx = await obterUsuario(req)
+    if (!ctx) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
 
-    const body = await req.json()
-    const acao = body.acao
+    const data = await req.json()
 
-    if (acao === 'CRIAR_ALBUM') {
-      const parse = AlbumSchema.safeParse(body)
-      if (!parse.success) return NextResponse.json({ erro: parse.error.flatten() }, { status: 400 })
+    // Criar álbum
+    if (data.recurso === 'album') {
+      if (!data.nome?.trim()) return NextResponse.json({ erro: 'Nome obrigatório' }, { status: 400 })
       const album = await prisma.albumMidia.create({
-        data: { municipioId: usuario.municipioId, ...parse.data }
+        data: {
+          municipioId: ctx.municipioId,
+          nome:        data.nome.trim(),
+          descricao:   data.descricao?.trim() ?? null,
+          categoria:   data.categoria ?? 'OUTRO',
+        },
       })
       return NextResponse.json({ album }, { status: 201 })
     }
 
-    // Criar mídia (pode ser array para upload em lote)
-    const itens = Array.isArray(body.midias) ? body.midias : [body]
-    const resultados = []
-    for (const item of itens) {
-      const parse = MidiaSchema.safeParse(item)
-      if (!parse.success) { resultados.push({ erro: parse.error.flatten() }); continue }
-      const d = parse.data
-      const midia = await prisma.midia.create({
-        data: {
-          municipioId:  usuario.municipioId,
-          titulo:       d.titulo,
-          descricao:    d.descricao,
-          tipo:         d.tipo,
-          categoria:    d.categoria,
-          url:          d.url,
-          urlThumb:     d.urlThumb,
-          nomeArquivo:  d.nomeArquivo,
-          tamanhoBytes: d.tamanhoBytes,
-          mimeType:     d.mimeType,
-          largura:      d.largura,
-          altura:       d.altura,
-          duracao:      d.duracao,
-          albumId:      d.albumId,
-          tags:         d.tags,
-          autor:        d.autor,
-          dataCaptura:  d.dataCaptura ? new Date(d.dataCaptura) : null,
-          destaque:     d.destaque,
-        }
-      })
-      resultados.push({ midia })
-    }
-    auditLog({ usuarioId: usuario.id, acao: 'UPLOAD_MIDIA', tabela: 'Midia', registroId: 'batch', municipioId: usuario.municipioId })
-    return NextResponse.json({ resultados }, { status: 201 })
+    // Criar mídia
+    if (!data.titulo?.trim())      return NextResponse.json({ erro: 'Título obrigatório' }, { status: 400 })
+    if (!data.url?.trim())         return NextResponse.json({ erro: 'URL obrigatória' }, { status: 400 })
+    if (!data.nomeArquivo?.trim()) return NextResponse.json({ erro: 'Nome do arquivo obrigatório' }, { status: 400 })
+
+    const midia = await prisma.midia.create({
+      data: {
+        municipioId:  ctx.municipioId,
+        titulo:       data.titulo.trim(),
+        descricao:    data.descricao?.trim() ?? null,
+        tipo:         data.tipo ?? 'FOTO',
+        categoria:    data.categoria ?? 'OUTRO',
+        url:          data.url.trim(),
+        urlThumb:     data.urlThumb?.trim() ?? null,
+        nomeArquivo:  data.nomeArquivo.trim(),
+        tamanhoBytes: data.tamanhoBytes ? Number(data.tamanhoBytes) : null,
+        mimeType:     data.mimeType ?? null,
+        albumId:      data.albumId ?? null,
+        tags:         data.tags?.trim() ?? null,
+        autor:        data.autor?.trim() ?? null,
+        dataCaptura:  data.dataCaptura ? new Date(data.dataCaptura) : null,
+        destaque:     data.destaque ?? false,
+      },
+    })
+
+    return NextResponse.json({ midia }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-export async function PATCH(req: NextRequest) {
+export async function PUT(req: NextRequest) {
   try {
-    const usuario = await obterUsuario(req)
-    if (!usuario) return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
+    const ctx = await obterUsuario(req)
+    if (!ctx) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
 
-    const body = await req.json()
-    const { id, ...rest } = body
-    if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
+    const data = await req.json()
+    if (!data.id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-    const exist = await prisma.midia.findFirst({ where: { id, municipioId: usuario.municipioId } })
-    if (!exist) return NextResponse.json({ erro: 'Não encontrada' }, { status: 404 })
+    if (data.recurso === 'album') {
+      const album = await prisma.albumMidia.findFirst({ where: { id: data.id, municipioId: ctx.municipioId } })
+      if (!album) return NextResponse.json({ erro: 'Álbum não encontrado' }, { status: 404 })
+      const updated = await prisma.albumMidia.update({ where: { id: data.id }, data: { nome: data.nome, descricao: data.descricao, categoria: data.categoria } })
+      return NextResponse.json({ album: updated })
+    }
 
-    const midia = await prisma.midia.update({ where: { id }, data: rest })
-    return NextResponse.json({ midia })
+    const midia = await prisma.midia.findFirst({ where: { id: data.id, municipioId: ctx.municipioId } })
+    if (!midia) return NextResponse.json({ erro: 'Mídia não encontrada' }, { status: 404 })
+
+    const update: any = { atualizadoEm: new Date() }
+    const campos = ['titulo','descricao','tipo','categoria','url','urlThumb','nomeArquivo','tags','autor','destaque','albumId']
+    campos.forEach(c => { if (data[c] !== undefined) update[c] = data[c] })
+
+    const updated = await prisma.midia.update({ where: { id: data.id }, data: update })
+    return NextResponse.json({ midia: updated })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
   }
@@ -167,22 +132,20 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const usuario = await obterUsuario(req)
-    if (!usuario) return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
+    const ctx = await obterUsuario(req)
+    if (!ctx) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
 
     const { searchParams } = new URL(req.url)
-    const id = searchParams.get('id')
-    const albumId = searchParams.get('albumId')
+    const id      = searchParams.get('id')
+    const recurso = searchParams.get('recurso') ?? 'midia'
+    if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-    if (albumId) {
-      await prisma.albumMidia.updateMany({ where: { id: albumId, municipioId: usuario.municipioId }, data: { ativo: false } })
-      return NextResponse.json({ ok: true })
+    if (recurso === 'album') {
+      await prisma.albumMidia.update({ where: { id }, data: { ativo: false } })
+    } else {
+      await prisma.midia.update({ where: { id }, data: { ativo: false } })
     }
-    if (id) {
-      await prisma.midia.updateMany({ where: { id, municipioId: usuario.municipioId }, data: { ativo: false } })
-      return NextResponse.json({ ok: true })
-    }
-    return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
+    return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
   }
