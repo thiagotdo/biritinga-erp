@@ -4,382 +4,329 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Search, Plus, Filter, ChevronRight, X, User, Briefcase,
   Phone, Mail, Building2, Calendar, FileText, Shield,
-  CheckCircle, XCircle, Clock, AlertCircle, Cake,
-  MapPin, CreditCard, Hash,
+  CheckCircle, XCircle, Clock, AlertCircle,
+  CreditCard, Hash, Loader2,
 } from 'lucide-react'
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
 interface Cargo { id: string; nome: string; simbolo?: string }
-interface Unidade { id: string; nome: string; sigla: string }
-interface Lotacao { unidade: Unidade; funcao?: string }
 
 interface Servidor {
   id: string
   matricula: string
   nome: string
-  cpf: string
+  cpf?: string
+  dataNascimento?: string
+  dataAdmissao?: string
+  vinculo?: string
   situacao: string
-  vinculo: string
-  regime: string
   cargo?: Cargo
-  cargaHoraria: number
+  cargoId?: string
   salarioBase?: number
-  dataAdmissao: string
-  emailInstitucional?: string
+  email?: string
   celular?: string
-  pcd: boolean
-  foto?: string
-  lotacoes: Lotacao[]
-  _count: { ferias: number; afastamentos: number }
+  bairro?: string
+  pcd?: boolean
+  observacoes?: string
+  lotacoes?: { secretaria: string; setor?: string; funcao?: string; ativo: boolean }[]
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmtData(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-function fmtCPF(cpf: string) {
-  const c = cpf.replace(/\D/g, '')
-  return c.length === 11 ? `${c.slice(0,3)}.${c.slice(3,6)}.${c.slice(6,9)}-${c.slice(9)}` : cpf
-}
-function fmtMoeda(v?: number) {
-  if (!v) return '—'
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-// ─── Info de situação ─────────────────────────────────────────────────────────
-
-const SITUACAO_INFO: Record<string, { label: string; cls: string; icon: React.ElementType }> = {
-  ATIVO:               { label: 'Ativo',          cls: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  FERIAS:              { label: 'Férias',          cls: 'bg-sky-100 text-sky-700',         icon: Calendar },
-  AFASTADO:            { label: 'Afastado',        cls: 'bg-amber-100 text-amber-700',     icon: Clock },
-  LICENCA_MEDICA:      { label: 'Lic. Médica',     cls: 'bg-orange-100 text-orange-700',   icon: AlertCircle },
-  LICENCA_MATERNIDADE: { label: 'Lic. Maternidade',cls: 'bg-purple-100 text-purple-700',   icon: Clock },
-  LICENCA_PATERNIDADE: { label: 'Lic. Paternidade',cls: 'bg-purple-100 text-purple-700',   icon: Clock },
-  CEDIDO:              { label: 'Cedido',          cls: 'bg-blue-100 text-blue-700',       icon: ArrowRight },
-  INATIVO:             { label: 'Inativo',         cls: 'bg-slate-100 text-slate-500',     icon: XCircle },
-  EXONERADO:           { label: 'Exonerado',       cls: 'bg-red-100 text-red-700',         icon: XCircle },
-  APOSENTADO:          { label: 'Aposentado',      cls: 'bg-indigo-100 text-indigo-700',   icon: Shield },
-  FALECIDO:            { label: 'Falecido',        cls: 'bg-gray-100 text-gray-500',       icon: XCircle },
-}
-
-function ArrowRight(props: React.SVGProps<SVGSVGElement>) {
-  return <ChevronRight {...props} />
+const SITUACAO_COR: Record<string, string> = {
+  ATIVO:       'bg-green-100 text-green-700',
+  FERIAS:      'bg-yellow-100 text-yellow-700',
+  AFASTADO:    'bg-orange-100 text-orange-700',
+  EXONERADO:   'bg-red-100 text-red-700',
+  APOSENTADO:  'bg-gray-100 text-gray-600',
 }
 
 const VINCULO_LABEL: Record<string, string> = {
-  EFETIVO: 'Efetivo',
-  COMISSIONADO: 'Comissionado',
-  CONTRATADO_CLT: 'CLT',
-  CONTRATADO_TEMPORARIO: 'Temporário',
-  ESTAGIARIO: 'Estagiário',
-  AGENTE_POLITICO: 'Ag. Político',
+  EFETIVO: 'Efetivo', COMISSIONADO: 'Comissionado', CONTRATADO: 'Contratado',
+  ESTAGIARIO: 'Estagiário', CEDIDO: 'Cedido',
 }
-
-// ─── Mock ─────────────────────────────────────────────────────────────────────
-
-const MOCK: Servidor[] = [
-  {
-    id: '1', matricula: '00123', nome: 'Ana Carla Lima Santos', cpf: '12345678901',
-    situacao: 'ATIVO', vinculo: 'EFETIVO', regime: 'ESTATUTARIO',
-    cargo: { id: 'c1', nome: 'Professora', simbolo: 'P-III' },
-    cargaHoraria: 40, salarioBase: 3200, dataAdmissao: '2015-03-01',
-    emailInstitucional: 'ana.lima@biritinga.ba.gov.br', celular: '75998001234',
-    pcd: false, lotacoes: [{ unidade: { id: 'u1', nome: 'Secretaria de Educação', sigla: 'SEC' }, funcao: undefined }],
-    _count: { ferias: 2, afastamentos: 0 },
-  },
-  {
-    id: '2', matricula: '00287', nome: 'Pedro Vieira Melo', cpf: '98765432100',
-    situacao: 'FERIAS', vinculo: 'EFETIVO', regime: 'ESTATUTARIO',
-    cargo: { id: 'c2', nome: 'Motorista', simbolo: 'M-I' },
-    cargaHoraria: 40, salarioBase: 2200, dataAdmissao: '2010-07-15',
-    emailInstitucional: undefined, celular: '75999887766',
-    pcd: false, lotacoes: [{ unidade: { id: 'u2', nome: 'Sec. de Obras', sigla: 'SEMOB' }, funcao: undefined }],
-    _count: { ferias: 5, afastamentos: 1 },
-  },
-  {
-    id: '3', matricula: '00351', nome: 'Joana Maria Silva', cpf: '55544433322',
-    situacao: 'LICENCA_MEDICA', vinculo: 'EFETIVO', regime: 'ESTATUTARIO',
-    cargo: { id: 'c3', nome: 'Assistente Administrativo', simbolo: 'AA-II' },
-    cargaHoraria: 30, salarioBase: 1800, dataAdmissao: '2018-01-10',
-    emailInstitucional: 'joana.silva@biritinga.ba.gov.br', celular: '75997654321',
-    pcd: true, lotacoes: [{ unidade: { id: 'u3', nome: 'Administração Municipal', sigla: 'SEMAD' }, funcao: 'Recepção' }],
-    _count: { ferias: 1, afastamentos: 3 },
-  },
-]
-
-const SITUACOES = [
-  { value: '', label: 'Todas Situações' },
-  { value: 'ATIVO', label: 'Ativo' },
-  { value: 'FERIAS', label: 'Férias' },
-  { value: 'AFASTADO', label: 'Afastado' },
-  { value: 'LICENCA_MEDICA', label: 'Lic. Médica' },
-  { value: 'INATIVO', label: 'Inativo' },
-  { value: 'EXONERADO', label: 'Exonerado' },
-]
-
-const VINCULOS = [
-  { value: '', label: 'Todos Vínculos' },
-  { value: 'EFETIVO', label: 'Efetivo' },
-  { value: 'COMISSIONADO', label: 'Comissionado' },
-  { value: 'CONTRATADO_CLT', label: 'CLT' },
-  { value: 'CONTRATADO_TEMPORARIO', label: 'Temporário' },
-  { value: 'ESTAGIARIO', label: 'Estagiário' },
-]
-
-// ─── Painel lateral ───────────────────────────────────────────────────────────
-
-function PainelServidor({ srv, onClose }: { srv: Servidor; onClose: () => void }) {
-  const [aba, setAba] = useState<'dados' | 'historico' | 'ferias'>('dados')
-  const sit = SITUACAO_INFO[srv.situacao] ?? { label: srv.situacao, cls: 'bg-slate-100 text-slate-600', icon: User }
-  const SitIcon = sit.icon
-
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative z-50 w-full max-w-xl bg-white h-full shadow-xl flex flex-col">
-
-        {/* Cabeçalho painel */}
-        <div className="p-5 border-b border-slate-200 bg-indigo-50 flex items-start justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-xl">
-              {srv.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-            </div>
-            <div>
-              <h2 className="font-bold text-slate-900">{srv.nome}</h2>
-              <p className="text-sm text-slate-500">Mat. {srv.matricula} · {srv.cargo?.nome ?? '—'}</p>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${sit.cls}`}>
-                <SitIcon className="w-3 h-3" /> {sit.label}
-              </span>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg"><X className="w-4 h-4" /></button>
-        </div>
-
-        {/* Abas */}
-        <div className="flex border-b border-slate-200">
-          {[
-            { id: 'dados', label: 'Dados' },
-            { id: 'historico', label: 'Histórico' },
-            { id: 'ferias', label: 'Férias' },
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setAba(t.id as typeof aba)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${aba === t.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Corpo */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-
-          {aba === 'dados' && (
-            <>
-              <Section title="Dados Funcionais" icon={Briefcase}>
-                <Row label="Vínculo"      value={VINCULO_LABEL[srv.vinculo] ?? srv.vinculo} />
-                <Row label="Regime"       value={srv.regime} />
-                <Row label="Carga Horária" value={`${srv.cargaHoraria}h semanais`} />
-                <Row label="Salário Base"  value={fmtMoeda(srv.salarioBase)} />
-                <Row label="Admissão"     value={fmtData(srv.dataAdmissao)} />
-                <Row label="PcD"          value={srv.pcd ? 'Sim' : 'Não'} />
-              </Section>
-
-              <Section title="Lotação Atual" icon={Building2}>
-                {srv.lotacoes.length === 0 ? (
-                  <p className="text-sm text-slate-400">Sem lotação registrada</p>
-                ) : (
-                  srv.lotacoes.map((l, i) => (
-                    <div key={i}>
-                      <Row label="Unidade" value={`${l.unidade.nome} (${l.unidade.sigla})`} />
-                      {l.funcao && <Row label="Função" value={l.funcao} />}
-                    </div>
-                  ))
-                )}
-              </Section>
-
-              <Section title="Contato" icon={Phone}>
-                <Row label="E-mail Inst." value={srv.emailInstitucional ?? '—'} />
-                <Row label="Celular"       value={srv.celular ?? '—'} />
-              </Section>
-
-              <Section title="Documentos" icon={CreditCard}>
-                <Row label="CPF" value={fmtCPF(srv.cpf)} />
-              </Section>
-            </>
-          )}
-
-          {aba === 'historico' && (
-            <div className="text-sm text-slate-400 py-8 text-center">
-              Histórico de movimentações em breve
-            </div>
-          )}
-
-          {aba === 'ferias' && (
-            <div>
-              <p className="text-sm text-slate-500">{srv._count.ferias} período(s) de férias registrado(s)</p>
-              <div className="mt-3 text-sm text-slate-400 py-6 text-center border border-dashed border-slate-200 rounded-lg">
-                Ver em Gestão de Férias
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-200 flex gap-2">
-          <button className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
-            Editar Dados
-          </button>
-          <button className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
-            Movimentar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 mb-2">
-        <Icon className="w-3.5 h-3.5" /> {title}
-      </h3>
-      <div className="bg-slate-50 rounded-lg p-3 space-y-2">{children}</div>
-    </div>
-  )
-}
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 text-sm">
-      <span className="text-slate-500 shrink-0">{label}</span>
-      <span className="text-slate-800 font-medium text-right">{value}</span>
-    </div>
-  )
-}
-
-// ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function ServidoresPage() {
-  const [servidores, setServidores] = useState<Servidor[]>(MOCK)
-  const [busca, setBusca] = useState('')
-  const [situacao, setSituacao] = useState('')
-  const [vinculo, setVinculo] = useState('')
-  const [selecionado, setSelecionado] = useState<Servidor | null>(null)
+  const [servidores, setServidores] = useState<Servidor[]>([])
+  const [cargos, setCargos] = useState<Cargo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [q, setQ] = useState('')
+  const [situacaoFiltro, setSituacaoFiltro] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [detalhe, setDetalhe] = useState<Servidor | null>(null)
+  const [modal, setModal] = useState(false)
+  const [form, setForm] = useState({ nome: '', matricula: '', cpf: '', cargoId: '', vinculo: 'EFETIVO', salarioBase: '', dataAdmissao: '', email: '', celular: '' })
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+  const LIMIT = 20
 
-  const filtrados = servidores.filter(s => {
-    if (situacao && s.situacao !== situacao) return false
-    if (vinculo  && s.vinculo !== vinculo)   return false
-    if (busca) {
-      const q = busca.toLowerCase()
-      return s.nome.toLowerCase().includes(q)
-          || s.matricula.includes(q)
-          || s.cpf.includes(q.replace(/\D/g,''))
-    }
-    return true
-  })
+  const carregar = useCallback(() => {
+    setLoading(true)
+    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) })
+    if (q.length >= 3) params.set('q', q)
+    if (situacaoFiltro) params.set('situacao', situacaoFiltro)
+    fetch(`/api/semad/servidores?${params}`)
+      .then(r => r.json())
+      .then(d => {
+        setServidores(d.servidores ?? [])
+        setTotal(d.total ?? 0)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [page, q, situacaoFiltro])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  useEffect(() => {
+    fetch('/api/semad/cargos')
+      .then(r => r.json())
+      .then(d => setCargos(d.cargos ?? []))
+      .catch(() => {})
+  }, [])
+
+  const verDetalhe = async (id: string) => {
+    const r = await fetch(`/api/semad/servidores?id=${id}`)
+    const d = await r.json()
+    setDetalhe(d.servidor ?? null)
+  }
+
+  const salvar = async () => {
+    if (!form.nome.trim() || !form.matricula || !form.cargoId)
+      return setErro('Nome, matrícula e cargo são obrigatórios')
+    setSalvando(true); setErro('')
+    const r = await fetch('/api/semad/servidores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        salarioBase: form.salarioBase ? Number(form.salarioBase) : undefined,
+        cpf: form.cpf.replace(/\D/g, ''),
+      }),
+    })
+    const d = await r.json()
+    setSalvando(false)
+    if (!r.ok) return setErro(d.erro ?? 'Erro ao salvar')
+    setModal(false)
+    setForm({ nome: '', matricula: '', cpf: '', cargoId: '', vinculo: 'EFETIVO', salarioBase: '', dataAdmissao: '', email: '', celular: '' })
+    carregar()
+  }
+
+  const fmtData = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+  const fmtMoeda = (v?: number) => v ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'
+
+  const totalPages = Math.ceil(total / LIMIT)
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-
-      {/* Cabeçalho */}
+    <div className="space-y-6 p-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <User className="w-5 h-5 text-indigo-600" /> Servidores Municipais
-          </h1>
-          <p className="text-sm text-slate-500">{filtrados.length} servidores encontrados</p>
+          <h1 className="text-2xl font-bold text-gray-900">Servidores</h1>
+          <p className="text-gray-500 mt-1">{total > 0 ? `${total} servidores cadastrados` : 'Nenhum servidor'}</p>
         </div>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
+        <button onClick={() => setModal(true)}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" /> Novo Servidor
         </button>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
           <input
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Buscar por nome, matrícula ou CPF…"
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="Buscar por nome, matrícula ou CPF..."
+            value={q}
+            onChange={e => { setQ(e.target.value); setPage(1) }}
           />
         </div>
         <select
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          value={situacao}
-          onChange={e => setSituacao(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          value={situacaoFiltro}
+          onChange={e => { setSituacaoFiltro(e.target.value); setPage(1) }}
         >
-          {SITUACOES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-        <select
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          value={vinculo}
-          onChange={e => setVinculo(e.target.value)}
-        >
-          {VINCULOS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+          <option value="">Todas as situações</option>
+          <option value="ATIVO">Ativo</option>
+          <option value="FERIAS">Férias</option>
+          <option value="AFASTADO">Afastado</option>
+          <option value="EXONERADO">Exonerado</option>
+          <option value="APOSENTADO">Aposentado</option>
         </select>
       </div>
 
-      {/* Lista */}
-      <div className="space-y-2">
-        {filtrados.length === 0 ? (
-          <div className="text-center py-16 text-slate-400">
-            <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>Nenhum servidor encontrado</p>
+      {/* Tabela */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center h-40">
+            <Loader2 className="animate-spin w-6 h-6 text-blue-600" />
+          </div>
+        ) : servidores.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+            <User className="w-10 h-10 mb-2 opacity-30" />
+            <p className="text-sm">Nenhum servidor encontrado</p>
           </div>
         ) : (
-          filtrados.map(s => {
-            const sit = SITUACAO_INFO[s.situacao] ?? { label: s.situacao, cls: 'bg-slate-100 text-slate-500', icon: User }
-            const SitIcon = sit.icon
-            const unidade = s.lotacoes[0]?.unidade
-            return (
-              <div
-                key={s.id}
-                className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-4 hover:border-indigo-300 hover:shadow-sm transition-all cursor-pointer"
-                onClick={() => setSelecionado(s)}
-              >
-                {/* Avatar */}
-                <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm shrink-0">
-                  {s.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                </div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Matrícula</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Cargo</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Vínculo</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Situação</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {servidores.map(s => (
+                <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => verDetalhe(s.id)}>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.matricula}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{s.nome}</td>
+                  <td className="px-4 py-3 text-gray-600">{(s as any).cargoNome ?? s.cargo?.nome ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-500">{VINCULO_LABEL[s.vinculo ?? ''] ?? s.vinculo ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SITUACAO_COR[s.situacao] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {s.situacao}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-                {/* Info principal */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-slate-900">{s.nome}</span>
-                    {s.pcd && (
-                      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">PcD</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500 flex-wrap">
-                    <span className="flex items-center gap-1"><Hash className="w-3 h-3" />{s.matricula}</span>
-                    <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{s.cargo?.nome ?? '—'}</span>
-                    {unidade && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{unidade.sigla}</span>}
-                  </div>
-                </div>
-
-                {/* Badge situação */}
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${sit.cls}`}>
-                    <SitIcon className="w-3 h-3" /> {sit.label}
-                  </span>
-                  <span className="text-xs text-slate-400">{VINCULO_LABEL[s.vinculo]}</span>
-                </div>
-
-                <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-              </div>
-            )
-          })
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 text-sm">
+            <span className="text-gray-500">Página {page} de {totalPages}</span>
+            <div className="flex gap-2">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50">Anterior</button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50">Próximo</button>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Painel lateral */}
-      {selecionado && <PainelServidor srv={selecionado} onClose={() => setSelecionado(null)} />}
+      {/* Modal detalhe */}
+      {detalhe && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDetalhe(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h2 className="font-semibold text-gray-900 text-lg">{detalhe.nome}</h2>
+              <button onClick={() => setDetalhe(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-5 space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-gray-500">Matrícula</span><div className="font-medium font-mono">{detalhe.matricula}</div></div>
+                <div><span className="text-gray-500">Situação</span>
+                  <div><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SITUACAO_COR[detalhe.situacao] ?? ''}`}>{detalhe.situacao}</span></div>
+                </div>
+                <div><span className="text-gray-500">Cargo</span><div className="font-medium">{(detalhe as any).cargoNome ?? detalhe.cargo?.nome ?? '—'}</div></div>
+                <div><span className="text-gray-500">Vínculo</span><div className="font-medium">{VINCULO_LABEL[detalhe.vinculo ?? ''] ?? '—'}</div></div>
+                <div><span className="text-gray-500">Salário Base</span><div className="font-medium">{fmtMoeda(detalhe.salarioBase)}</div></div>
+                <div><span className="text-gray-500">Admissão</span><div className="font-medium">{fmtData(detalhe.dataAdmissao)}</div></div>
+                {detalhe.email && <div className="col-span-2"><span className="text-gray-500">E-mail</span><div className="font-medium">{detalhe.email}</div></div>}
+                {detalhe.celular && <div><span className="text-gray-500">Celular</span><div className="font-medium">{detalhe.celular}</div></div>}
+                {detalhe.bairro && <div><span className="text-gray-500">Bairro</span><div className="font-medium">{detalhe.bairro}</div></div>}
+              </div>
+              {(detalhe as any).lotacoes?.length > 0 && (
+                <div>
+                  <div className="text-gray-500 mb-1">Lotação Atual</div>
+                  {(detalhe as any).lotacoes.filter((l: any) => l.ativo).map((l: any, i: number) => (
+                    <div key={i} className="text-sm font-medium text-gray-800">{l.secretaria}{l.setor ? ` / ${l.setor}` : ''}{l.funcao ? ` — ${l.funcao}` : ''}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal novo servidor */}
+      {modal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h2 className="font-semibold text-gray-900">Novo Servidor</h2>
+              <button onClick={() => setModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              {erro && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{erro}</div>}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Nome Completo *</label>
+                  <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Matrícula *</label>
+                  <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">CPF</label>
+                  <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Cargo *</label>
+                  <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.cargoId} onChange={e => setForm(f => ({ ...f, cargoId: e.target.value }))}>
+                    <option value="">Selecionar...</option>
+                    {cargos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Vínculo</label>
+                  <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.vinculo} onChange={e => setForm(f => ({ ...f, vinculo: e.target.value }))}>
+                    <option value="EFETIVO">Efetivo</option>
+                    <option value="COMISSIONADO">Comissionado</option>
+                    <option value="CONTRATADO">Contratado</option>
+                    <option value="ESTAGIARIO">Estagiário</option>
+                    <option value="CEDIDO">Cedido</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Salário Base (R$)</label>
+                  <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.salarioBase} onChange={e => setForm(f => ({ ...f, salarioBase: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Data de Admissão</label>
+                  <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.dataAdmissao} onChange={e => setForm(f => ({ ...f, dataAdmissao: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">E-mail</label>
+                  <input type="email" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Celular</label>
+                  <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setModal(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+                  Cancelar
+                </button>
+                <button onClick={salvar} disabled={salvando}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  {salvando && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Cadastrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
