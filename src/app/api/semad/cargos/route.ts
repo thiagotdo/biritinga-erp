@@ -1,76 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { extrairContextoRequest, auditLog } from '@/lib/audit'
-import { temPermissao } from '@/lib/auth/rbac'
+import { db } from '@/lib/db'
 
-const CargoSchema = z.object({
-  nome:          z.string().min(2),
-  simbolo:       z.string().optional(),
-  descricao:     z.string().optional(),
-  nivelSalarial: z.string().optional(),
-  salarioBase:   z.number().positive().optional(),
-  cargaHoraria:  z.number().int().min(1).max(44).default(40),
-  requerConcurso:z.boolean().default(true),
-  comissionado:  z.boolean().default(false),
-})
+export const runtime = 'nodejs'
 
-// POST /api/semad/cargos
-export async function POST(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
+function mid(req: NextRequest) { return req.headers.get('x-erp-municipio-id') ?? '' }
 
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'semad:cargo:create')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
-
+export async function GET(req: NextRequest) {
+  const municipioId = mid(req)
   try {
-    const body = await request.json()
-    const dados = CargoSchema.parse(body)
-
-    const existente = await prisma.cargo.findFirst({
-      where: { municipioId: ctx.municipioId, nome: dados.nome, ativo: true },
-    })
-    if (existente) {
-      return NextResponse.json({ erro: 'Cargo já cadastrado com este nome' }, { status: 409 })
-    }
-
-    const cargo = await prisma.cargo.create({
-      data: { municipioId: ctx.municipioId, ...dados },
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'CREATE',
-      modulo: 'semad',
-      recurso: 'cargo',
-      registroId: cargo.id,
-      dadosNovos: { nome: dados.nome, simbolo: dados.simbolo },
-    })
-
-    return NextResponse.json({ cargo }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
-    }
-    console.error('[CARGO]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+    const cargos = await db.$queryRaw<any[]>`
+      SELECT c.*,
+        (SELECT COUNT(*) FROM Servidor s WHERE s.cargoId = c.id AND s.ativo = 1) AS totalServidores
+      FROM Cargo c
+      WHERE c.municipioId = ${municipioId} AND c.ativo = 1
+      ORDER BY c.nome`
+    return NextResponse.json({ cargos })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-// GET /api/semad/cargos
-export async function GET(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
+export async function POST(req: NextRequest) {
+  const municipioId = mid(req)
+  const { nome, simbolo, descricao, nivelSalarial, salarioBase,
+    cargaHoraria, requerConcurso, comissionado } = await req.json()
 
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'semad:cargo:read')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
+  if (!nome?.trim()) return NextResponse.json({ erro: 'Nome obrigatório' }, { status: 400 })
+
+  try {
+    const dup = await db.$queryRaw<any[]>`
+      SELECT id FROM Cargo WHERE municipioId = ${municipioId} AND nome = ${nome.trim()} AND ativo = 1 LIMIT 1`
+    if (dup.length) return NextResponse.json({ erro: 'Cargo já cadastrado' }, { status: 409 })
+
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO Cargo (id, municipioId, nome, simbolo, descricao, nivelSalarial,
+                         salarioBase, cargaHoraria, requerConcurso, comissionado)
+      VALUES (${id}, ${municipioId}, ${nome.trim()}, ${simbolo || null}, ${descricao || null},
+              ${nivelSalarial || null}, ${salarioBase || null}, ${cargaHoraria ?? 40},
+              ${requerConcurso !== false ? 1 : 0}, ${comissionado ? 1 : 0})`
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const cargos = await prisma.cargo.findMany({
-    where: { municipioId: ctx.municipioId, ativo: true },
-    include: { _count: { select: { servidores: true } } },
-    orderBy: { nome: 'asc' },
-  })
-
-  return NextResponse.json({ dados: cargos, total: cargos.length })
 }

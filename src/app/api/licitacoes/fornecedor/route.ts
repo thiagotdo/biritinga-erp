@@ -1,135 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export const runtime = 'nodejs'
+function mid(r: NextRequest) { return r.headers.get('x-erp-municipio-id') ?? '' }
 
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-
+  const municipioId = mid(req)
   const { searchParams } = new URL(req.url)
-  const id    = searchParams.get('id')
-  const busca = searchParams.get('busca')
+  const q = searchParams.get('q')
 
-  if (id) {
-    const f = await prisma.fornecedor.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-      include: {
-        propostas: {
-          select: { id: true, valorTotal: true, situacao: true, processo: { select: { numero: true, objeto: true } } },
-          orderBy: { criadoEm: 'desc' }, take: 10,
-        },
-        contratos: {
-          select: { id: true, numero: true, valorAtual: true, situacao: true },
-          orderBy: { criadoEm: 'desc' }, take: 5,
-        },
-      },
-    })
-    if (!f) return NextResponse.json({ erro: 'Fornecedor não encontrado' }, { status: 404 })
-    return NextResponse.json({ fornecedor: f })
+  try {
+    // Fornecedores são os mesmos da tabela Contribuinte tipo PJ
+    let rows: any[]
+    if (q && q.length >= 3) {
+      const like = `%${q}%`
+      rows = await db.$queryRaw<any[]>`
+        SELECT id, nome, cpfCnpj, email, telefone, ie AS inscricaoEstadual
+        FROM Contribuinte
+        WHERE municipioId = ${municipioId} AND ativo = 1
+          AND (nome LIKE ${like} OR cpfCnpj LIKE ${like})
+        LIMIT 30`
+    } else {
+      rows = await db.$queryRaw<any[]>`
+        SELECT id, nome, cpfCnpj, email, telefone, ie AS inscricaoEstadual
+        FROM Contribuinte
+        WHERE municipioId = ${municipioId} AND tipo = 'PJ' AND ativo = 1
+        ORDER BY nome LIMIT 100`
+    }
+    return NextResponse.json({ fornecedores: rows })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const where: any = { municipioId: usuario.municipioId, ativo: true }
-  if (busca) {
-    where.OR = [
-      { razaoSocial:  { contains: busca } },
-      { nomeFantasia: { contains: busca } },
-      { cnpjCpf:      { contains: busca } },
-    ]
-  }
-
-  const fornecedores = await prisma.fornecedor.findMany({
-    where, orderBy: { razaoSocial: 'asc' }, take: 200,
-    include: { _count: { select: { propostas: true, contratos: true } } },
-  })
-
-  // Certidões vencidas
-  const hoje = new Date()
-  const comAlerta = fornecedores.map(f => ({
-    ...f,
-    certidaoVencida: (f.dataValidadeCnd && new Date(f.dataValidadeCnd) < hoje) ||
-      (f.dataValidadeFGTS && new Date(f.dataValidadeFGTS) < hoje) ||
-      (f.dataValidadeTrabalhista && new Date(f.dataValidadeTrabalhista) < hoje),
-  }))
-
-  return NextResponse.json({ fornecedores: comAlerta, total: comAlerta.length })
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-
-  const Schema = z.object({
-    razaoSocial:  z.string().min(3),
-    nomeFantasia: z.string().optional(),
-    cnpjCpf:      z.string().min(11).max(14),
-    tipoPessoa:   z.enum(['PJ','PF']).default('PJ'),
-    email:        z.string().email().optional(),
-    telefone:     z.string().optional(),
-    cep:          z.string().optional(),
-    logradouro:   z.string().optional(),
-    numero:       z.string().optional(),
-    bairro:       z.string().optional(),
-    cidade:       z.string().optional(),
-    uf:           z.string().length(2).optional(),
-    dataValidadeCnd: z.string().optional(),
-    dataValidadeFGTS: z.string().optional(),
-    dataValidadeTrabalhista: z.string().optional(),
-  })
-
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
-  const d = val.data
-
-  const existente = await prisma.fornecedor.findFirst({
-    where: { municipioId: usuario.municipioId, cnpjCpf: d.cnpjCpf },
-  })
-  if (existente) return NextResponse.json({ erro: `${d.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'} já cadastrado` }, { status: 409 })
-
-  const fornecedor = await prisma.fornecedor.create({
-    data: {
-      municipioId:  usuario.municipioId,
-      razaoSocial:  d.razaoSocial,
-      nomeFantasia: d.nomeFantasia,
-      cnpjCpf:      d.cnpjCpf.replace(/\D/g, ''),
-      tipoPessoa:   d.tipoPessoa,
-      email:        d.email,
-      telefone:     d.telefone,
-      cep:          d.cep,
-      logradouro:   d.logradouro,
-      numero:       d.numero,
-      bairro:       d.bairro,
-      cidade:       d.cidade,
-      uf:           d.uf,
-      dataValidadeCnd: d.dataValidadeCnd ? new Date(d.dataValidadeCnd) : undefined,
-      dataValidadeFGTS: d.dataValidadeFGTS ? new Date(d.dataValidadeFGTS) : undefined,
-      dataValidadeTrabalhista: d.dataValidadeTrabalhista ? new Date(d.dataValidadeTrabalhista) : undefined,
-    },
-  })
-
-  return NextResponse.json({ fornecedor }, { status: 201 })
-}
-
-export async function PATCH(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-
-  const { id, ...campos } = await req.json()
-  if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
-
-  const atualizaveis = ['razaoSocial','nomeFantasia','email','telefone','cep','logradouro',
-    'numero','bairro','cidade','uf','regularFiscal',
-    'dataValidadeCnd','dataValidadeFGTS','dataValidadeTrabalhista','ativo']
-
-  const data: any = {}
-  for (const c of atualizaveis) {
-    if (campos[c] !== undefined) {
-      data[c] = c.startsWith('dataValidade') && campos[c] ? new Date(campos[c]) : campos[c]
-    }
+  const municipioId = mid(req)
+  const { nome, cnpj, email, telefone, logradouro, numero, bairro, cep, ie } = await req.json()
+  if (!nome?.trim() || !cnpj) return NextResponse.json({ erro: 'Nome e CNPJ obrigatórios' }, { status: 400 })
+  const doc = cnpj.replace(/\D/g, '')
+  try {
+    const dup = await db.$queryRaw<any[]>`SELECT id FROM Contribuinte WHERE municipioId = ${municipioId} AND cpfCnpj = ${doc} LIMIT 1`
+    if (dup.length) return NextResponse.json({ erro: 'CNPJ já cadastrado' }, { status: 409 })
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO Contribuinte (id, municipioId, nome, cpfCnpj, tipo, email, telefone,
+                                logradouro, numero, bairro, cep, ie)
+      VALUES (${id}, ${municipioId}, ${nome.trim()}, ${doc}, 'PJ',
+              ${email || null}, ${telefone || null}, ${logradouro || null},
+              ${numero || null}, ${bairro || null}, ${cep || null}, ${ie || null})`
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const atualizado = await prisma.fornecedor.update({ where: { id }, data })
-  return NextResponse.json({ fornecedor: atualizado })
 }

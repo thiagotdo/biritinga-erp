@@ -11,6 +11,7 @@ import {
   FileText, TrendingUp, CircleDollarSign,
   School, BookOpen, Heart, UtensilsCrossed,
   Syringe, Pill, Activity, Building2, Package, UserCheck,
+  Briefcase, Car, DollarSign, Fuel, ClipboardList, AlertCircle,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -75,11 +76,17 @@ const NAV_ADMIN = [
     { href: '/admin/transparencia',  label: 'Transparência',    Icon: BarChart2       },
   ]},
   { grupo: 'ERP', items: [
-    { href: '/gestao/sefin',         label: 'Financeiro',       Icon: Wallet          },
-    { href: '/gestao/semad',         label: 'Administrativo',   Icon: FolderOpen      },
-    { href: '/gestao/saude',           label: 'Saúde',            Icon: Stethoscope     },
-    { href: '/gestao/educacao',       label: 'Educação',         Icon: GraduationCap   },
-    { href: '/gestao/comunicacao/noticias', label: 'SECOM',     Icon: Newspaper       },
+    { href: '/gestao/sefin',        label: 'Financeiro',      Icon: Wallet          },
+    { href: '/gestao/semad',        label: 'Administrativo',  Icon: FolderOpen      },
+    { href: '/gestao/folha',        label: 'Folha Pagto.',    Icon: DollarSign      },
+    { href: '/gestao/saude',        label: 'Saúde',           Icon: Stethoscope     },
+    { href: '/gestao/educacao',     label: 'Educação',        Icon: GraduationCap   },
+    { href: '/gestao/tributacao',   label: 'Tributação',      Icon: CircleDollarSign},
+    { href: '/gestao/licitacoes',   label: 'Licitações',      Icon: Landmark        },
+    { href: '/gestao/patrimonio',   label: 'Patrimônio',      Icon: Package         },
+    { href: '/gestao/frota',        label: 'Frota',           Icon: Car             },
+    { href: '/gestao/obras',        label: 'Obras',           Icon: HardHat         },
+    { href: '/gestao/comunicacao/noticias', label: 'SECOM',   Icon: Newspaper       },
   ]},
 ]
 
@@ -130,7 +137,45 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/sefin/orcamento',    label: 'Orçamento',     Icon: BarChart2        },
     { href: '/gestao/sefin/fornecedores', label: 'Fornecedores',  Icon: Users            },
   ]}],
-  SEMAD: [{ grupo: 'Administrativo',  items: [{ href: '/gestao/semad', label: 'Painel SEMAD', Icon: FolderOpen   }] }],
+  SEMAD: [{ grupo: 'Administrativo', items: [
+    { href: '/gestao/semad',              label: 'Painel SEMAD',   Icon: FolderOpen    },
+    { href: '/gestao/semad/servidores',   label: 'Servidores',     Icon: Users         },
+    { href: '/gestao/semad/cargos',       label: 'Cargos',         Icon: Briefcase     },
+    { href: '/gestao/semad/ferias',       label: 'Férias',         Icon: CalendarDays  },
+    { href: '/gestao/semad/frequencia',   label: 'Frequência',     Icon: ClipboardList },
+    { href: '/gestao/semad/contrato',     label: 'Contratos RH',   Icon: FileText      },
+    { href: '/gestao/folha',             label: 'Folha Pagamento', Icon: DollarSign    },
+  ]}],
+  TRIBUTACAO: [{ grupo: 'Tributação', items: [
+    { href: '/gestao/tributacao',                 label: 'Painel Tributação', Icon: DollarSign  },
+    { href: '/gestao/tributacao/contribuinte',    label: 'Contribuintes',     Icon: Users       },
+    { href: '/gestao/tributacao/iptu',            label: 'IPTU',              Icon: FileText    },
+    { href: '/gestao/tributacao/iss',             label: 'ISS',               Icon: FileText    },
+    { href: '/gestao/tributacao/divida',          label: 'Dívida Ativa',      Icon: AlertCircle },
+    { href: '/gestao/tributacao/contribuintes',   label: 'Gestão Débitos',    Icon: TrendingUp  },
+  ]}],
+  LICITACOES: [{ grupo: 'Licitações', items: [
+    { href: '/gestao/licitacoes',              label: 'Painel Licitações', Icon: Landmark   },
+    { href: '/gestao/licitacoes/licitacoes',   label: 'Licitações',        Icon: FileText   },
+    { href: '/gestao/licitacoes/contratos',    label: 'Contratos',         Icon: CircleCheck},
+    { href: '/gestao/licitacoes/processos',    label: 'Processos',         Icon: Inbox      },
+  ]}],
+  PATRIMONIO: [{ grupo: 'Patrimônio', items: [
+    { href: '/gestao/patrimonio',           label: 'Painel Patrimônio', Icon: Package      },
+    { href: '/gestao/patrimonio/bens',      label: 'Bens',              Icon: Package      },
+    { href: '/gestao/patrimonio/inventario',label: 'Inventário',        Icon: ClipboardList},
+  ]}],
+  FROTA: [{ grupo: 'Frota', items: [
+    { href: '/gestao/frota',           label: 'Painel Frota', Icon: Car       },
+    { href: '/gestao/frota/veiculos',  label: 'Veículos',     Icon: Car       },
+    { href: '/gestao/frota/operacoes', label: 'Operações',    Icon: Fuel      },
+  ]}],
+  OBRAS: [{ grupo: 'Obras', items: [
+    { href: '/gestao/obras',           label: 'Painel Obras', Icon: HardHat   },
+    { href: '/gestao/obras/obras',     label: 'Obras',        Icon: HardHat   },
+    { href: '/gestao/obras/alvaras',   label: 'Alvarás',      Icon: FileText  },
+    { href: '/gestao/obras/contratos', label: 'Contratos',    Icon: Briefcase },
+  ]}],
   SEMMA: [{ grupo: 'Meio Ambiente',   items: [{ href: '/gestao/semma', label: 'Painel SEMMA', Icon: Leaf         }] }],
   SEMOB: [{ grupo: 'Obras',           items: [{ href: '/gestao/semob', label: 'Painel SEMOB', Icon: HardHat      }] }],
 }

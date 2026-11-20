@@ -1,201 +1,129 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { extrairContextoRequest, auditLog } from '@/lib/audit'
-import { temPermissao } from '@/lib/auth/rbac'
+import { db } from '@/lib/db'
 
-const ServidorSchema = z.object({
-  matricula:         z.string().min(1),
-  nome:              z.string().min(3),
-  cpf:               z.string().min(11),
-  rg:                z.string().optional(),
-  dataNascimento:    z.string().datetime().optional(),
-  sexo:              z.enum(['M', 'F', 'O']).optional(),
-  estadoCivil:       z.string().optional(),
-  naturalidade:      z.string().optional(),
-  pcd:               z.boolean().default(false),
-  tipoDeficiencia:   z.string().optional(),
+export const runtime = 'nodejs'
 
-  // Contato
-  email:             z.string().email().optional(),
-  emailInstitucional:z.string().email().optional(),
-  telefone:          z.string().optional(),
-  celular:           z.string().optional(),
+function mid(req: NextRequest) { return req.headers.get('x-erp-municipio-id') ?? '' }
 
-  // Endereço
-  cep:               z.string().optional(),
-  logradouro:        z.string().optional(),
-  numero:            z.string().optional(),
-  complemento:       z.string().optional(),
-  bairro:            z.string().optional(),
-  cidade:            z.string().optional(),
-  estado:            z.string().optional(),
-
-  // Dados funcionais
-  cargoId:           z.string().optional(),
-  vinculo:           z.enum(['EFETIVO','COMISSIONADO','CONTRATADO_CLT','CONTRATADO_TEMPORARIO','ESTAGIARIO','AGENTE_POLITICO']).default('EFETIVO'),
-  regime:            z.enum(['ESTATUTARIO','CLT','AUTONOMO']).default('ESTATUTARIO'),
-  dataAdmissao:      z.string().datetime(),
-  dataPosse:         z.string().datetime().optional(),
-  cargaHoraria:      z.number().int().min(1).max(44).default(40),
-  salarioBase:       z.number().positive().optional(),
-  nivelProgresso:    z.string().optional(),
-
-  // Bancário
-  banco:             z.string().optional(),
-  agencia:           z.string().optional(),
-  contaCorrente:     z.string().optional(),
-
-  // Documentos
-  pis:               z.string().optional(),
-  tituloEleitor:     z.string().optional(),
-  ctps:              z.string().optional(),
-
-  observacoes:       z.string().optional(),
-})
-
-// POST /api/semad/servidores
-export async function POST(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
-
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'semad:servidor:create')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
+export async function GET(req: NextRequest) {
+  const municipioId = mid(req)
+  const { searchParams } = new URL(req.url)
+  const id      = searchParams.get('id')
+  const busca   = searchParams.get('busca')
+  const situacao= searchParams.get('situacao')
+  const page    = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
+  const limit   = 20
+  const offset  = (page - 1) * limit
 
   try {
-    const body = await request.json()
-    const dados = ServidorSchema.parse(body)
+    if (id) {
+      const rows = await db.$queryRaw<any[]>`
+        SELECT s.*, c.nome AS cargoNome
+        FROM Servidor s
+        LEFT JOIN Cargo c ON c.id = s.cargoId
+        WHERE s.id = ${id} AND s.municipioId = ${municipioId} LIMIT 1`
+      if (!rows.length) return NextResponse.json({ erro: 'Servidor não encontrado' }, { status: 404 })
 
-    // Verificar CPF duplicado
-    const cpfExistente = await prisma.servidor.findFirst({
-      where: { municipioId: ctx.municipioId, cpf: dados.cpf, ativo: true },
-    })
-    if (cpfExistente) {
-      return NextResponse.json({ erro: 'CPF já cadastrado', servidorId: cpfExistente.id }, { status: 409 })
+      const lotacoes = await db.$queryRaw<any[]>`
+        SELECT * FROM Lotacao WHERE servidorId = ${id} ORDER BY dataInicio DESC LIMIT 5`
+      const ferias = await db.$queryRaw<any[]>`
+        SELECT * FROM Ferias WHERE servidorId = ${id} ORDER BY exercicio DESC LIMIT 5`
+
+      return NextResponse.json({ servidor: rows[0], lotacoes, ferias })
     }
 
-    // Verificar matrícula duplicada
-    const matriculaExistente = await prisma.servidor.findFirst({
-      where: { municipioId: ctx.municipioId, matricula: dados.matricula, ativo: true },
-    })
-    if (matriculaExistente) {
-      return NextResponse.json({ erro: 'Matrícula já cadastrada', servidorId: matriculaExistente.id }, { status: 409 })
+    if (busca && busca.length >= 2) {
+      const like = `%${busca}%`
+      const rows = await db.$queryRaw<any[]>`
+        SELECT s.id, s.matricula, s.nome, s.cpf, s.vinculo, s.situacao, s.dataAdmissao,
+               c.nome AS cargoNome
+        FROM Servidor s LEFT JOIN Cargo c ON c.id = s.cargoId
+        WHERE s.municipioId = ${municipioId}
+          AND (s.nome LIKE ${like} OR s.matricula LIKE ${like} OR s.cpf LIKE ${like})
+        ORDER BY s.nome LIMIT 50`
+      return NextResponse.json({ servidores: rows })
     }
 
-    const servidor = await prisma.$transaction(async (tx) => {
-      const s = await tx.servidor.create({
-        data: {
-          municipioId: ctx.municipioId,
-          ...dados,
-          vinculo: dados.vinculo as any,
-          regime: dados.regime as any,
-          situacao: 'ATIVO',
-          dataAdmissao: new Date(dados.dataAdmissao),
-          dataPosse: dados.dataPosse ? new Date(dados.dataPosse) : undefined,
-          dataNascimento: dados.dataNascimento ? new Date(dados.dataNascimento) : undefined,
-        },
-      })
+    // Lista com filtro opcional de situação
+    let rows: any[]
+    const countR = situacao
+      ? await db.$queryRaw<any[]>`SELECT COUNT(*) AS t FROM Servidor WHERE municipioId = ${municipioId} AND situacao = ${situacao} AND ativo = 1`
+      : await db.$queryRaw<any[]>`SELECT COUNT(*) AS t FROM Servidor WHERE municipioId = ${municipioId} AND ativo = 1`
 
-      // Registrar movimentação de admissão
-      await tx.movimentacaoFuncional.create({
-        data: {
-          municipioId: ctx.municipioId,
-          servidorId: s.id,
-          tipo: 'ADMISSAO',
-          dataEfetiva: new Date(dados.dataAdmissao),
-          descricao: `Admissão como ${dados.vinculo} — ${dados.regime}`,
-          salarioNovo: dados.salarioBase,
-          registradoPor: ctx.usuarioId,
-        },
-      })
-
-      return s
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'CREATE',
-      modulo: 'semad',
-      recurso: 'servidor',
-      registroId: servidor.id,
-      dadosNovos: { matricula: dados.matricula, nome: dados.nome, vinculo: dados.vinculo },
-    })
-
-    return NextResponse.json({ servidor }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
+    if (situacao) {
+      rows = await db.$queryRaw<any[]>`
+        SELECT s.id, s.matricula, s.nome, s.cpf, s.vinculo, s.regime, s.situacao,
+               s.dataAdmissao, s.salarioBase, c.nome AS cargoNome
+        FROM Servidor s LEFT JOIN Cargo c ON c.id = s.cargoId
+        WHERE s.municipioId = ${municipioId} AND s.situacao = ${situacao} AND s.ativo = 1
+        ORDER BY s.nome LIMIT ${limit} OFFSET ${offset}`
+    } else {
+      rows = await db.$queryRaw<any[]>`
+        SELECT s.id, s.matricula, s.nome, s.cpf, s.vinculo, s.regime, s.situacao,
+               s.dataAdmissao, s.salarioBase, c.nome AS cargoNome
+        FROM Servidor s LEFT JOIN Cargo c ON c.id = s.cargoId
+        WHERE s.municipioId = ${municipioId} AND s.ativo = 1
+        ORDER BY s.nome LIMIT ${limit} OFFSET ${offset}`
     }
-    console.error('[SERVIDOR]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+
+    const total = Number(countR[0]?.t ?? 0)
+    return NextResponse.json({ servidores: rows, total, page, pages: Math.ceil(total / limit) })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-// GET /api/semad/servidores
-export async function GET(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
+export async function POST(req: NextRequest) {
+  const municipioId = mid(req)
+  const body = await req.json()
+  const { matricula, nome, cpf, dataNascimento, sexo, estadoCivil,
+    email, emailInstitucional, telefone, celular, cep, logradouro,
+    numero, bairro, cidade, estado, cargoId, vinculo, regime,
+    dataAdmissao, cargaHoraria, salarioBase } = body
 
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'semad:servidor:read')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
+  if (!matricula || !nome || !cpf || !dataAdmissao)
+    return NextResponse.json({ erro: 'Matricula, nome, CPF e dataAdmissão obrigatórios' }, { status: 400 })
+
+  const cpfClean = cpf.replace(/\D/g, '')
+  try {
+    const dup = await db.$queryRaw<any[]>`
+      SELECT id FROM Servidor WHERE municipioId = ${municipioId} AND matricula = ${matricula} LIMIT 1`
+    if (dup.length) return NextResponse.json({ erro: 'Matrícula já cadastrada' }, { status: 409 })
+
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO Servidor (id, municipioId, matricula, nome, cpf, dataNascimento, sexo,
+                            estadoCivil, email, emailInstitucional, telefone, celular,
+                            cep, logradouro, numero, bairro, cidade, estado, cargoId,
+                            vinculo, regime, dataAdmissao, cargaHoraria, salarioBase)
+      VALUES (${id}, ${municipioId}, ${matricula}, ${nome}, ${cpfClean},
+              ${dataNascimento || null}, ${sexo || null}, ${estadoCivil || null},
+              ${email || null}, ${emailInstitucional || null}, ${telefone || null},
+              ${celular || null}, ${cep || null}, ${logradouro || null}, ${numero || null},
+              ${bairro || null}, ${cidade || null}, ${estado || null}, ${cargoId || null},
+              ${vinculo ?? 'EFETIVO'}, ${regime ?? 'ESTATUTARIO'}, ${dataAdmissao},
+              ${cargaHoraria ?? 40}, ${salarioBase || null})`
+
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
+}
 
-  const { searchParams } = new URL(request.url)
-  const busca      = searchParams.get('busca')
-  const situacao   = searchParams.get('situacao')
-  const vinculo    = searchParams.get('vinculo')
-  const cargoId    = searchParams.get('cargoId')
-  const unidadeId  = searchParams.get('unidadeId')
-  const page       = parseInt(searchParams.get('page') || '1')
-  const limit      = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
-  const skip       = (page - 1) * limit
-
-  const where: any = {
-    municipioId: ctx.municipioId,
-    ativo: true,
-    ...(situacao && { situacao: situacao as any }),
-    ...(vinculo  && { vinculo: vinculo as any }),
-    ...(cargoId  && { cargoId }),
-    ...(busca && {
-      OR: [
-        { nome:      { contains: busca } },
-        { matricula: { contains: busca } },
-        { cpf:       { contains: busca } },
-        { emailInstitucional: { contains: busca } },
-      ],
-    }),
-    // filtro por unidade via lotações
-    ...(unidadeId && {
-      lotacoes: { some: { unidadeId, ativo: true } },
-    }),
+export async function PATCH(req: NextRequest) {
+  const municipioId = mid(req)
+  const { id, situacao, cargoId, salarioBase, email, celular, bairro, observacoes } = await req.json()
+  if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
+  try {
+    if (situacao    !== undefined) await db.$queryRaw`UPDATE Servidor SET situacao    = ${situacao}    WHERE id = ${id} AND municipioId = ${municipioId}`
+    if (cargoId     !== undefined) await db.$queryRaw`UPDATE Servidor SET cargoId     = ${cargoId}     WHERE id = ${id} AND municipioId = ${municipioId}`
+    if (salarioBase !== undefined) await db.$queryRaw`UPDATE Servidor SET salarioBase = ${salarioBase} WHERE id = ${id} AND municipioId = ${municipioId}`
+    if (email       !== undefined) await db.$queryRaw`UPDATE Servidor SET email       = ${email}       WHERE id = ${id} AND municipioId = ${municipioId}`
+    if (celular     !== undefined) await db.$queryRaw`UPDATE Servidor SET celular     = ${celular}     WHERE id = ${id} AND municipioId = ${municipioId}`
+    if (bairro      !== undefined) await db.$queryRaw`UPDATE Servidor SET bairro      = ${bairro}      WHERE id = ${id} AND municipioId = ${municipioId}`
+    if (observacoes !== undefined) await db.$queryRaw`UPDATE Servidor SET observacoes = ${observacoes} WHERE id = ${id} AND municipioId = ${municipioId}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const [servidores, total] = await Promise.all([
-    prisma.servidor.findMany({
-      where,
-      select: {
-        id: true, matricula: true, nome: true, cpf: true,
-        situacao: true, vinculo: true, regime: true,
-        cargoId: true, cargaHoraria: true, salarioBase: true,
-        dataAdmissao: true, emailInstitucional: true, celular: true,
-        pcd: true, foto: true,
-        cargo: { select: { id: true, nome: true, simbolo: true } },
-        lotacoes: {
-          where: { ativo: true },
-          select: { unidade: { select: { id: true, nome: true, sigla: true } }, funcao: true },
-          take: 1,
-        },
-        _count: { select: { ferias: true, afastamentos: true } },
-      },
-      orderBy: { nome: 'asc' },
-      skip,
-      take: limit,
-    }),
-    prisma.servidor.count({ where }),
-  ])
-
-  return NextResponse.json({
-    dados: servidores,
-    paginacao: { total, page, limit, totalPages: Math.ceil(total / limit) },
-  })
 }

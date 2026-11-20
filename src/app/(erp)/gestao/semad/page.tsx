@@ -3,352 +3,167 @@
 import { useState, useEffect } from 'react'
 import {
   Users, UserCheck, UserX, Briefcase, Calendar,
-  TrendingUp, AlertCircle, ChevronRight, Building2,
-  Clock, Award, Cake, ArrowUpRight, FileText,
-  UserMinus, Shield, BarChart3,
+  AlertCircle, ChevronRight, Building2,
+  Clock, BarChart3, Loader2,
 } from 'lucide-react'
+import Link from 'next/link'
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
-interface KpiDashboard {
-  ativos: number
-  inativos: number
-  emFerias: number
-  afastados: number
-  admissoesEsteMes: number
-  feriasPendentes: number
-  vagasDisponiveis: number
+interface DashboardData {
+  kpis: {
+    totalServidores: number
+    ativos: number
+    emFerias: number
+    afastados: number
+    efetivos: number
+    comissionados: number
+    pcd: number
+    totalCargos: number
+    feriasAtivas: number
+    folhaBruto: number
+    folhaLiquido: number
+    folhaStatus: string | null
+  }
+  secretarias: { secretaria: string; total: number }[]
 }
 
-interface DistCargo {
-  cargo: string
-  total: number
-  pct: number
-}
+export default function SemadDashboard() {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
-interface Aniversariante {
-  id: string
-  nome: string
-  dataNascimento: string
-  cargo: string
-  unidade: string
-  diasRestantes: number
-}
+  useEffect(() => {
+    fetch('/api/semad/dashboard')
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(e => { setErro(e.message); setLoading(false) })
+  }, [])
 
-interface FeriasVencida {
-  id: string
-  nome: string
-  matricula: string
-  cargo: string
-  exercicio: number
-}
+  const fmtMoeda = (v: number) =>
+    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-interface AfastamentoAlerta {
-  id: string
-  nome: string
-  tipo: string
-  dataFim: string
-  diasRestantes: number
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function diasParaAniversario(nascimento: string): number {
-  const hoje = new Date()
-  const nasc = new Date(nascimento)
-  const proximo = new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate())
-  if (proximo < hoje) proximo.setFullYear(hoje.getFullYear() + 1)
-  return Math.ceil((proximo.getTime() - hoje.getTime()) / 86400000)
-}
-
-// ─── Mocks ───────────────────────────────────────────────────────────────────
-
-const KPI_MOCK: KpiDashboard = {
-  ativos: 342,
-  inativos: 18,
-  emFerias: 24,
-  afastados: 11,
-  admissoesEsteMes: 3,
-  feriasPendentes: 7,
-  vagasDisponiveis: 29,
-}
-
-const DIST_CARGOS_MOCK: DistCargo[] = [
-  { cargo: 'Professor', total: 108, pct: 32 },
-  { cargo: 'Agente de Saúde', total: 54, pct: 16 },
-  { cargo: 'Assistente Administrativo', total: 47, pct: 14 },
-  { cargo: 'Motorista', total: 31, pct: 9 },
-  { cargo: 'Outros', total: 102, pct: 30 },
-]
-
-const ANIVERSARIANTES_MOCK: Aniversariante[] = [
-  { id: '1', nome: 'Ana Carla Lima', dataNascimento: '1988-11-15', cargo: 'Professora', unidade: 'SEC', diasRestantes: 2 },
-  { id: '2', nome: 'Pedro Vieira', dataNascimento: '1975-11-18', cargo: 'Motorista', unidade: 'SEMOB', diasRestantes: 5 },
-  { id: '3', nome: 'Joana Silva', dataNascimento: '1990-11-20', cargo: 'Assistente Adm.', unidade: 'SEMAD', diasRestantes: 7 },
-]
-
-const FERIAS_VENCIDAS_MOCK: FeriasVencida[] = [
-  { id: '1', nome: 'Carlos Mendes', matricula: '00123', cargo: 'Ag. Administrativo', exercicio: 2024 },
-  { id: '2', nome: 'Marta Souza', matricula: '00287', cargo: 'Professora', exercicio: 2024 },
-  { id: '3', nome: 'Rui Ferreira', matricula: '00351', cargo: 'Vigia', exercicio: 2023 },
-]
-
-const AFASTAMENTOS_MOCK: AfastamentoAlerta[] = [
-  { id: '1', nome: 'Luísa Araújo', tipo: 'LICENCA_MEDICA', dataFim: '2026-11-20', diasRestantes: 7 },
-  { id: '2', nome: 'Fabrício Nunes', tipo: 'CAPACITACAO', dataFim: '2026-11-25', diasRestantes: 12 },
-]
-
-const TIPO_AFASTAMENTO_LABEL: Record<string, string> = {
-  FERIAS: 'Férias',
-  LICENCA_MEDICA: 'Lic. Médica',
-  LICENCA_MATERNIDADE: 'Lic. Maternidade',
-  LICENCA_PATERNIDADE: 'Lic. Paternidade',
-  CAPACITACAO: 'Capacitação',
-  MANDATO_SINDICAL: 'Mandato Sindical',
-  ACIDENTE_TRABALHO: 'Acidente de Trabalho',
-  CEDENCIA: 'Cedência',
-  PROCESSO_ADMINISTRATIVO: 'Proc. Administrativo',
-  ELEICAO: 'Eleição',
-  OUTROS: 'Outros',
-}
-
-// ─── Componentes auxiliares ───────────────────────────────────────────────────
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  color,
-  href,
-}: {
-  icon: React.ElementType
-  label: string
-  value: number | string
-  sub?: string
-  color: string
-  href?: string
-}) {
-  return (
-    <div
-      className={`bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow ${href ? 'cursor-pointer' : ''}`}
-      onClick={() => href && (window.location.href = href)}
-    >
-      <div className={`p-3 rounded-lg ${color}`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      <div>
-        <p className="text-sm text-slate-500">{label}</p>
-        <p className="text-2xl font-bold text-slate-900">{value}</p>
-        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
-      </div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="animate-spin w-8 h-8 text-blue-600" />
     </div>
   )
-}
+  if (erro || !data) return (
+    <div className="p-8 text-red-600">Erro ao carregar dashboard: {erro}</div>
+  )
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+  const { kpis, secretarias } = data
 
-export default function DashboardSemad() {
-  const [kpi, setKpi] = useState<KpiDashboard>(KPI_MOCK)
-  const [distCargos] = useState<DistCargo[]>(DIST_CARGOS_MOCK)
-  const [aniversariantes] = useState<Aniversariante[]>(ANIVERSARIANTES_MOCK)
-  const [feriasVencidas] = useState<FeriasVencida[]>(FERIAS_VENCIDAS_MOCK)
-  const [afastamentos] = useState<AfastamentoAlerta[]>(AFASTAMENTOS_MOCK)
+  const cards = [
+    { label: 'Total de Servidores', value: kpis.totalServidores, Icon: Users, cor: 'blue' },
+    { label: 'Ativos', value: kpis.ativos, Icon: UserCheck, cor: 'green' },
+    { label: 'Em Férias', value: kpis.emFerias, Icon: Calendar, cor: 'yellow' },
+    { label: 'Afastados', value: kpis.afastados, Icon: UserX, cor: 'red' },
+    { label: 'Efetivos', value: kpis.efetivos, Icon: Building2, cor: 'indigo' },
+    { label: 'Comissionados', value: kpis.comissionados, Icon: Briefcase, cor: 'purple' },
+    { label: 'Cargos Ativos', value: kpis.totalCargos, Icon: BarChart3, cor: 'teal' },
+    { label: 'Férias no Mês', value: kpis.feriasAtivas, Icon: Clock, cor: 'orange' },
+  ]
 
-  // Em produção: fetch('/api/semad/dashboard/kpi') etc.
+  const corMap: Record<string, string> = {
+    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    green: 'bg-green-50 text-green-700 border-green-200',
+    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    red: 'bg-red-50 text-red-700 border-red-200',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    purple: 'bg-purple-50 text-purple-700 border-purple-200',
+    teal: 'bg-teal-50 text-teal-700 border-teal-200',
+    orange: 'bg-orange-50 text-orange-700 border-orange-200',
+  }
 
-  const totalAtivos = kpi.ativos + kpi.emFerias + kpi.afastados
+  const atalhos = [
+    { href: '/gestao/semad/servidores', label: 'Servidores', Icon: Users },
+    { href: '/gestao/semad/cargos', label: 'Cargos', Icon: Briefcase },
+    { href: '/gestao/semad/ferias', label: 'Férias', Icon: Calendar },
+    { href: '/gestao/semad/frequencia', label: 'Frequência', Icon: Clock },
+    { href: '/gestao/semad/contrato', label: 'Contratos', Icon: AlertCircle },
+    { href: '/gestao/folha', label: 'Folha de Pagamento', Icon: BarChart3 },
+  ]
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
-
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Building2 className="w-7 h-7 text-indigo-600" />
-            Administração Municipal
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">Gestão de Recursos Humanos — SEMAD</p>
-        </div>
-        <div className="flex gap-2">
-          <a href="/gestao/semad/servidores/novo" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
-            <Users className="w-4 h-4" /> Novo Servidor
-          </a>
-        </div>
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Painel SEMAD</h1>
+        <p className="text-gray-500 mt-1">Secretaria Municipal de Administração</p>
       </div>
 
-      {/* KPIs principais */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard icon={UserCheck}  label="Servidores Ativos"    value={kpi.ativos}            sub={`${totalAtivos} no quadro total`} color="bg-indigo-500" href="/gestao/semad/servidores?situacao=ATIVO" />
-        <KpiCard icon={Calendar}   label="Em Férias"            value={kpi.emFerias}           sub="período corrente"                 color="bg-sky-500"    href="/gestao/semad/ferias?status=EM_GOZO" />
-        <KpiCard icon={UserMinus}  label="Afastados"            value={kpi.afastados}          sub="licenças e afastamentos"          color="bg-amber-500"  href="/gestao/semad/servidores?situacao=AFASTADO" />
-        <KpiCard icon={Briefcase}  label="Vagas Disponíveis"    value={kpi.vagasDisponiveis}   sub="quadro de vagas 2026"             color="bg-emerald-500" />
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <KpiCard icon={TrendingUp} label="Admissões este mês"   value={kpi.admissoesEsteMes}   color="bg-violet-500" href="/gestao/semad/servidores?admissaoMes=1" />
-        <KpiCard icon={Clock}      label="Férias Pendentes"     value={kpi.feriasPendentes}    sub="aguardando aprovação"             color="bg-orange-500" href="/gestao/semad/ferias?status=SOLICITADA" />
-        <KpiCard icon={UserX}      label="Inativos / Exonerados" value={kpi.inativos}          color="bg-slate-400" href="/gestao/semad/servidores?situacao=INATIVO" />
-      </div>
-
-      {/* Linha central: distribuição de cargos + aniversariantes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Distribuição por cargo */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-indigo-500" /> Distribuição por Cargo
-            </h2>
-            <a href="/gestao/semad/cargos" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
-              Ver cargos <ArrowUpRight className="w-3 h-3" />
-            </a>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {cards.map(({ label, value, Icon, cor }) => (
+          <div key={label} className={`rounded-xl border p-4 ${corMap[cor]}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Icon className="w-4 h-4" />
+              <span className="text-xs font-medium">{label}</span>
+            </div>
+            <div className="text-2xl font-bold">{value.toLocaleString('pt-BR')}</div>
           </div>
-          <div className="space-y-3">
-            {distCargos.map((item) => (
-              <div key={item.cargo}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-700">{item.cargo}</span>
-                  <span className="text-slate-500 font-medium">{item.total} ({item.pct}%)</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        ))}
+      </div>
+
+      {/* Folha do Mês */}
+      {kpis.folhaBruto > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Folha de Pagamento — Mês Atual</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-gray-500">Total Bruto</div>
+              <div className="text-lg font-bold text-gray-900">{fmtMoeda(kpis.folhaBruto)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Total Líquido</div>
+              <div className="text-lg font-bold text-green-700">{fmtMoeda(kpis.folhaLiquido)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Status</div>
+              <span className={`inline-block text-xs px-2 py-1 rounded-full font-medium ${
+                kpis.folhaStatus === 'FECHADA' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+              }`}>{kpis.folhaStatus ?? 'EM ABERTO'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Distribuição por Secretaria */}
+      {secretarias.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Distribuição por Secretaria</h2>
+          <div className="space-y-2">
+            {secretarias.map(s => (
+              <div key={s.secretaria} className="flex items-center gap-3">
+                <div className="text-xs text-gray-600 w-32 truncate">{s.secretaria}</div>
+                <div className="flex-1 bg-gray-100 rounded-full h-2">
                   <div
-                    className="h-full bg-indigo-500 rounded-full"
-                    style={{ width: `${item.pct}%` }}
+                    className="bg-blue-500 h-2 rounded-full"
+                    style={{ width: `${Math.round((s.total / kpis.totalServidores) * 100)}%` }}
                   />
                 </div>
+                <div className="text-xs font-medium text-gray-700 w-8 text-right">{s.total}</div>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Aniversariantes da semana */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-              <Cake className="w-4 h-4 text-pink-500" /> Aniversariantes da Semana
-            </h2>
-            <span className="text-xs text-slate-400">{aniversariantes.length} servidores</span>
-          </div>
-          {aniversariantes.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">Nenhum aniversariante nos próximos 7 dias</p>
-          ) : (
-            <div className="space-y-3">
-              {aniversariantes.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-pink-50 border border-pink-100">
-                  <div className="w-9 h-9 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-bold text-sm">
-                    {a.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{a.nome}</p>
-                    <p className="text-xs text-slate-500">{a.cargo} · {a.unidade}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs font-semibold text-pink-600">
-                      {a.diasRestantes === 0 ? 'Hoje!' : a.diasRestantes === 1 ? 'Amanhã' : `em ${a.diasRestantes}d`}
-                    </p>
-                    <p className="text-xs text-slate-400">{new Date(a.dataNascimento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Linha inferior: férias vencidas + afastamentos próximos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Férias vencidas */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-orange-500" /> Férias Vencidas / Pendentes
-            </h2>
-            <a href="/gestao/semad/ferias?vencidas=true" className="text-xs text-orange-600 hover:underline flex items-center gap-1">
-              Ver todas <ChevronRight className="w-3 h-3" />
-            </a>
-          </div>
-          {feriasVencidas.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">Nenhum servidor com férias vencidas</p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {feriasVencidas.map((f) => (
-                <div key={f.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{f.nome}</p>
-                    <p className="text-xs text-slate-500">Mat. {f.matricula} · {f.cargo}</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                    Exercício {f.exercicio}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Afastamentos próximos do fim */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-sky-500" /> Afastamentos — Próximo Retorno
-            </h2>
-            <a href="/gestao/semad/servidores?situacao=AFASTADO" className="text-xs text-sky-600 hover:underline flex items-center gap-1">
-              Ver todos <ChevronRight className="w-3 h-3" />
-            </a>
-          </div>
-          {afastamentos.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">Nenhum afastamento próximo do fim</p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {afastamentos.map((af) => (
-                <div key={af.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{af.nome}</p>
-                    <p className="text-xs text-slate-500">{TIPO_AFASTAMENTO_LABEL[af.tipo] ?? af.tipo}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-medium text-slate-700">Retorno: {formatDate(af.dataFim)}</p>
-                    <p className={`text-xs font-semibold ${af.diasRestantes <= 3 ? 'text-red-600' : 'text-sky-600'}`}>
-                      em {af.diasRestantes} dias
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Acesso rápido */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Acesso Rápido</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Servidores', icon: Users, href: '/gestao/semad/servidores', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-            { label: 'Cargos', icon: Award, href: '/gestao/semad/cargos', color: 'bg-violet-50 border-violet-200 text-violet-700' },
-            { label: 'Férias', icon: Calendar, href: '/gestao/semad/ferias', color: 'bg-sky-50 border-sky-200 text-sky-700' },
-            { label: 'Frequência', icon: FileText, href: '/gestao/semad/frequencia', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-          ].map(({ label, icon: Icon, href, color }) => (
-            <a
-              key={label}
+      {/* Atalhos */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">Acesso Rápido</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {atalhos.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
               href={href}
-              className={`flex items-center gap-3 p-4 rounded-xl border ${color} hover:opacity-80 transition-opacity`}
+              className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700"
             >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium text-sm">{label}</span>
-              <ChevronRight className="w-4 h-4 ml-auto" />
-            </a>
+              <Icon className="w-4 h-4 text-blue-600" />
+              {label}
+              <ChevronRight className="w-3 h-3 ml-auto text-gray-400" />
+            </Link>
           ))}
         </div>
       </div>
-
     </div>
   )
 }

@@ -1,138 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export const runtime = 'nodejs'
-
-// ─── Folha — Relatórios ───────────────────────────────────────────────────────
-// LC 101/2000 Art. 55 — RGF deve informar despesa com pessoal e % da RCL
-// LC 101/2000 Art. 19 — Limite: 60% da RCL para municípios
-// STN Portaria 72/2012 — SIOPS relatórios de saúde/pessoal
+function mid(r: NextRequest) { return r.headers.get('x-erp-municipio-id') ?? '' }
 
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-
+  const municipioId = mid(req)
   const { searchParams } = new URL(req.url)
-  const tipo = searchParams.get('tipo') // DASHBOARD | ANUAL | POR_LOTACAO | LRF | RUBRICAS
-  const ano  = parseInt(searchParams.get('ano') ?? String(new Date().getFullYear()))
+  const mes = Number(searchParams.get('mes') ?? new Date().getMonth() + 1)
+  const ano = Number(searchParams.get('ano') ?? new Date().getFullYear())
 
-  if (tipo === 'DASHBOARD' || !tipo) {
-    // ── Resumo geral (últimos 12 meses) ──────────────────────────────────────
-    const historico = await prisma.folhaCompetencia.findMany({
-      where: { municipioId: usuario.municipioId, ano: { in: [ano - 1, ano] } },
-      orderBy: [{ ano: 'asc' }, { mes: 'asc' }],
-      select: { mes: true, ano: true, totalBruto: true, totalLiquido: true, totalDescontos: true, totalServidores: true, status: true },
-    })
+  try {
+    // Resumo por secretaria
+    const secretarias = await db.$queryRaw<any[]>`
+      SELECT l.secretaria,
+        COUNT(DISTINCT s.id) AS totalServidores,
+        SUM(s.salarioBase) AS totalBruto
+      FROM Servidor s
+      JOIN Lotacao l ON l.servidorId = s.id AND l.municipioId = ${municipioId} AND l.ativo = 1
+      WHERE s.municipioId = ${municipioId} AND s.ativo = 1 AND s.situacao = 'ATIVO'
+      GROUP BY l.secretaria
+      ORDER BY l.secretaria`
 
-    const totalAno = historico
-      .filter(h => h.ano === ano && ['CALCULADA', 'FECHADA'].includes(h.status))
-      .reduce((s, h) => ({
-        bruto: s.bruto + Number(h.totalBruto),
-        liquido: s.liquido + Number(h.totalLiquido),
-        descontos: s.descontos + Number(h.totalDescontos),
-      }), { bruto: 0, liquido: 0, descontos: 0 })
+    // Resumo geral
+    const [geral] = await db.$queryRaw<any[]>`
+      SELECT
+        COUNT(*) AS totalServidores,
+        SUM(salarioBase) AS totalBruto
+      FROM Servidor
+      WHERE municipioId = ${municipioId} AND ativo = 1 AND situacao = 'ATIVO'`
 
-    return NextResponse.json({ historico, totalAno, ano })
-  }
-
-  if (tipo === 'POR_LOTACAO') {
-    // ── Folha por secretaria (lotação) ────────────────────────────────────────
-    const mes = parseInt(searchParams.get('mes') ?? String(new Date().getMonth() + 1))
-
-    const comp = await prisma.folhaCompetencia.findUnique({
-      where: { municipioId_mes_ano: { municipioId: usuario.municipioId, mes, ano } },
-    })
-    if (!comp) return NextResponse.json({ erro: 'Competência não encontrada' }, { status: 404 })
-
-    const holerites = await prisma.folhaHolerite.findMany({
-      where: { competenciaId: comp.id, status: { not: 'ESTORNADO' } },
-      select: { lotacao: true, totalProventos: true, totalDescontos: true, totalLiquido: true },
-    })
-
-    const porLotacao: Record<string, { lotacao: string; servidores: number; totalBruto: number; totalLiquido: number }> = {}
-    for (const h of holerites) {
-      const lot = h.lotacao ?? 'Não informada'
-      if (!porLotacao[lot]) porLotacao[lot] = { lotacao: lot, servidores: 0, totalBruto: 0, totalLiquido: 0 }
-      porLotacao[lot].servidores++
-      porLotacao[lot].totalBruto += Number(h.totalProventos)
-      porLotacao[lot].totalLiquido += Number(h.totalLiquido)
-    }
+    // Folha do mês
+    const folha = await db.$queryRaw<any[]>`
+      SELECT * FROM Folha WHERE municipioId = ${municipioId} AND mes = ${mes} AND ano = ${ano} LIMIT 1`
 
     return NextResponse.json({
       mes, ano,
-      porLotacao: Object.values(porLotacao).sort((a, b) => b.totalBruto - a.totalBruto),
-    })
-  }
-
-  if (tipo === 'LRF') {
-    // ── Relatório LRF — Demonstrativo Despesa com Pessoal ────────────────────
-    // LC 101/2000 Art. 19: limite 60% RCL — municípios
-    // Alerta prudencial: 51,3% · Limite: 54%
-    // Passagem do limite → LDO Art. 23 — redução obrigatória em 2 quadrimestres
-    const rcl = parseFloat(searchParams.get('rcl') ?? '0') // RCL do exercício informada pelo usuário
-
-    const folhasMeses = await prisma.folhaCompetencia.findMany({
-      where: { municipioId: usuario.municipioId, ano, status: { in: ['CALCULADA', 'FECHADA'] } },
-      orderBy: { mes: 'asc' },
-    })
-
-    const totalAnual = folhasMeses.reduce((s, f) => s + Number(f.totalBruto), 0)
-    const percentualRCL = rcl > 0 ? (totalAnual / rcl) * 100 : null
-
-    let alertaLRF: string | null = null
-    if (percentualRCL !== null) {
-      if (percentualRCL > 54)       alertaLRF = 'LIMITE_EXCEDIDO'
-      else if (percentualRCL > 51.3) alertaLRF = 'ALERTA_PRUDENCIAL'
-    }
-
-    return NextResponse.json({
-      ano,
-      meses: folhasMeses.map(f => ({
-        mes: f.mes, totalBruto: Number(f.totalBruto), status: f.status,
+      geral: { totalServidores: Number(geral.totalServidores ?? 0), totalBruto: Number(geral.totalBruto ?? 0) },
+      secretarias: secretarias.map((r: any) => ({
+        secretaria: r.secretaria,
+        totalServidores: Number(r.totalServidores),
+        totalBruto: Number(r.totalBruto)
       })),
-      totalAnual,
-      rcl,
-      percentualRCL: percentualRCL ? Number(percentualRCL.toFixed(2)) : null,
-      limiteRCL: 54.0,
-      alertaPrudencial: 51.3,
-      alertaLRF,
-      referencia: 'LC 101/2000 Art. 19 — Limite 60% RCL · Municípios',
+      folha: folha[0] ?? null,
     })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  if (tipo === 'RUBRICAS') {
-    // ── Totais por rubrica no mês ─────────────────────────────────────────────
-    const mes = parseInt(searchParams.get('mes') ?? String(new Date().getMonth() + 1))
-
-    const comp = await prisma.folhaCompetencia.findUnique({
-      where: { municipioId_mes_ano: { municipioId: usuario.municipioId, mes, ano } },
-    })
-    if (!comp) return NextResponse.json({ erro: 'Competência não encontrada' }, { status: 404 })
-
-    const itens = await prisma.folhaHoleriteItem.groupBy({
-      by: ['rubricaId'],
-      where: { holerite: { competenciaId: comp.id, status: { not: 'ESTORNADO' } } },
-      _sum: { valor: true },
-      _count: { _all: true },
-    })
-
-    // Enriquecer com nome da rubrica
-    const rubricas = await prisma.folhaRubrica.findMany({
-      where: { id: { in: itens.map(i => i.rubricaId) } },
-      select: { id: true, codigo: true, nome: true, tipo: true },
-    })
-    const rubricaMap = Object.fromEntries(rubricas.map(r => [r.id, r]))
-
-    return NextResponse.json({
-      mes, ano,
-      porRubrica: itens.map(i => ({
-        ...rubricaMap[i.rubricaId],
-        total: Number(i._sum.valor ?? 0),
-        ocorrencias: i._count._all,
-      })).sort((a, b) => b.total - a.total),
-    })
-  }
-
-  return NextResponse.json({ erro: 'Tipo de relatório inválido' }, { status: 400 })
 }
