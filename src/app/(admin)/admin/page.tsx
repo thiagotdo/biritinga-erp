@@ -1,26 +1,57 @@
 'use client'
 import { useUsuario } from '@/components/AdminShell'
 import { useEffect, useState } from 'react'
+import {
+  Newspaper, CalendarDays, Inbox, Users,
+  Search, BarChart2, UserPlus, FileText,
+  Settings, Globe, Circle,
+} from 'lucide-react'
 
 type Stats = {
-  noticias?: number; eventos?: number; demandas?: number; usuarios?: number
-  esic?: number; transparencia?: number
+  noticias?: number; eventos?: number; demandas?: number
+  usuarios?: number; esic?: number; transparencia?: number
 }
+
+const KPI_CONFIG = [
+  { key:'noticias',      label:'Notícias',      Icon:Newspaper,    href:'/gestao/comunicacao/noticias', cor:'#1565C0' },
+  { key:'eventos',       label:'Eventos',       Icon:CalendarDays, href:'/gestao/comunicacao/agenda',   cor:'#E65100' },
+  { key:'demandas',      label:'Demandas',      Icon:Inbox,        href:'/admin/ouvidoria',             cor:'#6A1B9A' },
+  { key:'usuarios',      label:'Usuários',      Icon:Users,        href:'/admin/usuarios',              cor:'#00695C' },
+  { key:'esic',          label:'e-SIC',         Icon:Search,       href:'/gestao/esic',                 cor:'#AD1457' },
+  { key:'transparencia', label:'Transparência', Icon:BarChart2,    href:'/gestao/transparencia',        cor:'#2E7D32' },
+] as const
+
+const ACESSO_RAPIDO = [
+  { label:'Nova Notícia',   Icon:Newspaper,    href:'/gestao/comunicacao/noticias' },
+  { label:'Novo Evento',    Icon:CalendarDays, href:'/gestao/comunicacao/agenda'   },
+  { label:'Novo Usuário',   Icon:UserPlus,     href:'/admin/usuarios'              },
+  { label:'Ver Relatórios', Icon:FileText,     href:'/gestao/comunicacao/relatorios'},
+  { label:'Configurações',  Icon:Settings,     href:'/admin/configuracoes'         },
+  { label:'Portal Público', Icon:Globe,        href:'/', target:'_blank'           },
+]
+
+const STATUS = [
+  'Portal Público (biritinga.ba.gov.br)',
+  'Banco de Dados (MySQL/cPanel)',
+  'API REST',
+  'Portal da Transparência',
+  'Ouvidoria',
+  'e-SIC',
+]
 
 export default function AdminDashboard() {
   const { usuario } = useUsuario()
-  const [stats, setStats]   = useState<Stats>({})
-  const [hora, setHora]     = useState('')
+  const [stats, setStats] = useState<Stats>({})
+  const [hora, setHora]   = useState('')
 
   useEffect(() => {
-    const tick = () => setHora(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
+    const tick = () => setHora(new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }))
     tick()
     const id = setInterval(tick, 60000)
     return () => clearInterval(id)
   }, [])
 
   useEffect(() => {
-    // Carregar resumo de stats
     fetch('/api/admin/stats').then(r => r.ok ? r.json() : {}).then(setStats)
   }, [])
 
@@ -31,97 +62,93 @@ export default function AdminDashboard() {
     return 'Boa noite'
   }
 
-  const cards = [
-    { label: 'Notícias',     val: stats.noticias ?? '—', emoji: '📰', href: '/gestao/comunicacao/noticias', cor: '#1565C0' },
-    { label: 'Eventos',      val: stats.eventos ?? '—',  emoji: '📅', href: '/gestao/comunicacao/agenda',   cor: '#F57F17' },
-    { label: 'Demandas',     val: stats.demandas ?? '—', emoji: '📬', href: '/admin/ouvidoria',             cor: '#6A1B9A' },
-    { label: 'Usuários',     val: stats.usuarios ?? '—', emoji: '👥', href: '/admin/usuarios',             cor: '#00695C' },
-    { label: 'e-SIC',        val: stats.esic ?? '—',     emoji: '🔍', href: '/gestao/esic',                cor: '#AD1457' },
-    { label: 'Transparência',val: stats.transparencia ?? '—', emoji: '📊', href: '/gestao/transparencia', cor: '#2E7D32' },
-  ]
-
-  const acessoRapido = [
-    { emoji: '📰', label: 'Nova Notícia',     href: '/gestao/comunicacao/noticias' },
-    { emoji: '📅', label: 'Novo Evento',      href: '/gestao/comunicacao/agenda' },
-    { emoji: '👤', label: 'Novo Usuário',     href: '/admin/usuarios' },
-    { emoji: '📊', label: 'Ver Relatórios',   href: '/gestao/comunicacao/relatorios' },
-    { emoji: '⚙️', label: 'Configurações',   href: '/admin/configuracoes' },
-    { emoji: '🌐', label: 'Portal Público',   href: '/', target: '_blank' },
-  ]
-
   return (
-    <div style={{ padding: '28px 32px', fontFamily: 'Inter,sans-serif' }}>
-      {/* Saudação */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1A1A1A' }}>
-              {saudacao()}, {usuario?.nome.split(' ')[0]}! 👋
-            </h1>
-            <p style={{ margin: '4px 0 0', color: '#888', fontSize: 14 }}>
-              Prefeitura Municipal de Biritinga — Painel de Gestão
-            </p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#2E7D32' }}>{hora}</div>
-            <div style={{ fontSize: 12, color: '#999' }}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
+    <div style={{ padding:'28px 32px', fontFamily:'Inter,sans-serif' }}>
+
+      {/* Cabeçalho */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:28 }}>
+        <div>
+          <h1 style={{ margin:0, fontSize:22, fontWeight:800, color:'#1A1A1A' }}>
+            {saudacao()}, {usuario?.nome.split(' ')[0]}!
+          </h1>
+          <p style={{ margin:'4px 0 0', color:'#9E9E9E', fontSize:13 }}>
+            Prefeitura Municipal de Biritinga — Painel de Gestão
+          </p>
+        </div>
+        <div style={{ textAlign:'right' }}>
+          <div style={{ fontSize:22, fontWeight:800, color:'var(--cor-primaria)' }}>{hora}</div>
+          <div style={{ fontSize:12, color:'#BDBDBD' }}>
+            {new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' })}
           </div>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 }}>
-        {cards.map(c => (
-          <a key={c.label} href={c.href}
-            style={{ background: '#fff', borderRadius: 14, padding: '20px 24px', textDecoration: 'none', display: 'block', borderLeft: `4px solid ${c.cor}`, transition: 'transform 0.15s, box-shadow 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-            onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1)' }}
-            onMouseOut={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>{c.emoji}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: c.cor }}>{c.val}</div>
-            <div style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>{c.label}</div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24 }}>
+        {KPI_CONFIG.map(({ key, label, Icon, href, cor }) => (
+          <a key={key} href={href}
+            style={{
+              background:'#fff', borderRadius:12, padding:'18px 22px',
+              textDecoration:'none', display:'block',
+              borderLeft:`3px solid ${cor}`,
+              boxShadow:'0 1px 4px rgba(0,0,0,0.06)',
+              transition:'transform 0.15s, box-shadow 0.15s',
+            }}
+            onMouseOver={e => { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 18px rgba(0,0,0,0.09)' }}
+            onMouseOut={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)' }}>
+            <Icon size={20} strokeWidth={1.5} color={cor} style={{ marginBottom:8 }} />
+            <div style={{ fontSize:26, fontWeight:800, color:cor, lineHeight:1 }}>
+              {(stats as any)[key] ?? 0}
+            </div>
+            <div style={{ fontSize:12, color:'#757575', fontWeight:500, marginTop:4 }}>{label}</div>
           </a>
         ))}
       </div>
 
       {/* Acesso rápido + Status */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Acesso rápido */}
-        <div style={{ background: '#fff', borderRadius: 14, padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#333' }}>⚡ Acesso Rápido</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {acessoRapido.map(a => (
-              <a key={a.label} href={a.href} target={(a as any).target}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+
+        {/* Acesso Rápido */}
+        <div style={{ background:'#fff', borderRadius:12, padding:'18px 22px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:14 }}>
+            <Settings size={14} strokeWidth={1.5} color='#9E9E9E' />
+            <h3 style={{ margin:0, fontSize:13, fontWeight:700, color:'#424242' }}>Acesso Rápido</h3>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            {ACESSO_RAPIDO.map(({ label, Icon, href, ...rest }) => (
+              <a key={label} href={href} {...rest}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: '#F9FBF9', borderRadius: 8, padding: '10px 12px',
-                  textDecoration: 'none', color: '#333', fontSize: 13, fontWeight: 500,
-                  border: '1px solid #E8F5E9', transition: 'background 0.15s',
+                  display:'flex', alignItems:'center', gap:8,
+                  background:'var(--cor-primaria-light)', borderRadius:8, padding:'9px 12px',
+                  textDecoration:'none', color:'var(--cor-primaria-txt)', fontSize:12, fontWeight:500,
+                  border:'1px solid transparent', transition:'border-color 0.12s',
                 }}
-                onMouseOver={e => (e.currentTarget.style.background = '#E8F5E9')}
-                onMouseOut={e => (e.currentTarget.style.background = '#F9FBF9')}>
-                <span style={{ fontSize: 18 }}>{a.emoji}</span>
-                {a.label}
+                onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--cor-primaria)')}
+                onMouseOut={e => (e.currentTarget.style.borderColor = 'transparent')}>
+                <Icon size={14} strokeWidth={1.5} />
+                {label}
               </a>
             ))}
           </div>
         </div>
 
-        {/* Status do sistema */}
-        <div style={{ background: '#fff', borderRadius: 14, padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#333' }}>🟢 Status do Sistema</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { label: 'Portal Público (biritinga.ba.gov.br)', ok: true },
-              { label: 'Banco de Dados (MySQL/cPanel)',         ok: true },
-              { label: 'API REST',                             ok: true },
-              { label: 'Portal da Transparência',              ok: true },
-              { label: 'Ouvidoria',                            ok: true },
-              { label: 'e-SIC',                               ok: true },
-            ].map(s => (
-              <div key={s.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F5F5F5' }}>
-                <span style={{ fontSize: 13, color: '#555' }}>{s.label}</span>
-                <span style={{ fontSize: 11, color: s.ok ? '#2E7D32' : '#C62828', fontWeight: 700, background: s.ok ? '#E8F5E9' : '#FFEBEE', padding: '2px 8px', borderRadius: 4 }}>
-                  {s.ok ? '● Online' : '● Offline'}
+        {/* Status do Sistema */}
+        <div style={{ background:'#fff', borderRadius:12, padding:'18px 22px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:14 }}>
+            <Circle size={9} fill='#43A047' color='#43A047' />
+            <h3 style={{ margin:0, fontSize:13, fontWeight:700, color:'#424242' }}>Status do Sistema</h3>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {STATUS.map(label => (
+              <div key={label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid #F5F5F5' }}>
+                <span style={{ fontSize:12, color:'#616161' }}>{label}</span>
+                <span style={{
+                  fontSize:10, color:'#2E7D32', fontWeight:600,
+                  background:'#E8F5E9', padding:'2px 8px', borderRadius:4,
+                  display:'flex', alignItems:'center', gap:4,
+                }}>
+                  <Circle size={6} fill='#43A047' color='#43A047' />
+                  Online
                 </span>
               </div>
             ))}

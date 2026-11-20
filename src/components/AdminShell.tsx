@@ -1,68 +1,110 @@
 'use client'
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import {
+  LayoutDashboard, Users, ShieldCheck, Settings,
+  Megaphone, Inbox, BarChart2, Landmark,
+  Wallet, FolderOpen, Stethoscope, GraduationCap,
+  Newspaper, Leaf, HardHat, Globe, LogOut,
+  ChevronLeft, ChevronRight, CalendarDays, Image,
+  Zap, CircleCheck, CircleDot,
+} from 'lucide-react'
 
-// ─── Contexto do usuário logado ───────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Usuario = {
   id: string; nome: string; email: string; perfil: string
   secretaria?: string; avatarUrl?: string
 }
 
+type TemaConfig = {
+  corPrimaria: string
+  corAcento:   string
+  logoUrl?:    string
+  brasaoUrl?:  string
+  nomePrefeitura: string
+  uf:          string
+}
+
+// ─── Contexto ─────────────────────────────────────────────────────────────────
+
 const CtxUsuario = createContext<{ usuario: Usuario | null; sair: () => void }>({
   usuario: null, sair: () => {},
 })
-
 export function useUsuario() { return useContext(CtxUsuario) }
 
-// ─── Mapa de navegação por perfil ────────────────────────────────────────────
+// ─── Helpers de cor ───────────────────────────────────────────────────────────
+
+function hexToRgb(hex: string) {
+  const r = parseInt(hex.slice(1,3),16)
+  const g = parseInt(hex.slice(3,5),16)
+  const b = parseInt(hex.slice(5,7),16)
+  return { r, g, b }
+}
+
+function lighten(hex: string, pct = 0.92): string {
+  const { r, g, b } = hexToRgb(hex)
+  const mix = (c: number) => Math.round(c + (255 - c) * pct)
+  return `#${mix(r).toString(16).padStart(2,'0')}${mix(g).toString(16).padStart(2,'0')}${mix(b).toString(16).padStart(2,'0')}`
+}
+
+function aplicarTema(t: TemaConfig) {
+  const root = document.documentElement
+  root.style.setProperty('--cor-primaria',    t.corPrimaria)
+  root.style.setProperty('--cor-secundaria',  t.corPrimaria)
+  root.style.setProperty('--cor-acento',      t.corAcento)
+  root.style.setProperty('--cor-primaria-light', lighten(t.corPrimaria))
+  root.style.setProperty('--cor-primaria-txt',   t.corPrimaria)
+}
+
+// ─── Mapa de navegação ────────────────────────────────────────────────────────
 
 const NAV_ADMIN = [
   { grupo: 'Gestão', items: [
-    { href: '/admin', label: 'Visão Geral', emoji: '🏠' },
-    { href: '/admin/usuarios', label: 'Usuários', emoji: '👥' },
-    { href: '/admin/perfis', label: 'Perfis de Acesso', emoji: '🛡️' },
-    { href: '/admin/configuracoes', label: 'Configurações', emoji: '⚙️' },
+    { href: '/admin',                label: 'Visão Geral',      Icon: LayoutDashboard },
+    { href: '/admin/usuarios',       label: 'Usuários',         Icon: Users           },
+    { href: '/admin/perfis',         label: 'Perfis de Acesso', Icon: ShieldCheck     },
+    { href: '/admin/configuracoes',  label: 'Configurações',    Icon: Settings        },
   ]},
   { grupo: 'Módulos', items: [
-    { href: '/admin/comunicacao', label: 'Comunicação', emoji: '📢' },
-    { href: '/admin/ouvidoria', label: 'Ouvidoria', emoji: '📬' },
-    { href: '/admin/transparencia', label: 'Transparência', emoji: '📊' },
+    { href: '/admin/comunicacao',    label: 'Comunicação',      Icon: Megaphone       },
+    { href: '/admin/ouvidoria',      label: 'Ouvidoria',        Icon: Inbox           },
+    { href: '/admin/transparencia',  label: 'Transparência',    Icon: BarChart2       },
   ]},
   { grupo: 'ERP', items: [
-    { href: '/gestao/sefin', label: 'Financeiro', emoji: '💰' },
-    { href: '/gestao/semad', label: 'Administrativo', emoji: '🗂️' },
-    { href: '/gestao/semsa', label: 'Saúde', emoji: '🏥' },
-    { href: '/gestao/seduc', label: 'Educação', emoji: '🎓' },
-    { href: '/gestao/comunicacao/noticias', label: 'SECOM', emoji: '📰' },
+    { href: '/gestao/sefin',         label: 'Financeiro',       Icon: Wallet          },
+    { href: '/gestao/semad',         label: 'Administrativo',   Icon: FolderOpen      },
+    { href: '/gestao/semsa',         label: 'Saúde',            Icon: Stethoscope     },
+    { href: '/gestao/seduc',         label: 'Educação',         Icon: GraduationCap   },
+    { href: '/gestao/comunicacao/noticias', label: 'SECOM',     Icon: Newspaper       },
   ]},
 ]
 
 const NAV_COMUNICACAO = [
   { grupo: 'Comunicação', items: [
-    { href: '/admin/comunicacao', label: 'Dashboard', emoji: '🏠' },
-    { href: '/gestao/comunicacao/noticias', label: 'Notícias', emoji: '📰' },
-    { href: '/gestao/comunicacao/agenda', label: 'Agenda', emoji: '📅' },
-    { href: '/gestao/comunicacao/midia', label: 'Galeria de Mídia', emoji: '🗂️' },
-    { href: '/gestao/comunicacao/relatorios', label: 'Relatórios', emoji: '📊' },
+    { href: '/admin/comunicacao',               label: 'Dashboard',       Icon: LayoutDashboard },
+    { href: '/gestao/comunicacao/noticias',     label: 'Notícias',        Icon: Newspaper       },
+    { href: '/gestao/comunicacao/agenda',       label: 'Agenda',          Icon: CalendarDays    },
+    { href: '/gestao/comunicacao/midia',        label: 'Galeria de Mídia',Icon: Image           },
+    { href: '/gestao/comunicacao/relatorios',   label: 'Relatórios',      Icon: BarChart2       },
   ]},
 ]
 
 const NAV_OUVIDORIA = [
   { grupo: 'Ouvidoria', items: [
-    { href: '/admin/ouvidoria', label: 'Dashboard', emoji: '🏠' },
-    { href: '/admin/ouvidoria/demandas', label: 'Demandas', emoji: '📬' },
-    { href: '/admin/ouvidoria/relatorios', label: 'Relatórios', emoji: '📊' },
+    { href: '/admin/ouvidoria',          label: 'Dashboard', Icon: LayoutDashboard },
+    { href: '/admin/ouvidoria/demandas', label: 'Demandas',  Icon: Inbox           },
+    { href: '/admin/ouvidoria/relatorios',label:'Relatórios',Icon: BarChart2       },
   ]},
 ]
 
-const NAV_SECRETARIA: Record<string, { grupo: string; items: { href: string; label: string; emoji: string }[] }[]> = {
-  SEMSA:  [{ grupo: 'Saúde',      items: [{ href: '/gestao/semsa', label: 'Painel SEMSA', emoji: '🏥' }] }],
-  SEDUC:  [{ grupo: 'Educação',   items: [{ href: '/gestao/seduc', label: 'Painel SEDUC', emoji: '🎓' }] }],
-  SEFIN:  [{ grupo: 'Financeiro', items: [{ href: '/gestao/sefin', label: 'Painel SEFIN', emoji: '💰' }] }],
-  SEMAD:  [{ grupo: 'Administrativo', items: [{ href: '/gestao/semad', label: 'Painel SEMAD', emoji: '🗂️' }] }],
-  SEMMA:  [{ grupo: 'Meio Ambiente', items: [{ href: '/gestao/semma', label: 'Painel SEMMA', emoji: '🌿' }] }],
-  SEMOB:  [{ grupo: 'Obras', items: [{ href: '/gestao/semob', label: 'Painel SEMOB', emoji: '🏗️' }] }],
+const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
+  SEMSA: [{ grupo: 'Saúde',           items: [{ href: '/gestao/semsa', label: 'Painel SEMSA', Icon: Stethoscope  }] }],
+  SEDUC: [{ grupo: 'Educação',        items: [{ href: '/gestao/seduc', label: 'Painel SEDUC', Icon: GraduationCap}] }],
+  SEFIN: [{ grupo: 'Financeiro',      items: [{ href: '/gestao/sefin', label: 'Painel SEFIN', Icon: Wallet       }] }],
+  SEMAD: [{ grupo: 'Administrativo',  items: [{ href: '/gestao/semad', label: 'Painel SEMAD', Icon: FolderOpen   }] }],
+  SEMMA: [{ grupo: 'Meio Ambiente',   items: [{ href: '/gestao/semma', label: 'Painel SEMMA', Icon: Leaf         }] }],
+  SEMOB: [{ grupo: 'Obras',           items: [{ href: '/gestao/semob', label: 'Painel SEMOB', Icon: HardHat      }] }],
 }
 
 function navPorPerfil(perfil: string, secretaria?: string) {
@@ -73,17 +115,28 @@ function navPorPerfil(perfil: string, secretaria?: string) {
   return NAV_ADMIN
 }
 
+const PERFIL_LABEL: Record<string, string> = {
+  SUPER_ADMIN:    'Super Admin',
+  ADMIN_MUNICIPIO:'Administrador',
+  GESTOR:         'Gestor',
+  OPERADOR:       'Operador',
+  VISUALIZADOR:   'Visualizador',
+}
+
 // ─── Shell principal ──────────────────────────────────────────────────────────
 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const router   = useRouter()
   const pathname = usePathname()
   const [usuario, setUsuario]       = useState<Usuario | null>(null)
+  const [tema, setTema]             = useState<TemaConfig>({
+    corPrimaria: '#1B5E20', corAcento: '#F9A825',
+    nomePrefeitura: 'Biritinga', uf: 'BA',
+  })
   const [sidebarOpen, setSidebar]   = useState(true)
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
-    // Verificar sessão atual
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => {
       if (!data?.usuario) { router.push('/login'); return }
       setUsuario(data.usuario)
@@ -91,17 +144,34 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     })
   }, [router])
 
+  // Carregar tema do município e aplicar CSS vars
+  useEffect(() => {
+    fetch('/api/admin/tema').then(r => r.ok ? r.json() : null).then(data => {
+      if (!data) return
+      const t: TemaConfig = {
+        corPrimaria:    data.corPrimaria    ?? '#1B5E20',
+        corAcento:      data.corAcento      ?? '#F9A825',
+        logoUrl:        data.logoUrl,
+        brasaoUrl:      data.brasaoUrl,
+        nomePrefeitura: data.nome           ?? 'Biritinga',
+        uf:             data.uf             ?? 'BA',
+      }
+      setTema(t)
+      aplicarTema(t)
+    })
+  }, [])
+
   async function sair() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
   }
 
   if (carregando) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter,sans-serif', background: '#F4F6F8' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 48, height: 48, border: '4px solid #E0E0E0', borderTopColor: '#2E7D32', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontFamily:'Inter,sans-serif', background:'var(--cor-bg)' }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ width:48, height:48, border:'3px solid #E0E0E0', borderTopColor:'var(--cor-primaria)', borderRadius:'50%', margin:'0 auto 16px', animation:'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        <p style={{ color: '#666', fontSize: 14 }}>Verificando acesso...</p>
+        <p style={{ color:'#999', fontSize:13 }}>Verificando acesso…</p>
       </div>
     </div>
   )
@@ -112,62 +182,83 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <CtxUsuario.Provider value={{ usuario, sair }}>
-      <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter,sans-serif', overflow: 'hidden' }}>
-        {/* Sidebar */}
+      <div style={{ display:'flex', height:'100vh', fontFamily:'Inter,sans-serif', overflow:'hidden' }}>
+
+        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <aside style={{
-          width: sidebarOpen ? 260 : 64, background: '#1B5E20',
-          display: 'flex', flexDirection: 'column', flexShrink: 0,
-          transition: 'width 0.25s ease', overflow: 'hidden',
+          width: sidebarOpen ? 248 : 60,
+          background: 'var(--cor-primaria)',
+          display:'flex', flexDirection:'column', flexShrink:0,
+          transition:'width 0.22s ease', overflow:'hidden',
         }}>
-          {/* Logo / cabeçalho */}
+
+          {/* Cabeçalho / brasão */}
           <div style={{
-            padding: sidebarOpen ? '20px 20px 16px' : '20px 12px 16px',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex', alignItems: 'center', gap: 10, minHeight: 72,
+            padding: sidebarOpen ? '18px 16px 14px' : '18px 10px 14px',
+            borderBottom:'1px solid var(--cor-sidebar-brd)',
+            display:'flex', alignItems:'center', gap:10, minHeight:68,
           }}>
-            <span style={{ fontSize: 28, flexShrink: 0 }}>🏛️</span>
+            {/* Brasão */}
+            <div style={{
+              width:36, height:36, borderRadius:8, flexShrink:0,
+              background:'rgba(255,255,255,0.15)',
+              display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden',
+            }}>
+              {tema.brasaoUrl || tema.logoUrl
+                ? <img src={tema.brasaoUrl ?? tema.logoUrl} alt="Brasão" style={{ width:28, height:28, objectFit:'contain' }} />
+                : <Landmark size={18} color="rgba(255,255,255,0.9)" strokeWidth={1.5} />
+              }
+            </div>
+
             {sidebarOpen && (
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{ color: '#fff', fontWeight: 800, fontSize: 13, lineHeight: 1.2 }}>Prefeitura de</div>
-                <div style={{ color: '#F9A825', fontWeight: 800, fontSize: 14 }}>Biritinga/BA</div>
+              <div style={{ overflow:'hidden', flex:1 }}>
+                <div style={{ color:'rgba(255,255,255,0.6)', fontWeight:600, fontSize:10, letterSpacing:'0.5px', textTransform:'uppercase' }}>Prefeitura de</div>
+                <div style={{ color:'var(--cor-acento)', fontWeight:800, fontSize:13, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {tema.nomePrefeitura}/{tema.uf}
+                </div>
               </div>
             )}
-            <button onClick={() => setSidebar(v => !v)}
+
+            <button onClick={() => setSidebar(v => !v)} title={sidebarOpen ? 'Recolher' : 'Expandir'}
               style={{
-                marginLeft: 'auto', background: 'rgba(255,255,255,0.1)', border: 'none',
-                borderRadius: 6, color: '#fff', cursor: 'pointer', padding: '4px 7px', fontSize: 14, flexShrink: 0,
+                marginLeft:'auto', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)',
+                borderRadius:6, color:'rgba(255,255,255,0.7)', cursor:'pointer',
+                padding:4, display:'flex', alignItems:'center', flexShrink:0,
               }}>
-              {sidebarOpen ? '◀' : '▶'}
+              {sidebarOpen
+                ? <ChevronLeft  size={15} strokeWidth={2} />
+                : <ChevronRight size={15} strokeWidth={2} />}
             </button>
           </div>
 
-          {/* Nav links */}
-          <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
+          {/* Nav */}
+          <nav style={{ flex:1, overflowY:'auto', padding:'10px 0' }}>
             {nav.map(grupo => (
               <div key={grupo.grupo}>
                 {sidebarOpen && (
-                  <div style={{ padding: '8px 20px 4px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                  <div style={{ padding:'8px 16px 3px', fontSize:9, fontWeight:700, color:'var(--cor-sidebar-sub)', textTransform:'uppercase', letterSpacing:'0.9px' }}>
                     {grupo.grupo}
                   </div>
                 )}
-                {grupo.items.map(item => {
-                  const ativo = pathname === item.href
+                {grupo.items.map(({ href, label, Icon }) => {
+                  const ativo = pathname === href || (href !== '/admin' && pathname.startsWith(href))
                   return (
-                    <a key={item.href} href={item.href}
+                    <a key={href} href={href}
+                      title={!sidebarOpen ? label : undefined}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: sidebarOpen ? '10px 20px' : '10px 20px',
-                        color: ativo ? '#F9A825' : 'rgba(255,255,255,0.75)',
-                        background: ativo ? 'rgba(249,168,37,0.12)' : 'transparent',
-                        textDecoration: 'none', fontSize: 13, fontWeight: ativo ? 700 : 400,
-                        borderLeft: ativo ? '3px solid #F9A825' : '3px solid transparent',
-                        transition: 'all 0.15s', borderRadius: sidebarOpen ? '0 6px 6px 0' : 0,
-                        whiteSpace: 'nowrap', overflow: 'hidden',
+                        display:'flex', alignItems:'center', gap:10,
+                        padding: sidebarOpen ? '9px 16px' : '10px 18px',
+                        color: ativo ? 'var(--cor-acento)' : 'var(--cor-sidebar-txt)',
+                        background: ativo ? 'var(--cor-ativo-bg)' : 'transparent',
+                        textDecoration:'none', fontSize:13, fontWeight: ativo ? 600 : 400,
+                        borderLeft: ativo ? '2px solid var(--cor-acento)' : '2px solid transparent',
+                        transition:'background 0.12s',
+                        whiteSpace:'nowrap', overflow:'hidden',
                       }}
-                      onMouseOver={e => { if (!ativo) e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+                      onMouseOver={e => { if (!ativo) e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
                       onMouseOut={e => { if (!ativo) e.currentTarget.style.background = 'transparent' }}>
-                      <span style={{ fontSize: 16, flexShrink: 0 }}>{item.emoji}</span>
-                      {sidebarOpen && item.label}
+                      <Icon size={16} strokeWidth={ativo ? 2 : 1.5} style={{ flexShrink:0 }} />
+                      {sidebarOpen && label}
                     </a>
                   )
                 })}
@@ -175,81 +266,80 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          {/* Usuário */}
+          {/* Usuário + sair */}
           <div style={{
-            padding: sidebarOpen ? '16px 20px' : '16px 10px',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
+            padding: sidebarOpen ? '14px 16px' : '14px 10px',
+            borderTop:'1px solid var(--cor-sidebar-brd)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: sidebarOpen ? 10 : 0 }}>
               <div style={{
-                width: 36, height: 36, borderRadius: '50%', background: '#F9A825',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, fontWeight: 700, color: '#1B5E20', flexShrink: 0,
+                width:34, height:34, borderRadius:'50%', background:'var(--cor-acento)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:14, fontWeight:700, color:'var(--cor-primaria)', flexShrink:0,
               }}>
                 {usuario.nome.charAt(0).toUpperCase()}
               </div>
               {sidebarOpen && (
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario.nome}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>{PERFIL_LABEL[usuario.perfil] ?? usuario.perfil}</div>
+                <div style={{ overflow:'hidden', flex:1 }}>
+                  <div style={{ color:'#fff', fontSize:12, fontWeight:600, whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden' }}>
+                    {usuario.nome}
+                  </div>
+                  <div style={{ color:'var(--cor-sidebar-sub)', fontSize:10 }}>
+                    {PERFIL_LABEL[usuario.perfil] ?? usuario.perfil}
+                  </div>
                 </div>
               )}
             </div>
             {sidebarOpen && (
               <button onClick={sair}
                 style={{
-                  width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: 7, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '7px 0',
-                  fontSize: 12, fontWeight: 500,
+                  width:'100%', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)',
+                  borderRadius:7, color:'rgba(255,255,255,0.65)', cursor:'pointer',
+                  padding:'7px 0', fontSize:12, fontWeight:500,
+                  display:'flex', alignItems:'center', justifyContent:'center', gap:6,
                 }}>
-                🚪 Sair
+                <LogOut size={13} strokeWidth={1.5} />
+                Sair
               </button>
             )}
           </div>
         </aside>
 
-        {/* Conteúdo principal */}
-        <main style={{ flex: 1, overflowY: 'auto', background: '#F4F6F8' }}>
+        {/* ── Conteúdo ─────────────────────────────────────────────────────── */}
+        <main style={{ flex:1, overflowY:'auto', background:'var(--cor-bg)' }}>
           {/* Topbar */}
           <div style={{
-            background: '#fff', borderBottom: '1px solid #E0E0E0',
-            padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            position: 'sticky', top: 0, zIndex: 10,
+            background:'#fff', borderBottom:'1px solid #E8EAED',
+            padding:'0 24px', height:52, display:'flex', alignItems:'center', justifyContent:'space-between',
+            position:'sticky', top:0, zIndex:10,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11, color: '#999' }}>Portal ›</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:11, color:'#BDBDBD' }}>Portal</span>
+              <span style={{ fontSize:11, color:'#BDBDBD' }}>›</span>
+              <span style={{ fontSize:13, fontWeight:600, color:'#424242' }}>
                 {pathname.split('/').filter(Boolean).slice(1).join(' › ').replace(/-/g, ' ') || 'Início'}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
               <a href="/" target="_blank"
-                style={{ fontSize: 12, color: '#1565C0', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                🌐 Ver Portal
+                style={{ fontSize:12, color:'var(--cor-primaria)', textDecoration:'none', display:'flex', alignItems:'center', gap:5, fontWeight:500 }}>
+                <Globe size={13} strokeWidth={1.5} />
+                Ver Portal
               </a>
               <div style={{
-                background: '#E8F5E9', color: '#2E7D32', borderRadius: 6,
-                padding: '3px 10px', fontSize: 11, fontWeight: 600,
+                background:'var(--cor-primaria-light)', color:'var(--cor-primaria-txt)',
+                borderRadius:6, padding:'3px 10px', fontSize:11, fontWeight:600,
               }}>
                 {PERFIL_LABEL[usuario.perfil] ?? usuario.perfil}
               </div>
             </div>
           </div>
 
-          {/* Conteúdo da página */}
-          <div style={{ minHeight: 'calc(100vh - 56px)' }}>
+          <div style={{ minHeight:'calc(100vh - 52px)' }}>
             {children}
           </div>
         </main>
       </div>
     </CtxUsuario.Provider>
   )
-}
-
-const PERFIL_LABEL: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN_MUNICIPIO: 'Administrador',
-  GESTOR: 'Gestor',
-  OPERADOR: 'Operador',
-  VISUALIZADOR: 'Visualizador',
 }

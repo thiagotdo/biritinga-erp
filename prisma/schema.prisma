@@ -16,8 +16,12 @@ model Municipio {
   cnpj      String?  @unique
   slug      String   @unique            // "biritinga" → biritinga.ba.gov.br
   dominio   String?                     // domínio personalizado
-  logoUrl   String?
-  corPrimaria String? @db.Char(7)       // "#1a56db"
+  logoUrl      String?
+  brasaoUrl    String?
+  favicon      String?
+  corPrimaria  String? @db.Char(7)       // "#1B5E20"
+  corSecundaria String? @db.Char(7)      // "#2E7D32"
+  corAcento    String? @db.Char(7)       // "#F9A825"
   ativo     Boolean  @default(true)
   plano     String   @default("basico") // "basico" | "pro" | "enterprise"
   createdAt DateTime @default(now())

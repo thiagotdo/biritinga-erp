@@ -3,3 +3,19 @@ html, body { margin: 0; padding: 0; height: 100%; }
 body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: #F4F6F8; }
 a { color: inherit; }
 input, select, textarea, button { font-family: inherit; }
+
+/* ─── Tema do município (sobrescrito via JS a partir do banco) ─── */
+:root {
+  --cor-primaria:    #1B5E20;
+  --cor-secundaria:  #2E7D32;
+  --cor-acento:      #F9A825;
+  --cor-acento-dark: #E65100;
+  --cor-bg:          #F4F6F8;
+  --cor-sidebar-txt: rgba(255,255,255,0.80);
+  --cor-sidebar-sub: rgba(255,255,255,0.40);
+  --cor-sidebar-brd: rgba(255,255,255,0.10);
+  --cor-ativo-bg:    rgba(249,168,37,0.12);
+  /* Derivadas (recalculadas via JS) */
+  --cor-primaria-light: #E8F5E9;
+  --cor-primaria-txt:   #1B5E20;
+}
