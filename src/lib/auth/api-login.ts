@@ -28,12 +28,34 @@ export async function handleLogin(request: NextRequest) {
     let municipioId = dados.municipioId
     if (!municipioId) {
       const host = request.headers.get('host') ?? ''
+      // Tenta slug (primeiro segmento do host)
       const slug = host.split('.')[0]
-      const mun  = await prisma.municipio.findFirst({ where: { slug, ativo: true } })
+      // Tenta também pelo domínio completo (sem porta)
+      const dominio = host.split(':')[0]
+      const mun = await prisma.municipio.findFirst({
+        where: {
+          OR: [
+            { slug, ativo: true },
+            { dominio, ativo: true },
+          ],
+        },
+      })
       if (!mun) {
-        return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404 })
+        // Fallback: se só há um município, usa ele
+        const total = await prisma.municipio.count()
+        if (total === 1) {
+          const unico = await prisma.municipio.findFirst({ where: { ativo: true } })
+          if (unico) {
+            municipioId = unico.id
+          } else {
+            return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404 })
+          }
+        } else {
+          return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404 })
+        }
+      } else {
+        municipioId = mun.id
       }
-      municipioId = mun.id
     }
 
     // Buscar usuário
