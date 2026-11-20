@@ -14,7 +14,7 @@ function getDatabaseUrl() {
   if (url.includes('ssl=') || url.includes('sslaccept=')) return url
   // Caso contrário, adicionar sslaccept=strict
   const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}sslaccept=strict`
+  return `${url}${sep}sslaccept=accept`
 }
 
 export const prisma =
