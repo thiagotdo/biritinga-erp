@@ -18,6 +18,7 @@ const ROTAS_PUBLICAS = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/auth/refresh',
+  '/api/setup',         // Setup inicial (cria primeiro SUPER_ADMIN)
   '/api/cidadao',       // Portal do Cidadão
   '/cidadao',
   '/_next',
