@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     } else {
       const id = crypto.randomUUID()
       await conn.execute(
-        `INSERT INTO Municipio (id, nome, uf, ibge, slug, dominio, corPrimaria, ativo, plano, criadoEm, atualizadoEm)
+        `INSERT INTO Municipio (id, nome, uf, ibge, slug, dominio, corPrimaria, ativo, plano, createdAt, updatedAt)
          VALUES (?, 'Biritinga', 'BA', '2903953', 'biritinga', 'biritinga.ba.gov.br', '#1B5E20', 1, 'pro', NOW(), NOW())`,
         [id]
       )
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const senhaHash = await bcrypt.hash(senha, 12)
     const userId = crypto.randomUUID()
     await conn.execute(
-      `INSERT INTO Usuario (id, municipioId, nome, email, senhaHash, perfil, ativo, criadoEm, atualizadoEm)
+      `INSERT INTO Usuario (id, municipioId, nome, email, senhaHash, perfil, ativo, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, 'SUPER_ADMIN', 1, NOW(), NOW())`,
       [userId, municipioId, nome ?? 'Administrador', email, senhaHash]
     )

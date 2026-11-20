@@ -19,6 +19,7 @@ const ROTAS_PUBLICAS = [
   '/api/auth/logout',
   '/api/auth/refresh',
   '/api/setup',         // Setup inicial (cria primeiro SUPER_ADMIN)
+  '/api/migrate',       // Migrate temporário (criar tabelas)
   '/api/cidadao',       // Portal do Cidadão
   '/cidadao',
   '/_next',
