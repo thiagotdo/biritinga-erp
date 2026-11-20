@@ -1,212 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { extrairContextoRequest, auditLog } from '@/lib/audit'
-import { temPermissao } from '@/lib/auth/rbac'
+import { db } from '@/lib/db'
 
-const EntradaEstoqueSchema = z.object({
-  unidadeId: z.string(),
-  medicamentoId: z.string(),
-  lote: z.string(),
-  fabricante: z.string().optional(),
-  dataFabricacao: z.string().optional(),
-  dataValidade: z.string(),
-  quantidade: z.number().int().positive(),
-  estoqueMinimo: z.number().int().default(10),
-})
+export const runtime = 'nodejs'
 
-const DispensacaoSchema = z.object({
-  estoqueId: z.string(),
-  pacienteId: z.string(),
-  quantidade: z.number().int().positive(),
-  observacao: z.string().optional(),
-})
+function municipioId(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
 
-// POST /api/saude/estoque-medicamentos — entrada de estoque
-export async function POST(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
-
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'saude:estoque:create')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
+export async function GET(req: NextRequest) {
+  const mid = municipioId(req)
+  const { searchParams } = new URL(req.url)
+  const unidadeId  = searchParams.get('unidadeId')
+  const critico    = searchParams.get('critico') === '1'
+  const busca      = searchParams.get('busca')
 
   try {
-    const body = await request.json()
+    let medicamentos: any[]
 
-    // Detectar se é entrada ou dispensação
-    if (body.acao === 'dispensacao') {
-      const dados = DispensacaoSchema.parse(body)
-
-      const estoque = await prisma.estoqueMedicamento.findUnique({ where: { id: dados.estoqueId } })
-      if (!estoque) return NextResponse.json({ erro: 'Estoque não encontrado' }, { status: 404 })
-      if (estoque.quantidadeAtual < dados.quantidade) {
-        return NextResponse.json({ erro: 'Quantidade insuficiente no estoque' }, { status: 422 })
-      }
-
-      const resultado = await prisma.$transaction(async (tx) => {
-        const novoSaldo = estoque.quantidadeAtual - dados.quantidade
-
-        await tx.movEstoqueMed.create({
-          data: {
-            estoqueId: dados.estoqueId,
-            tipo: 'SAIDA_DISPENSACAO',
-            quantidade: dados.quantidade,
-            saldoAntes: estoque.quantidadeAtual,
-            saldoDepois: novoSaldo,
-            usuarioId: ctx.usuarioId,
-          },
-        })
-
-        const estoqueAtualizado = await tx.estoqueMedicamento.update({
-          where: { id: dados.estoqueId },
-          data: {
-            quantidadeAtual: novoSaldo,
-            status: novoSaldo === 0 ? 'INDISPONIVEL' : novoSaldo <= estoque.estoqueMinimo ? 'BAIXO_ESTOQUE' : 'DISPONIVEL',
-          },
-        })
-
-        const dispensacao = await tx.dispensacaoMedicamento.create({
-          data: {
-            municipioId: ctx.municipioId,
-            estoqueId: dados.estoqueId,
-            pacienteId: dados.pacienteId,
-            quantidade: dados.quantidade,
-            dispensadoPor: ctx.usuarioId,
-            observacao: dados.observacao,
-          },
-        })
-
-        return { dispensacao, estoqueAtualizado }
-      })
-
-      return NextResponse.json(resultado, { status: 201 })
+    if (busca) {
+      const like = `%${busca}%`
+      medicamentos = await db.$queryRaw<any[]>`
+        SELECT m.*, u.nome AS unidadeNome
+        FROM MedicamentoEstoque m
+        LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
+        WHERE m.municipioId = ${mid} AND m.ativo = 1
+          AND (m.nome LIKE ${like} OR m.principioAtivo LIKE ${like})
+        ORDER BY m.nome
+        LIMIT 50`
+    } else if (unidadeId && critico) {
+      medicamentos = await db.$queryRaw<any[]>`
+        SELECT m.*, u.nome AS unidadeNome
+        FROM MedicamentoEstoque m
+        LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
+        WHERE m.municipioId = ${mid} AND m.unidadeId = ${unidadeId}
+          AND m.ativo = 1 AND m.quantidadeTotal <= m.quantidadeMin
+        ORDER BY m.quantidadeTotal ASC`
+    } else if (unidadeId) {
+      medicamentos = await db.$queryRaw<any[]>`
+        SELECT m.*, u.nome AS unidadeNome
+        FROM MedicamentoEstoque m
+        LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
+        WHERE m.municipioId = ${mid} AND m.unidadeId = ${unidadeId} AND m.ativo = 1
+        ORDER BY m.nome`
+    } else if (critico) {
+      medicamentos = await db.$queryRaw<any[]>`
+        SELECT m.*, u.nome AS unidadeNome
+        FROM MedicamentoEstoque m
+        LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
+        WHERE m.municipioId = ${mid} AND m.ativo = 1
+          AND m.quantidadeTotal <= m.quantidadeMin
+        ORDER BY m.quantidadeTotal ASC`
+    } else {
+      medicamentos = await db.$queryRaw<any[]>`
+        SELECT m.*, u.nome AS unidadeNome
+        FROM MedicamentoEstoque m
+        LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
+        WHERE m.municipioId = ${mid} AND m.ativo = 1
+        ORDER BY m.nome`
     }
 
-    // Entrada de estoque
-    const dados = EntradaEstoqueSchema.parse(body)
-    const dataValidade = new Date(dados.dataValidade)
-    const hoje = new Date()
-    const statusInicial = dataValidade < hoje ? 'VENCIDO' : 'DISPONIVEL'
+    // Adicionar flag critico
+    const result = medicamentos.map(m => ({
+      ...m, critico: m.quantidadeTotal <= m.quantidadeMin
+    }))
 
-    const estoque = await prisma.$transaction(async (tx) => {
-      // Buscar se já existe lote para este medicamento/unidade
-      const existente = await tx.estoqueMedicamento.findFirst({
-        where: { unidadeId: dados.unidadeId, medicamentoId: dados.medicamentoId, lote: dados.lote },
-      })
-
-      if (existente) {
-        // Atualizar quantidade
-        const novoSaldo = existente.quantidadeAtual + dados.quantidade
-        await tx.movEstoqueMed.create({
-          data: {
-            estoqueId: existente.id,
-            tipo: 'ENTRADA',
-            quantidade: dados.quantidade,
-            saldoAntes: existente.quantidadeAtual,
-            saldoDepois: novoSaldo,
-            usuarioId: ctx.usuarioId,
-          },
-        })
-        return tx.estoqueMedicamento.update({
-          where: { id: existente.id },
-          data: { quantidadeAtual: novoSaldo, quantidadeTotal: existente.quantidadeTotal + dados.quantidade, status: statusInicial as any },
-        })
-      }
-
-      // Criar novo registro de lote
-      const novoEstoque = await tx.estoqueMedicamento.create({
-        data: {
-          municipioId: ctx.municipioId,
-          unidadeId: dados.unidadeId,
-          medicamentoId: dados.medicamentoId,
-          lote: dados.lote,
-          fabricante: dados.fabricante,
-          dataFabricacao: dados.dataFabricacao ? new Date(dados.dataFabricacao) : undefined,
-          dataValidade,
-          quantidadeTotal: dados.quantidade,
-          quantidadeAtual: dados.quantidade,
-          estoqueMinimo: dados.estoqueMinimo,
-          status: statusInicial as any,
-        },
-      })
-
-      await tx.movEstoqueMed.create({
-        data: {
-          estoqueId: novoEstoque.id,
-          tipo: 'ENTRADA',
-          quantidade: dados.quantidade,
-          saldoAntes: 0,
-          saldoDepois: dados.quantidade,
-          usuarioId: ctx.usuarioId,
-        },
-      })
-
-      return novoEstoque
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'CREATE',
-      modulo: 'saude',
-      recurso: 'estoque_medicamento',
-      registroId: estoque.id,
-      dadosNovos: { lote: dados.lote, quantidade: dados.quantidade, dataValidade: dados.dataValidade },
-    })
-
-    return NextResponse.json({ estoque }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
-    }
-    console.error('[ESTOQUE]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ medicamentos: result })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-// GET /api/saude/estoque-medicamentos
-export async function GET(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
+export async function POST(req: NextRequest) {
+  const mid = municipioId(req)
+  const { unidadeId, nome, principioAtivo, apresentacao, lote,
+    dataVencimento, quantidadeTotal, quantidadeMin, valorUnitario } = await req.json()
 
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'saude:estoque:read')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
+  if (!unidadeId || !nome?.trim())
+    return NextResponse.json({ erro: 'Unidade e nome obrigatórios' }, { status: 400 })
+
+  try {
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO MedicamentoEstoque (id, municipioId, unidadeId, nome, principioAtivo,
+                                      apresentacao, lote, dataVencimento, quantidadeTotal,
+                                      quantidadeMin, valorUnitario)
+      VALUES (${id}, ${mid}, ${unidadeId}, ${nome.trim()}, ${principioAtivo || null},
+              ${apresentacao || null}, ${lote || null}, ${dataVencimento || null},
+              ${quantidadeTotal ?? 0}, ${quantidadeMin ?? 10}, ${valorUnitario || null})`
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
+}
 
-  const { searchParams } = new URL(request.url)
-  const unidadeId = searchParams.get('unidadeId')
-  const status = searchParams.get('status')
-  const vencendoEm = searchParams.get('vencendoEm') // número de dias
-
-  const hoje = new Date()
-  let dataLimiteValidade: Date | undefined
-  if (vencendoEm) {
-    dataLimiteValidade = new Date(hoje.getTime() + parseInt(vencendoEm) * 86400000)
+export async function PATCH(req: NextRequest) {
+  const mid = municipioId(req)
+  const { id, quantidadeTotal, quantidadeMin, ativo } = await req.json()
+  if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
+  try {
+    if (quantidadeTotal !== undefined) await db.$queryRaw`UPDATE MedicamentoEstoque SET quantidadeTotal = ${quantidadeTotal} WHERE id = ${id} AND municipioId = ${mid}`
+    if (quantidadeMin !== undefined) await db.$queryRaw`UPDATE MedicamentoEstoque SET quantidadeMin = ${quantidadeMin} WHERE id = ${id} AND municipioId = ${mid}`
+    if (ativo !== undefined) await db.$queryRaw`UPDATE MedicamentoEstoque SET ativo = ${ativo ? 1 : 0} WHERE id = ${id} AND municipioId = ${mid}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const estoques = await prisma.estoqueMedicamento.findMany({
-    where: {
-      municipioId: ctx.municipioId,
-      ...(unidadeId && { unidadeId }),
-      ...(status && { status: status as any }),
-      ...(dataLimiteValidade && { dataValidade: { lte: dataLimiteValidade } }),
-    },
-    include: {
-      medicamento: {
-        select: { nomeGenerico: true, concentracao: true, formaFarm: true, via: true, controlado: true },
-      },
-      unidade: { select: { nome: true } },
-    },
-    orderBy: [{ status: 'asc' }, { dataValidade: 'asc' }],
-  })
-
-  // Resumo
-  const resumo = {
-    total: estoques.length,
-    disponivel: estoques.filter(e => e.status === 'DISPONIVEL').length,
-    baixoEstoque: estoques.filter(e => e.status === 'BAIXO_ESTOQUE').length,
-    indisponivel: estoques.filter(e => e.status === 'INDISPONIVEL').length,
-    vencido: estoques.filter(e => e.status === 'VENCIDO').length,
-  }
-
-  return NextResponse.json({ dados: estoques, resumo })
 }

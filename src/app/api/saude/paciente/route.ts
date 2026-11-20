@@ -1,217 +1,155 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
-import { auditLog } from '@/lib/audit'
+import { db } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-// ─── Pacientes ────────────────────────────────────────────────────────────────
-// Lei 8.080/1990 — acesso universal e igualitário ao SUS
-// Resolução CFM 1.638/2002 — prontuário: identificação, anamnese, evolução
-// Lei 13.709/2018 (LGPD) Art.11 — dados de saúde como dados sensíveis
-
-function calcularIdade(dataNascimento: Date): number {
-  const hoje = new Date()
-  let idade = hoje.getFullYear() - dataNascimento.getFullYear()
-  const m = hoje.getMonth() - dataNascimento.getMonth()
-  if (m < 0 || (m === 0 && hoje.getDate() < dataNascimento.getDate())) idade--
-  return idade
+function municipioId(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
 }
 
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-
+  const mid = municipioId(req)
   const { searchParams } = new URL(req.url)
-  const id        = searchParams.get('id')
-  const relatorio = searchParams.get('relatorio')
-  const busca     = searchParams.get('busca')
-  const equipe    = searchParams.get('equipe')
-  const situacao  = searchParams.get('situacao')
+  const id     = searchParams.get('id')
+  const busca  = searchParams.get('busca')
+  const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
+  const limit  = 20
+  const offset = (page - 1) * limit
 
-  if (relatorio === 'DASHBOARD') {
-    const [total, ativos, obitos, transferidos] = await Promise.all([
-      prisma.paciente.count({ where: { municipioId: usuario.municipioId } }),
-      prisma.paciente.count({ where: { municipioId: usuario.municipioId, situacao: 'ATIVO' } }),
-      prisma.paciente.count({ where: { municipioId: usuario.municipioId, situacao: 'OBITO' } }),
-      prisma.paciente.count({ where: { municipioId: usuario.municipioId, situacao: 'TRANSFERIDO' } }),
-    ])
+  try {
+    // Detalhe de um paciente
+    if (id) {
+      const rows = await db.$queryRaw<any[]>`
+        SELECT p.*,
+               u.nome AS unidadeNome
+        FROM Paciente p
+        LEFT JOIN UnidadeSaude u ON u.id = p.unidadeReferenciaId
+        WHERE p.id = ${id} AND p.municipioId = ${mid}
+        LIMIT 1`
+      if (!rows.length) return NextResponse.json({ erro: 'Paciente não encontrado' }, { status: 404 })
 
-    // Atendimentos do mês
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    const [atendMes, agendados, vacMes] = await Promise.all([
-      prisma.atendimento.count({ where: { municipioId: usuario.municipioId, situacao: 'CONCLUIDO', dataHora: { gte: inicioMes } } }),
-      prisma.atendimento.count({ where: { municipioId: usuario.municipioId, situacao: { in: ['AGENDADO','EM_ESPERA'] }, dataHora: { gte: new Date() } } }),
-      prisma.registroVacinacao.count({ where: { municipioId: usuario.municipioId, dataAplicacao: { gte: inicioMes } } }),
-    ])
+      // Atendimentos recentes
+      const atendimentos = await db.$queryRaw<any[]>`
+        SELECT a.id, a.dataHora, a.tipo, a.cid10, a.queixa,
+               u.nome AS unidadeNome, ps.nome AS profissionalNome
+        FROM Atendimento a
+        LEFT JOIN UnidadeSaude u  ON u.id  = a.unidadeId
+        LEFT JOIN ProfissionalSaude ps ON ps.id = a.profissionalId
+        WHERE a.pacienteId = ${id} AND a.municipioId = ${mid}
+        ORDER BY a.dataHora DESC
+        LIMIT 10`
 
-    // Atendimentos por tipo (últimos 30 dias)
-    const em30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const porTipo = await prisma.atendimento.groupBy({
-      by: ['tipo'],
-      where: { municipioId: usuario.municipioId, situacao: 'CONCLUIDO', dataHora: { gte: em30d } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-    })
+      // Vacinas
+      const vacinas = await db.$queryRaw<any[]>`
+        SELECT v.id, v.vacina, v.dose, v.dataAplicacao, v.lote, v.proximaDose
+        FROM Vacinacao v
+        WHERE v.pacienteId = ${id} AND v.municipioId = ${mid}
+        ORDER BY v.dataAplicacao DESC
+        LIMIT 20`
 
-    // Gestantes ativas
-    const gestantes = await prisma.paciente.count({
-      where: { municipioId: usuario.municipioId, situacao: 'ATIVO', grupoRisco: { contains: 'Gestante' } },
-    })
+      // Próximos agendamentos
+      const agendamentos = await db.$queryRaw<any[]>`
+        SELECT ag.id, ag.dataHora, ag.tipo, ag.status, ag.especialidade,
+               u.nome AS unidadeNome
+        FROM Agendamento ag
+        LEFT JOIN UnidadeSaude u ON u.id = ag.unidadeId
+        WHERE ag.pacienteId = ${id} AND ag.municipioId = ${mid}
+          AND ag.dataHora >= NOW()
+          AND ag.status IN ('AGENDADO','CONFIRMADO')
+        ORDER BY ag.dataHora ASC
+        LIMIT 5`
 
-    return NextResponse.json({
-      kpis: { total, ativos, obitos, transferidos, atendMes, agendados, vacMes, gestantes },
-      porTipo,
-    })
+      return NextResponse.json({ paciente: rows[0], atendimentos, vacinas, agendamentos })
+    }
+
+    // Busca
+    if (busca && busca.length >= 3) {
+      const like = `%${busca}%`
+      const pacientes = await db.$queryRaw<any[]>`
+        SELECT p.id, p.nome, p.cpf, p.cns, p.dataNascimento, p.sexo,
+               p.telefone, p.situacao, u.nome AS unidadeNome
+        FROM Paciente p
+        LEFT JOIN UnidadeSaude u ON u.id = p.unidadeReferenciaId
+        WHERE p.municipioId = ${mid}
+          AND (p.nome LIKE ${like} OR p.cpf LIKE ${like} OR p.cns LIKE ${like})
+        ORDER BY p.nome
+        LIMIT 50`
+      return NextResponse.json({ pacientes })
+    }
+
+    // Lista paginada
+    const countRows = await db.$queryRaw<any[]>`
+      SELECT COUNT(*) as total FROM Paciente WHERE municipioId = ${mid}`
+    const total = Number(countRows[0]?.total ?? 0)
+
+    const pacientes = await db.$queryRaw<any[]>`
+      SELECT p.id, p.nome, p.cpf, p.cns, p.dataNascimento, p.sexo,
+             p.telefone, p.situacao, u.nome AS unidadeNome
+      FROM Paciente p
+      LEFT JOIN UnidadeSaude u ON u.id = p.unidadeReferenciaId
+      WHERE p.municipioId = ${mid}
+      ORDER BY p.nome
+      LIMIT ${limit} OFFSET ${offset}`
+
+    return NextResponse.json({ pacientes, total, page, pages: Math.ceil(total / limit) })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  if (id) {
-    const paciente = await prisma.paciente.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-      include: {
-        atendimentos: {
-          orderBy: { dataHora: 'desc' }, take: 20,
-          include: { profissional: { select: { nomeCompleto: true, especialidade: true } } },
-        },
-      },
-    })
-    if (!paciente) return NextResponse.json({ erro: 'Paciente não encontrado' }, { status: 404 })
-
-    const vacinacoes = await prisma.registroVacinacao.findMany({
-      where: { pacienteId: id, municipioId: usuario.municipioId },
-      orderBy: { dataAplicacao: 'desc' },
-    })
-
-    return NextResponse.json({
-      paciente: {
-        ...paciente,
-        idade: calcularIdade(paciente.dataNascimento),
-      },
-      vacinacoes,
-    })
-  }
-
-  const where: any = { municipioId: usuario.municipioId, ativo: true }
-  if (situacao) where.situacao = situacao
-  if (equipe) where.equipeESF = equipe
-  if (busca) {
-    where.OR = [
-      { nomeCompleto: { contains: busca } },
-      { nomeSocial:   { contains: busca } },
-      { cpf:          { contains: busca.replace(/\D/g,'') } },
-      { cns:          { contains: busca } },
-    ]
-  }
-
-  const pacientes = await prisma.paciente.findMany({
-    where, orderBy: { nomeCompleto: 'asc' }, take: 500,
-    select: {
-      id: true, nomeCompleto: true, nomeSocial: true, dataNascimento: true, sexo: true,
-      cpf: true, cns: true, telefoneCelular: true, bairro: true, equipeESF: true,
-      grupoRisco: true, situacao: true, microareaAgente: true,
-    },
-  })
-
-  const enriched = pacientes.map(p => ({
-    ...p,
-    idade: calcularIdade(p.dataNascimento),
-  }))
-
-  return NextResponse.json({ pacientes: enriched, total: enriched.length })
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const mid = municipioId(req)
+  const body = await req.json()
 
-  const Schema = z.object({
-    nomeCompleto:    z.string().min(3),
-    nomeSocial:      z.string().optional(),
-    dataNascimento:  z.string(),
-    sexo:            z.enum(['MASCULINO','FEMININO','INDETERMINADO']),
-    racaCor:         z.string().optional(),
-    nomeMae:         z.string().optional(),
-    cpf:             z.string().optional(),
-    cns:             z.string().optional(),
-    rg:              z.string().optional(),
-    logradouro:      z.string().optional(),
-    numero:          z.string().optional(),
-    bairro:          z.string().optional(),
-    cep:             z.string().optional(),
-    zona:            z.string().optional(),
-    telefoneCelular: z.string().optional(),
-    telefoneFixo:    z.string().optional(),
-    email:           z.string().optional(),
-    microareaAgente: z.string().optional(),
-    equipeESF:       z.string().optional(),
-    grupoRisco:      z.string().optional(),
-    alergias:        z.string().optional(),
-  })
+  const { nome, cpf, cns, dataNascimento, sexo, racaCor, nomeMae,
+    logradouro, numero, bairro, cep, telefone, email, unidadeReferenciaId } = body
 
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
-  const d = val.data
+  if (!nome?.trim()) return NextResponse.json({ erro: 'Nome obrigatório' }, { status: 400 })
 
-  // Dedup CPF
-  if (d.cpf) {
-    const cpfLimpo = d.cpf.replace(/\D/g,'')
-    const ex = await prisma.paciente.findFirst({ where: { municipioId: usuario.municipioId, cpf: cpfLimpo } })
-    if (ex) return NextResponse.json({ erro: `CPF já cadastrado para paciente: ${ex.nomeCompleto}` }, { status: 409 })
-    d.cpf = cpfLimpo
+  const cpfClean = cpf?.replace(/\D/g, '') || null
+  const cnsClean = cns?.replace(/\D/g, '') || null
+
+  try {
+    // Checar CPF duplicado
+    if (cpfClean) {
+      const dup = await db.$queryRaw<any[]>`
+        SELECT id FROM Paciente WHERE municipioId = ${mid} AND cpf = ${cpfClean} LIMIT 1`
+      if (dup.length) return NextResponse.json({ erro: 'CPF já cadastrado' }, { status: 409 })
+    }
+
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO Paciente (id, municipioId, nome, cpf, cns, dataNascimento, sexo, racaCor,
+                            nomeMae, logradouro, numero, bairro, cep, telefone, email, unidadeReferenciaId)
+      VALUES (${id}, ${mid}, ${nome.trim()}, ${cpfClean}, ${cnsClean},
+              ${dataNascimento || null}, ${sexo || null}, ${racaCor || null},
+              ${nomeMae || null}, ${logradouro || null}, ${numero || null},
+              ${bairro || null}, ${cep || null}, ${telefone || null},
+              ${email || null}, ${unidadeReferenciaId || null})`
+
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const paciente = await prisma.paciente.create({
-    data: {
-      municipioId: usuario.municipioId,
-      ...d,
-      dataNascimento: new Date(d.dataNascimento),
-      usuarioId: usuario.id,
-    },
-  })
-
-  await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'CADASTRAR_PACIENTE', entidade: 'Paciente', entidadeId: paciente.id,
-    detalhes: { nome: d.nomeCompleto, cpf: d.cpf },
-  })
-
-  return NextResponse.json({ paciente }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const mid = municipioId(req)
+  const { id, nome, telefone, email, situacao, bairro, logradouro, cep, unidadeReferenciaId } = await req.json()
 
-  const { id, ...dados } = await req.json()
-  if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
+  if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-  const Schema = z.object({
-    nomeSocial:      z.string().optional(),
-    telefoneCelular: z.string().optional(),
-    telefoneFixo:    z.string().optional(),
-    email:           z.string().optional(),
-    logradouro:      z.string().optional(),
-    numero:          z.string().optional(),
-    bairro:          z.string().optional(),
-    cep:             z.string().optional(),
-    zona:            z.string().optional(),
-    equipeESF:       z.string().optional(),
-    microareaAgente: z.string().optional(),
-    grupoRisco:      z.string().optional(),
-    alergias:        z.string().optional(),
-    observacoesClin: z.string().optional(),
-    situacao:        z.string().optional(),
-    dataObito:       z.string().optional(),
-    ativo:           z.boolean().optional(),
-  })
-
-  const val = Schema.safeParse(dados)
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
-
-  const data: any = { ...val.data }
-  if (val.data.dataObito) data.dataObito = new Date(val.data.dataObito)
-
-  await prisma.paciente.update({ where: { id }, data })
-  return NextResponse.json({ sucesso: true })
+  try {
+    if (nome            !== undefined) await db.$queryRaw`UPDATE Paciente SET nome               = ${nome}               WHERE id = ${id} AND municipioId = ${mid}`
+    if (telefone        !== undefined) await db.$queryRaw`UPDATE Paciente SET telefone           = ${telefone}           WHERE id = ${id} AND municipioId = ${mid}`
+    if (email           !== undefined) await db.$queryRaw`UPDATE Paciente SET email              = ${email}              WHERE id = ${id} AND municipioId = ${mid}`
+    if (situacao        !== undefined) await db.$queryRaw`UPDATE Paciente SET situacao           = ${situacao}           WHERE id = ${id} AND municipioId = ${mid}`
+    if (bairro          !== undefined) await db.$queryRaw`UPDATE Paciente SET bairro             = ${bairro}             WHERE id = ${id} AND municipioId = ${mid}`
+    if (logradouro      !== undefined) await db.$queryRaw`UPDATE Paciente SET logradouro         = ${logradouro}         WHERE id = ${id} AND municipioId = ${mid}`
+    if (cep             !== undefined) await db.$queryRaw`UPDATE Paciente SET cep                = ${cep}                WHERE id = ${id} AND municipioId = ${mid}`
+    if (unidadeReferenciaId !== undefined) await db.$queryRaw`UPDATE Paciente SET unidadeReferenciaId = ${unidadeReferenciaId} WHERE id = ${id} AND municipioId = ${mid}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }

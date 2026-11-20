@@ -1,53 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
+function municipioId(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
+
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-
+  const mid = municipioId(req)
   const { searchParams } = new URL(req.url)
-  const unidadeId     = searchParams.get('unidadeId')
-  const especialidade = searchParams.get('especialidade')
+  const unidadeId = searchParams.get('unidadeId')
 
-  const where: any = { municipioId: usuario.municipioId, ativo: true }
-  if (unidadeId)     where.unidadeId     = unidadeId
-  if (especialidade) where.especialidade = especialidade
-
-  const profissionais = await prisma.profissionalSaude.findMany({
-    where, orderBy: { nome: 'asc' },
-    select: {
-      id: true, nome: true, especialidade: true,
-      conselho: true, numeroConselho: true,
-      duracaoConsulta: true, horarioInicio: true, horarioFim: true,
-      unidade: { select: { nome: true } },
-    },
-  })
-  return NextResponse.json({ profissionais })
+  try {
+    let profissionais: any[]
+    if (unidadeId) {
+      profissionais = await db.$queryRaw<any[]>`
+        SELECT ps.id, ps.nome, ps.especialidade, ps.cargo, ps.conselho,
+               ps.numeroConselho, ps.telefone, ps.email, ps.ativo,
+               u.nome AS unidadeNome
+        FROM ProfissionalSaude ps
+        LEFT JOIN UnidadeSaude u ON u.id = ps.unidadeId
+        WHERE ps.municipioId = ${mid} AND ps.unidadeId = ${unidadeId}
+        ORDER BY ps.nome`
+    } else {
+      profissionais = await db.$queryRaw<any[]>`
+        SELECT ps.id, ps.nome, ps.especialidade, ps.cargo, ps.conselho,
+               ps.numeroConselho, ps.telefone, ps.email, ps.ativo,
+               u.nome AS unidadeNome
+        FROM ProfissionalSaude ps
+        LEFT JOIN UnidadeSaude u ON u.id = ps.unidadeId
+        WHERE ps.municipioId = ${mid}
+        ORDER BY ps.nome`
+    }
+    return NextResponse.json({ profissionais })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const mid = municipioId(req)
+  const { nome, unidadeId, cpf, cns, especialidade, conselho,
+    numeroConselho, cargo, telefone, email } = await req.json()
 
-  const Schema = z.object({
-    nome:           z.string().min(3),
-    especialidade:  z.enum(['CLINICO_GERAL','PEDIATRIA','GINECOLOGIA','ODONTOLOGIA','ENFERMAGEM','PSICOLOGIA','FISIOTERAPIA','NUTRICAO','FARMACIA','ASSISTENCIA_SOCIAL','AGENTE_SAUDE','OUTRO']),
-    unidadeId:      z.string(),
-    conselho:       z.string().optional(),
-    numeroConselho: z.string().optional(),
-    duracaoConsulta: z.number().int().default(20),
-    horarioInicio:  z.string().optional(),
-    horarioFim:     z.string().optional(),
-  })
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
+  if (!nome?.trim()) return NextResponse.json({ erro: 'Nome obrigatório' }, { status: 400 })
 
-  const profissional = await prisma.profissionalSaude.create({
-    data: { municipioId: usuario.municipioId, ...val.data },
-  })
-  return NextResponse.json({ profissional }, { status: 201 })
+  try {
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO ProfissionalSaude (id, municipioId, unidadeId, nome, cpf, cns,
+                                     especialidade, conselho, numeroConselho, cargo, telefone, email)
+      VALUES (${id}, ${mid}, ${unidadeId || null}, ${nome.trim()},
+              ${cpf?.replace(/\D/g, '') || null}, ${cns?.replace(/\D/g, '') || null},
+              ${especialidade || null}, ${conselho || null}, ${numeroConselho || null},
+              ${cargo || null}, ${telefone || null}, ${email || null})`
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }

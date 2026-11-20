@@ -1,40 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+function municipioId(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
 
-  const unidades = await prisma.unidadeSaude.findMany({
-    where: { municipioId: usuario.municipioId, ativo: true },
-    orderBy: { nome: 'asc' },
-    select: { id: true, nome: true, tipo: true, cnes: true, bairro: true, telefone: true },
-  })
-  return NextResponse.json({ unidades })
+export async function GET(req: NextRequest) {
+  const mid = municipioId(req)
+  const { searchParams } = new URL(req.url)
+  const id = searchParams.get('id')
+
+  try {
+    if (id) {
+      const rows2 = await db.$queryRaw<any[]>`
+        SELECT u.*
+        FROM UnidadeSaude u
+        WHERE u.id = ${id} AND u.municipioId = ${mid}
+        LIMIT 1`
+      if (!rows2.length) return NextResponse.json({ erro: 'Unidade não encontrada' }, { status: 404 })
+
+      const profissionais = await db.$queryRaw<any[]>`
+        SELECT id, nome, especialidade, cargo, telefone, ativo
+        FROM ProfissionalSaude
+        WHERE unidadeId = ${id} AND municipioId = ${mid}
+        ORDER BY nome`
+
+      return NextResponse.json({ unidade: rows2[0], profissionais })
+    }
+
+    const unidades = await db.$queryRaw<any[]>`
+      SELECT u.id, u.nome, u.tipo, u.cnes, u.bairro, u.telefone, u.responsavel, u.ativo,
+        (SELECT COUNT(*) FROM ProfissionalSaude ps WHERE ps.unidadeId = u.id AND ps.ativo = 1) AS totalProfissionais
+      FROM UnidadeSaude u
+      WHERE u.municipioId = ${mid}
+      ORDER BY u.nome`
+
+    return NextResponse.json({ unidades })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const mid = municipioId(req)
+  const body = await req.json()
+  const { nome, tipo, cnes, cep, logradouro, numero, bairro,
+    telefone, email, responsavel, horario } = body
 
-  const Schema = z.object({
-    nome: z.string().min(3),
-    tipo: z.enum(['UBS','UBSF','UPA','CAPS','CEO','POLICLINICA','FARMACIA_BASICA','OUTRO']),
-    cnes: z.string().optional(),
-    logradouro: z.string().optional(),
-    bairro: z.string().optional(),
-    telefone: z.string().optional(),
-    responsavel: z.string().optional(),
-  })
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
+  if (!nome?.trim()) return NextResponse.json({ erro: 'Nome obrigatório' }, { status: 400 })
 
-  const unidade = await prisma.unidadeSaude.create({
-    data: { municipioId: usuario.municipioId, ...val.data },
-  })
-  return NextResponse.json({ unidade }, { status: 201 })
+  try {
+    const id = crypto.randomUUID()
+    await db.$queryRaw`
+      INSERT INTO UnidadeSaude (id, municipioId, nome, tipo, cnes, cep, logradouro,
+                                numero, bairro, telefone, email, responsavel, horario)
+      VALUES (${id}, ${mid}, ${nome.trim()}, ${tipo ?? 'UBS'}, ${cnes || null},
+              ${cep || null}, ${logradouro || null}, ${numero || null}, ${bairro || null},
+              ${telefone || null}, ${email || null}, ${responsavel || null}, ${horario || null})`
+    return NextResponse.json({ id }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const mid = municipioId(req)
+  const { id, nome, tipo, cnes, bairro, telefone, email, responsavel, horario, ativo } = await req.json()
+  if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
+  try {
+    if (nome !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET nome = ${nome} WHERE id = ${id} AND municipioId = ${mid}`
+    if (tipo !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET tipo = ${tipo} WHERE id = ${id} AND municipioId = ${mid}`
+    if (cnes !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET cnes = ${cnes} WHERE id = ${id} AND municipioId = ${mid}`
+    if (bairro !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET bairro = ${bairro} WHERE id = ${id} AND municipioId = ${mid}`
+    if (telefone !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET telefone = ${telefone} WHERE id = ${id} AND municipioId = ${mid}`
+    if (responsavel !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET responsavel = ${responsavel} WHERE id = ${id} AND municipioId = ${mid}`
+    if (ativo !== undefined) await db.$queryRaw`UPDATE UnidadeSaude SET ativo = ${ativo ? 1 : 0} WHERE id = ${id} AND municipioId = ${mid}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }

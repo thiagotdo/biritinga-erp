@@ -10,6 +10,7 @@ import {
   Zap, CircleCheck, CircleDot,
   FileText, TrendingUp, CircleDollarSign,
   School, BookOpen, Heart, UtensilsCrossed,
+  Syringe, Pill, Activity, Building2, Package, UserCheck,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ const NAV_ADMIN = [
   { grupo: 'ERP', items: [
     { href: '/gestao/sefin',         label: 'Financeiro',       Icon: Wallet          },
     { href: '/gestao/semad',         label: 'Administrativo',   Icon: FolderOpen      },
-    { href: '/gestao/saude',          label: 'Saúde',            Icon: Stethoscope     },
+    { href: '/gestao/saude',           label: 'Saúde',            Icon: Stethoscope     },
     { href: '/gestao/educacao',       label: 'Educação',         Icon: GraduationCap   },
     { href: '/gestao/comunicacao/noticias', label: 'SECOM',     Icon: Newspaper       },
   ]},
@@ -101,7 +102,18 @@ const NAV_OUVIDORIA = [
 ]
 
 const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
-  SEMSA: [{ grupo: 'Saúde',           items: [{ href: '/gestao/semsa', label: 'Painel SEMSA', Icon: Stethoscope  }] }],
+  SEMSA: [{ grupo: 'Saúde', items: [
+    { href: '/gestao/saude',              label: 'Painel SEMSA',   Icon: Stethoscope  },
+    { href: '/gestao/saude/pacientes',    label: 'Pacientes',      Icon: Users        },
+    { href: '/gestao/saude/agendamentos', label: 'Agendamentos',   Icon: CalendarDays },
+    { href: '/gestao/saude/atendimentos', label: 'Atendimentos',   Icon: Heart        },
+    { href: '/gestao/saude/vacinacao',    label: 'Vacinação',      Icon: Syringe      },
+    { href: '/gestao/saude/farmacia',     label: 'Farmácia',       Icon: Pill         },
+    { href: '/gestao/saude/estoque',      label: 'Estoque Med.',   Icon: Package      },
+    { href: '/gestao/saude/vigilancia',   label: 'Vigilância',     Icon: Activity     },
+    { href: '/gestao/saude/esf',          label: 'ESF / UBS',      Icon: Building2    },
+    { href: '/gestao/saude/regulacao',    label: 'Regulação',      Icon: UserCheck    },
+  ]}],
   SEDUC: [{ grupo: 'Educação', items: [
     { href: '/gestao/educacao',          label: 'Painel SEDUC',  Icon: GraduationCap     },
     { href: '/gestao/educacao/escolas',  label: 'Escolas',       Icon: School            },
