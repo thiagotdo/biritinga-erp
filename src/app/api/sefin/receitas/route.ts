@@ -1,188 +1,117 @@
+/**
+ * GET  /api/sefin/receitas   — lista lançamentos de receita
+ * POST /api/sefin/receitas   — cria lançamento
+ */
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { extrairContextoRequest, auditLog } from '@/lib/audit'
-import { temPermissao } from '@/lib/auth/rbac'
+import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
-const ReceitaSchema = z.object({
-  exercicio:        z.number().int().min(2020).max(2050),
-  natureza:         z.enum([
-    'TRIBUTARIA','PATRIMONIAL','AGROPECUARIA','INDUSTRIAL','SERVICOS',
-    'TRANSFERENCIAS_CORRENTES','OUTRAS_CORRENTES','OPERACOES_CREDITO',
-    'ALIENACAO_BENS','AMORTIZACAO_EMPRESTIMOS','TRANSFERENCIAS_CAPITAL','OUTRAS_CAPITAL',
-  ]),
-  tipoTransferencia: z.enum([
-    'FPM','ICMS','IPVA','ITR','FUNDEB','SUS','FNAS','FNDE',
-    'CONVENIO','EMENDA','ROYALTIES','OUTRAS',
-  ]).optional(),
-  descricao:        z.string().min(3),
-  mes:              z.number().int().min(1).max(12),
-  valorPrevisto:    z.number().nonnegative(),
-  contaBancaria:    z.string().optional(),
-  observacoes:      z.string().optional(),
-})
+export const runtime = 'nodejs'
 
-const ArrecadarSchema = z.object({
-  id:              z.string(),
-  valorArrecadado: z.number().positive(),
-  dataArrecadacao: z.string().datetime(),
-  contaBancaria:   z.string().optional(),
-  observacoes:     z.string().optional(),
-})
+function mid(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
 
-// POST /api/sefin/receitas
-export async function POST(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
+export async function GET(req: NextRequest) {
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'sefin:receita:create')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
+  const { searchParams } = new URL(req.url)
+  const page      = Math.max(1, parseInt(searchParams.get('page')  ?? '1'))
+  const limit     = Math.min(100, parseInt(searchParams.get('limit') ?? '20'))
+  const skip      = (page - 1) * limit
+  const mes       = searchParams.get('mes')       ?? undefined
+  const exercicio = searchParams.get('exercicio') ?? new Date().getFullYear().toString()
 
   try {
-    const body = await request.json()
-    const dados = ReceitaSchema.parse(body)
+    // Resumo por categoria de receita (previsto x realizado)
+    const resumo = await db.$queryRaw`
+      SELECT
+        rp.descricao,
+        rp.categoria,
+        rp.valorPrevisto,
+        COALESCE(SUM(lr.valor), 0) as valorArrecadado
+      FROM ReceitaPrevista rp
+      LEFT JOIN LancamentoReceita lr ON lr.receitaPrevistaId = rp.id
+        AND YEAR(lr.dataLancamento) = ${parseInt(exercicio)}
+      WHERE rp.municipioId = ${municipioId}
+        AND rp.exercicio = ${parseInt(exercicio)}
+      GROUP BY rp.id
+      ORDER BY rp.categoria, rp.descricao
+    `
 
-    const receita = await prisma.receita.create({
-      data: {
-        municipioId: ctx.municipioId,
-        ...dados,
-        natureza: dados.natureza as any,
-        tipoTransferencia: dados.tipoTransferencia as any,
-        status: 'PREVISTA',
-        lancadoPor: ctx.usuarioId,
-      },
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'CREATE',
-      modulo: 'sefin',
-      recurso: 'receita',
-      registroId: receita.id,
-      dadosNovos: { natureza: dados.natureza, mes: dados.mes, valorPrevisto: dados.valorPrevisto },
-    })
-
-    return NextResponse.json({ receita }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
+    // Lançamentos recentes
+    const where: any = { municipioId }
+    if (mes) {
+      // Filtrar por mês (ex: "2024-03")
+      const [ano, m] = mes.split('-')
+      where.dataLancamento = {
+        gte: `${ano}-${m}-01`,
+        lte: `${ano}-${m}-31`,
+      }
     }
-    console.error('[RECEITA]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+
+    const lancamentos = await db.LancamentoReceita.findMany({
+      where,
+      orderBy: { dataLancamento: 'desc' },
+      take: limit,
+      skip,
+    })
+
+    const total = await db.LancamentoReceita.count({ where })
+
+    // Totais
+    const totais = await db.$queryRaw`
+      SELECT
+        COALESCE(SUM(rp.valorPrevisto), 0)       as totalPrevisto,
+        COALESCE(SUM(lr.valor), 0)               as totalArrecadado
+      FROM ReceitaPrevista rp
+      LEFT JOIN LancamentoReceita lr ON lr.receitaPrevistaId = rp.id
+        AND YEAR(lr.dataLancamento) = ${parseInt(exercicio)}
+      WHERE rp.municipioId = ${municipioId}
+        AND rp.exercicio = ${parseInt(exercicio)}
+    ` as any[]
+
+    return NextResponse.json({
+      resumo,
+      lancamentos,
+      meta: { total, page, limit, pages: Math.ceil(total / limit) },
+      totais: totais[0] ?? { totalPrevisto: 0, totalArrecadado: 0 },
+    })
+  } catch (e: any) {
+    console.error('[GET /api/sefin/receitas]', e.message)
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-// GET /api/sefin/receitas — com agrupamento opcional por natureza/mês
-export async function GET(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
-
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'sefin:receita:read')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
-
-  const { searchParams } = new URL(request.url)
-  const exercicio  = searchParams.get('exercicio')
-  const mes        = searchParams.get('mes')
-  const natureza   = searchParams.get('natureza')
-  const status     = searchParams.get('status')
-  const agrupar    = searchParams.get('agrupar') // 'natureza' | 'mes'
-
-  const receitas = await prisma.receita.findMany({
-    where: {
-      municipioId: ctx.municipioId,
-      ...(exercicio && { exercicio: parseInt(exercicio) }),
-      ...(mes       && { mes: parseInt(mes) }),
-      ...(natureza  && { natureza: natureza as any }),
-      ...(status    && { status: status as any }),
-    },
-    orderBy: [{ exercicio: 'desc' }, { mes: 'asc' }, { natureza: 'asc' }],
-    take: 500,
-  })
-
-  // Resumo financeiro
-  const totalPrevisto    = receitas.reduce((s, r) => s + Number(r.valorPrevisto), 0)
-  const totalArrecadado  = receitas.reduce((s, r) => s + Number(r.valorArrecadado), 0)
-  const pctRealizacao    = totalPrevisto > 0 ? (totalArrecadado / totalPrevisto) * 100 : 0
-
-  // Agrupamento por natureza
-  let porNatureza: Record<string, { previsto: number; arrecadado: number; count: number }> | undefined
-  if (agrupar === 'natureza') {
-    porNatureza = {}
-    for (const r of receitas) {
-      if (!porNatureza[r.natureza]) porNatureza[r.natureza] = { previsto: 0, arrecadado: 0, count: 0 }
-      porNatureza[r.natureza].previsto    += Number(r.valorPrevisto)
-      porNatureza[r.natureza].arrecadado  += Number(r.valorArrecadado)
-      porNatureza[r.natureza].count++
-    }
-  }
-
-  // Agrupamento por mês
-  let porMes: Record<number, { previsto: number; arrecadado: number }> | undefined
-  if (agrupar === 'mes') {
-    porMes = {}
-    for (const r of receitas) {
-      if (!porMes[r.mes]) porMes[r.mes] = { previsto: 0, arrecadado: 0 }
-      porMes[r.mes].previsto   += Number(r.valorPrevisto)
-      porMes[r.mes].arrecadado += Number(r.valorArrecadado)
-    }
-  }
-
-  return NextResponse.json({
-    dados: receitas,
-    total: receitas.length,
-    resumo: { totalPrevisto, totalArrecadado, pctRealizacao },
-    ...(porNatureza && { porNatureza }),
-    ...(porMes && { porMes }),
-  })
-}
-
-// PATCH /api/sefin/receitas — registrar arrecadação efetiva
-export async function PATCH(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
-
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'sefin:receita:update')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
+export async function POST(req: NextRequest) {
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   try {
-    const body = await request.json()
-    const dados = ArrecadarSchema.parse(body)
+    const body = await req.json()
+    const { receitaPrevistaId, contaBancariaId, dataLancamento, valor, descricao, documento, fonte } = body
 
-    const atual = await prisma.receita.findFirst({
-      where: { id: dados.id, municipioId: ctx.municipioId },
-    })
-    if (!atual) return NextResponse.json({ erro: 'Receita não encontrada' }, { status: 404 })
-    if (atual.status === 'CANCELADA') return NextResponse.json({ erro: 'Receita cancelada não pode ser arrecadada' }, { status: 422 })
+    if (!dataLancamento || !valor) {
+      return NextResponse.json({ erro: 'Campos obrigatórios: dataLancamento, valor' }, { status: 400 })
+    }
 
-    const atualizada = await prisma.receita.update({
-      where: { id: dados.id },
+    const lancamento = await db.LancamentoReceita.create({
       data: {
-        valorArrecadado: { increment: dados.valorArrecadado },
-        dataArrecadacao: new Date(dados.dataArrecadacao),
-        contaBancaria:   dados.contaBancaria ?? atual.contaBancaria,
-        observacoes:     dados.observacoes ?? atual.observacoes,
-        status:          'ARRECADADA',
+        id: randomUUID(),
+        municipioId,
+        receitaPrevistaId: receitaPrevistaId ?? null,
+        contaBancariaId: contaBancariaId ?? null,
+        dataLancamento,
+        valor: parseFloat(valor),
+        descricao: descricao ?? null,
+        documento: documento ?? null,
+        fonte: fonte ?? null,
       },
     })
 
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'UPDATE',
-      modulo: 'sefin',
-      recurso: 'receita',
-      registroId: dados.id,
-      dadosAntigos: { valorArrecadado: atual.valorArrecadado, status: atual.status },
-      dadosNovos:   { valorArrecadado: dados.valorArrecadado, status: 'ARRECADADA' },
-    })
-
-    return NextResponse.json({ receita: atualizada })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
-    }
-    console.error('[RECEITA PATCH]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ ok: true, lancamento }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }

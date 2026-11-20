@@ -1,300 +1,133 @@
-// Gestão do Orçamento Anual (LOA) e Dotações
-// GET    — listar orçamentos / buscar dotações de um exercício
-// POST   — criar LOA / adicionar dotação
-// PATCH  — aprovar LOA / suplementar dotação
-
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { extrairContextoRequest, temPermissao } from '@/lib/rbac'
-import { auditLog } from '@/lib/audit'
+/**
+ * GET /api/sefin/orcamento   — resumo orçamentário do exercício
+ * POST /api/sefin/orcamento  — cria LOA / dotação
+ */
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 
-const DotacaoSchema = z.object({
-  unidadeGestora:      z.string(),
-  unidadeOrcamentaria: z.string(),
-  funcao:              z.string().length(2),
-  subfuncao:           z.string().length(3),
-  programa:            z.string(),
-  acao:                z.string(),
-  natureza:            z.enum(['PESSOAL_ENCARGOS','JUROS_ENCARGOS_DIVIDA','OUTRAS_CORRENTES','INVESTIMENTOS','INVERSOES_FINANCEIRAS','AMORTIZACAO_DIVIDA']),
-  fonte:               z.string(),
-  codigo:              z.string(),
-  descricao:           z.string().min(5),
-  valorOriginal:       z.number().positive(),
-  secretaria:          z.string().optional(),
-})
+function mid(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const exercicio = parseInt(searchParams.get('exercicio') ?? new Date().getFullYear().toString())
+
   try {
-    const ctx = extrairContextoRequest(request.headers)
-    if (!temPermissao(ctx, 'sefin:orcamento:read')) {
-      return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-    }
+    // LOA vigente
+    const loa = await db.LOA.findFirst({
+      where: { municipioId, exercicio: exercicio as any },
+    }) as any
 
-    const { searchParams } = request.nextUrl
-    const exercicio  = searchParams.get('exercicio') ? Number(searchParams.get('exercicio')) : undefined
-    const secretaria = searchParams.get('secretaria')
-    const natureza   = searchParams.get('natureza')
+    // Execução orçamentária por unidade
+    const execucao = await db.$queryRaw`
+      SELECT
+        u.nome  as unidade,
+        u.sigla,
+        COALESCE(SUM(d.valorOrcado + d.valorSuplementado - d.valorAnulado), 0) as valorOrcado,
+        COALESCE(SUM(e.valor - e.valorAnulado), 0)    as valorEmpenhado,
+        COALESCE(SUM(l.valor), 0)                     as valorLiquidado,
+        COALESCE(SUM(p.valor), 0)                     as valorPago
+      FROM Unidade u
+      LEFT JOIN Dotacao d ON d.unidadeId = u.id AND d.loaId = ${loa?.id ?? ''}
+      LEFT JOIN Empenho e ON e.dotacaoId = d.id AND e.exercicio = ${exercicio}
+        AND e.status NOT IN ('ANULADO','CANCELADO')
+      LEFT JOIN Liquidacao l ON l.empenhoId = e.id
+      LEFT JOIN Pagamento  p ON p.liquidacaoId = l.id
+      WHERE u.municipioId = ${municipioId} AND u.ativo = 1
+      GROUP BY u.id
+      ORDER BY u.nome
+    `
 
-    // Lista de orçamentos por exercício
-    if (!exercicio) {
-      const orcamentos = await prisma.orcamento.findMany({
-        where: { municipioId: ctx.municipioId },
-        orderBy: { exercicio: 'desc' },
-      })
-      return NextResponse.json({ orcamentos })
-    }
+    // Totais globais
+    const totais = await db.$queryRaw`
+      SELECT
+        COALESCE(SUM(d.valorOrcado + d.valorSuplementado - d.valorAnulado), 0) as totalOrcado,
+        COALESCE(SUM(CASE WHEN e.status NOT IN ('ANULADO','CANCELADO') THEN e.valor - e.valorAnulado ELSE 0 END), 0) as totalEmpenhado,
+        COALESCE(SUM(l.valor), 0) as totalLiquidado,
+        COALESCE(SUM(p.valor), 0) as totalPago
+      FROM Dotacao d
+      LEFT JOIN Empenho   e ON e.dotacaoId    = d.id    AND e.exercicio = ${exercicio}
+      LEFT JOIN Liquidacao l ON l.empenhoId   = e.id
+      LEFT JOIN Pagamento  p ON p.liquidacaoId = l.id
+      WHERE d.municipioId = ${municipioId}
+        AND ${loa?.id ? `d.loaId = '${loa.id}'` : '1=1'}
+    ` as any[]
 
-    // Detalhe do orçamento + dotações
-    const orcamento = await prisma.orcamento.findFirst({
-      where: { municipioId: ctx.municipioId, exercicio },
-    })
-    if (!orcamento) return NextResponse.json({ erro: 'Orçamento não encontrado' }, { status: 404 })
-
-    const dotacoes = await prisma.dotacao.findMany({
-      where: {
-        orcamentoId: orcamento.id,
-        ativo: true,
-        ...(secretaria && { secretaria }),
-        ...(natureza   && { natureza: natureza as any }),
-      },
-      orderBy: [{ secretaria: 'asc' }, { codigo: 'asc' }],
-    })
-
-    // Totais consolidados por secretaria
-    const porSecretaria = await prisma.dotacao.groupBy({
-      by: ['secretaria'],
-      where: { orcamentoId: orcamento.id, ativo: true },
-      _sum: { valorAtual: true, valorEmpenhado: true, valorPago: true },
-    })
-
-    // Totais por natureza de despesa
-    const porNatureza = await prisma.dotacao.groupBy({
-      by: ['natureza'],
-      where: { orcamentoId: orcamento.id, ativo: true },
-      _sum: { valorAtual: true, valorEmpenhado: true },
-    })
-
-    // Execução financeira global
-    const execucao = await prisma.dotacao.aggregate({
-      where: { orcamentoId: orcamento.id, ativo: true },
-      _sum: { valorOriginal: true, valorAtual: true, valorEmpenhado: true, valorLiquidado: true, valorPago: true },
-    })
+    // Dotações (top 20 por valor)
+    const dotacoes = loa ? await db.Dotacao.findMany({
+      where: { municipioId, loaId: loa.id },
+      orderBy: { valorOrcado: 'desc' },
+      take: 20,
+    }) : []
 
     return NextResponse.json({
-      orcamento,
+      loa,
+      execucao,
+      totais: totais[0] ?? {},
       dotacoes,
-      resumo: {
-        porSecretaria: porSecretaria.map(s => ({
-          secretaria:    s.secretaria ?? '—',
-          valorAtual:    Number(s._sum.valorAtual    ?? 0),
-          valorEmpenhado:Number(s._sum.valorEmpenhado ?? 0),
-          valorPago:     Number(s._sum.valorPago      ?? 0),
-        })),
-        porNatureza: porNatureza.map(n => ({
-          natureza:      n.natureza,
-          valorAtual:    Number(n._sum.valorAtual    ?? 0),
-          valorEmpenhado:Number(n._sum.valorEmpenhado ?? 0),
-        })),
-        execucao: {
-          valorOriginal:  Number(execucao._sum.valorOriginal  ?? 0),
-          valorAtual:     Number(execucao._sum.valorAtual     ?? 0),
-          valorEmpenhado: Number(execucao._sum.valorEmpenhado ?? 0),
-          valorLiquidado: Number(execucao._sum.valorLiquidado ?? 0),
-          valorPago:      Number(execucao._sum.valorPago      ?? 0),
-          percEmpenhado:  execucao._sum.valorAtual
-            ? (Number(execucao._sum.valorEmpenhado) / Number(execucao._sum.valorAtual)) * 100
-            : 0,
-        },
-      },
+      exercicio,
     })
-  } catch (error) {
-    console.error('[SEFIN/ORCAMENTO/GET]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+  } catch (e: any) {
+    console.error('[GET /api/sefin/orcamento]', e.message)
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
+
   try {
-    const ctx = extrairContextoRequest(request.headers)
-    if (!temPermissao(ctx, 'sefin:orcamento:update')) {
-      return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-    }
+    const body = await req.json()
+    const { tipo, ...data } = body // tipo: 'loa' | 'dotacao'
 
-    const CreateSchema = z.discriminatedUnion('tipo', [
-      z.object({
-        tipo:         z.literal('LOA'),
-        exercicio:    z.number().int().min(2024),
-        totalDespesa: z.number().positive(),
-        totalReceita: z.number().positive(),
-        leiNumero:    z.string().optional(),
-        leiData:      z.string().optional(),
-        observacoes:  z.string().optional(),
-      }),
-      z.object({
-        tipo:       z.literal('DOTACAO'),
-        orcamentoId:z.string(),
-        dotacao:    DotacaoSchema,
-      }),
-      z.object({
-        tipo:          z.literal('SUPLEMENTO'),
-        dotacaoId:     z.string(),
-        orcamentoId:   z.string(),
-        tipoSuplemento:z.enum(['SUPLEMENTACAO','ESPECIAL','EXTRAORDINARIO']),
-        valor:         z.number(),       // positivo=suplementação, negativo=redução
-        decreto:       z.string().optional(),
-        dataDecreto:   z.string().optional(),
-        justificativa: z.string().optional(),
-      }),
-    ])
-
-    const dados = CreateSchema.parse(await request.json())
-
-    if (dados.tipo === 'LOA') {
-      const existe = await prisma.orcamento.findFirst({
-        where: { municipioId: ctx.municipioId, exercicio: dados.exercicio },
-      })
-      if (existe) return NextResponse.json({ erro: `Orçamento ${dados.exercicio} já existe` }, { status: 409 })
-
-      const orc = await prisma.orcamento.create({
+    if (tipo === 'loa') {
+      const loa = await db.LOA.create({
         data: {
-          municipioId:  ctx.municipioId,
-          exercicio:    dados.exercicio,
-          totalDespesa: dados.totalDespesa,
-          totalReceita: dados.totalReceita,
-          leiNumero:    dados.leiNumero,
-          leiData:      dados.leiData ? new Date(dados.leiData) : undefined,
-          observacoes:  dados.observacoes,
+          id: randomUUID(),
+          municipioId,
+          exercicio: data.exercicio,
+          lei: data.lei ?? null,
+          dataPublicacao: data.dataPublicacao ?? null,
+          valorTotal: parseFloat(data.valorTotal ?? '0'),
+          status: 'ELABORACAO',
         },
       })
-      return NextResponse.json({ orcamento: orc }, { status: 201 })
+      return NextResponse.json({ ok: true, loa }, { status: 201 })
     }
 
-    if (dados.tipo === 'DOTACAO') {
-      const orc = await prisma.orcamento.findFirst({
-        where: { id: dados.orcamentoId, municipioId: ctx.municipioId },
-      })
-      if (!orc) return NextResponse.json({ erro: 'Orçamento não encontrado' }, { status: 404 })
-
-      const dotacao = await prisma.dotacao.create({
+    if (tipo === 'dotacao') {
+      const dotacao = await db.Dotacao.create({
         data: {
-          orcamentoId:         dados.orcamentoId,
-          municipioId:         ctx.municipioId,
-          unidadeGestora:      dados.dotacao.unidadeGestora,
-          unidadeOrcamentaria: dados.dotacao.unidadeOrcamentaria,
-          funcao:              dados.dotacao.funcao,
-          subfuncao:           dados.dotacao.subfuncao,
-          programa:            dados.dotacao.programa,
-          acao:                dados.dotacao.acao,
-          natureza:            dados.dotacao.natureza,
-          fonte:               dados.dotacao.fonte,
-          codigo:              dados.dotacao.codigo,
-          descricao:           dados.dotacao.descricao,
-          valorOriginal:       dados.dotacao.valorOriginal,
-          valorAtual:          dados.dotacao.valorOriginal,
-          secretaria:          dados.dotacao.secretaria,
+          id: randomUUID(),
+          municipioId,
+          loaId: data.loaId,
+          unidadeId: data.unidadeId ?? null,
+          codigo: data.codigo,
+          descricao: data.descricao,
+          funcao: data.funcao ?? null,
+          subfuncao: data.subfuncao ?? null,
+          programa: data.programa ?? null,
+          acao: data.acao ?? null,
+          elementoDespesa: data.elementoDespesa ?? null,
+          fonte: data.fonte ?? null,
+          valorOrcado: parseFloat(data.valorOrcado ?? '0'),
+          valorSuplementado: 0,
+          valorAnulado: 0,
         },
       })
-      return NextResponse.json({ dotacao }, { status: 201 })
+      return NextResponse.json({ ok: true, dotacao }, { status: 201 })
     }
 
-    if (dados.tipo === 'SUPLEMENTO') {
-      const dotacao = await prisma.dotacao.findFirst({
-        where: { id: dados.dotacaoId, municipioId: ctx.municipioId },
-      })
-      if (!dotacao) return NextResponse.json({ erro: 'Dotação não encontrada' }, { status: 404 })
-
-      // Verificar que suplementação não ultrapassa limite legal (25% da dotação original — art. 43 Lei 4.320)
-      if (dados.tipoSuplemento === 'SUPLEMENTACAO') {
-        const totalSuplem = await prisma.suplemento.aggregate({
-          where: { dotacaoId: dados.dotacaoId, tipo: 'SUPLEMENTACAO' },
-          _sum: { valor: true },
-        })
-        const totalAcumulado = Number(totalSuplem._sum.valor ?? 0) + dados.valor
-        const limite25pct    = Number(dotacao.valorOriginal) * 0.25
-        if (totalAcumulado > limite25pct) {
-          return NextResponse.json({
-            erro: `Suplementação excede 25% da dotação original (limite: R$ ${limite25pct.toFixed(2)}). Exige lei específica.`,
-          }, { status: 422 })
-        }
-      }
-
-      await prisma.$transaction(async (tx) => {
-        await tx.suplemento.create({
-          data: {
-            municipioId:   ctx.municipioId,
-            orcamentoId:   dados.orcamentoId,
-            dotacaoId:     dados.dotacaoId,
-            tipo:          dados.tipoSuplemento,
-            valor:         dados.valor,
-            decreto:       dados.decreto,
-            dataDecreto:   dados.dataDecreto ? new Date(dados.dataDecreto) : undefined,
-            justificativa: dados.justificativa,
-            usuarioId:     ctx.usuarioId,
-          },
-        })
-        await tx.dotacao.update({
-          where: { id: dados.dotacaoId },
-          data: { valorAtual: { increment: dados.valor } },
-        })
-      })
-
-      return NextResponse.json({ mensagem: `Dotação ${dados.tipoSuplemento === 'SUPLEMENTACAO' ? 'suplementada' : 'alterada'} em R$ ${Math.abs(dados.valor).toFixed(2)}` })
-    }
-
-    return NextResponse.json({ erro: 'Tipo inválido' }, { status: 400 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
-    }
-    console.error('[SEFIN/ORCAMENTO/POST]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const ctx = extrairContextoRequest(request.headers)
-    if (!temPermissao(ctx, 'sefin:orcamento:update')) {
-      return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-    }
-
-    const { id, acao, leiNumero, leiData } = await request.json()
-    if (!id || !acao) return NextResponse.json({ erro: 'id e acao obrigatórios' }, { status: 400 })
-
-    const orc = await prisma.orcamento.findFirst({ where: { id, municipioId: ctx.municipioId } })
-    if (!orc) return NextResponse.json({ erro: 'Orçamento não encontrado' }, { status: 404 })
-
-    const TRANSICOES: Record<string, string> = {
-      ENVIAR_PL: 'APROVADO_PL',
-      APROVAR:   'VIGENTE',
-      ENCERRAR:  'ENCERRADO',
-    }
-    if (!TRANSICOES[acao]) return NextResponse.json({ erro: 'Ação inválida' }, { status: 400 })
-
-    const atualizado = await prisma.orcamento.update({
-      where: { id },
-      data: {
-        situacao:  TRANSICOES[acao] as any,
-        ...(leiNumero && { leiNumero }),
-        ...(leiData   && { leiData: new Date(leiData) }),
-      },
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId:   ctx.usuarioId,
-      acao: 'UPDATE', modulo: 'sefin', recurso: 'orcamento',
-      registroId: id,
-      dadosNovos: { situacao: atualizado.situacao, exercicio: orc.exercicio },
-    })
-
-    return NextResponse.json({ orcamento: atualizado })
-  } catch (error) {
-    console.error('[SEFIN/ORCAMENTO/PATCH]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ erro: 'tipo deve ser "loa" ou "dotacao"' }, { status: 400 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }

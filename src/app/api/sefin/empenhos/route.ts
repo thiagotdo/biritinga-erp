@@ -1,260 +1,125 @@
+/**
+ * GET  /api/sefin/empenhos   — lista com filtros e paginação
+ * POST /api/sefin/empenhos   — cria novo empenho
+ */
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { extrairContextoRequest, auditLog } from '@/lib/audit'
-import { temPermissao } from '@/lib/auth/rbac'
+import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
-const EmpenhoSchema = z.object({
-  orcamentoId:         z.string(),
-  unidadeId:           z.string().optional(),
-  fornecedorId:        z.string().optional(),
-  exercicio:           z.number().int().min(2020),
-  dataEmissao:         z.string().datetime(),
-  tipoDespesa:         z.enum(['PESSOAL','ENCARGOS_SOCIAIS','JUROS_ENCARGOS','OUTRAS_CORRENTES','INVESTIMENTOS','INVERSOES_FINANCEIRAS','AMORTIZACAO_DIVIDA']),
-  modalidadeLicitacao: z.enum(['DISPENSA','INEXIGIBILIDADE','PREGAO_ELETRONICO','PREGAO_PRESENCIAL','CONCORRENCIA','TOMADA_PRECOS','CONVITE','CONCURSO','LEILAO','CREDENCIAMENTO','REGISTRO_PRECO']).optional(),
-  numeroLicitacao:     z.string().optional(),
-  descricao:           z.string().min(5),
-  valor:               z.number().positive(),
-  contaBancaria:       z.string().optional(),
-  observacoes:         z.string().optional(),
-})
+export const runtime = 'nodejs'
 
-const LiquidarSchema = z.object({
-  id:              z.string(),
-  acao:            z.enum(['LIQUIDAR', 'PAGAR', 'ANULAR', 'REFORCO']),
-  valor:           z.number().positive().optional(),
-  dataEfetiva:     z.string().datetime(),
-  documento:       z.string().optional(), // TED, cheque, pix
-  contaDebito:     z.string().optional(),
-  observacoes:     z.string().optional(),
-})
-
-// Gera número sequencial: "2026/0001"
-async function gerarNumeroEmpenho(municipioId: string, exercicio: number): Promise<string> {
-  const count = await prisma.empenho.count({
-    where: { municipioId, exercicio },
-  })
-  return `${exercicio}/${String(count + 1).padStart(4, '0')}`
+function mid(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
 }
 
-// POST /api/sefin/empenhos
-export async function POST(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
+export async function GET(req: NextRequest) {
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'sefin:empenho:create')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
+  const { searchParams } = new URL(req.url)
+  const page      = Math.max(1, parseInt(searchParams.get('page')  ?? '1'))
+  const limit     = Math.min(100, parseInt(searchParams.get('limit') ?? '20'))
+  const skip      = (page - 1) * limit
+  const status    = searchParams.get('status')   ?? undefined
+  const exercicio = searchParams.get('exercicio') ?? undefined
+  const fornecedorId = searchParams.get('fornecedorId') ?? undefined
+  const q         = searchParams.get('q')        ?? undefined
+
+  const where: any = { municipioId }
+  if (status)      where.status    = status
+  if (exercicio)   where.exercicio = exercicio
+  if (fornecedorId) where.fornecedorId = fornecedorId
 
   try {
-    const body = await request.json()
-    const dados = EmpenhoSchema.parse(body)
+    // Se há busca textual, usar SQL direto
+    let empenhos: any[]
+    let total: number
 
-    const empenho = await prisma.$transaction(async (tx) => {
-      // Verificar saldo disponível na unidade
-      if (dados.unidadeId) {
-        const unidade = await tx.orcamentoUnidade.findFirst({
-          where: { id: dados.unidadeId, orcamentoId: dados.orcamentoId },
-        })
-        if (unidade) {
-          const dotacaoAtual = Number(unidade.dotacaoInicial) + Number(unidade.suplementacao) - Number(unidade.reducao)
-          const saldoDisponivel = dotacaoAtual - Number(unidade.empenhado)
-          if (dados.valor > saldoDisponivel) {
-            throw new Error(`SALDO_INSUFICIENTE:${saldoDisponivel.toFixed(2)}`)
-          }
-          // Atualizar empenhado na unidade
-          await tx.orcamentoUnidade.update({
-            where: { id: dados.unidadeId },
-            data:  { empenhado: { increment: dados.valor } },
-          })
+    if (q) {
+      const like = `%${q}%`
+      empenhos = await db.$queryRaw`
+        SELECT e.*, f.nome as fornecedorNome, f.cpfCnpj as fornecedorDoc
+        FROM Empenho e
+        LEFT JOIN Fornecedor f ON f.id = e.fornecedorId
+        WHERE e.municipioId = ${municipioId}
+          AND (e.numero LIKE ${like} OR e.descricao LIKE ${like} OR f.nome LIKE ${like})
+        ORDER BY e.dataEmissao DESC
+        LIMIT ${limit} OFFSET ${skip}
+      `
+      const ct = await db.$queryRaw`
+        SELECT COUNT(*) as n
+        FROM Empenho e
+        LEFT JOIN Fornecedor f ON f.id = e.fornecedorId
+        WHERE e.municipioId = ${municipioId}
+          AND (e.numero LIKE ${like} OR e.descricao LIKE ${like} OR f.nome LIKE ${like})
+      ` as any[]
+      total = Number(ct[0]?.n ?? 0)
+    } else {
+      empenhos = await db.Empenho.findMany({
+        where,
+        orderBy: { dataEmissao: 'desc' },
+        take: limit,
+        skip,
+      })
+      // Enriquecer com fornecedor
+      for (const e of empenhos) {
+        if (e.fornecedorId) {
+          const f = await db.Fornecedor.findFirst({ where: { id: e.fornecedorId } }) as any
+          if (f) { e.fornecedorNome = f.nome; e.fornecedorDoc = f.cpfCnpj }
         }
       }
-
-      const numero = await gerarNumeroEmpenho(ctx.municipioId, dados.exercicio)
-
-      return tx.empenho.create({
-        data: {
-          municipioId:          ctx.municipioId,
-          orcamentoId:          dados.orcamentoId,
-          unidadeId:            dados.unidadeId,
-          fornecedorId:         dados.fornecedorId,
-          numero,
-          exercicio:            dados.exercicio,
-          dataEmissao:          new Date(dados.dataEmissao),
-          tipoDespesa:          dados.tipoDespesa as any,
-          modalidadeLicitacao:  dados.modalidadeLicitacao as any,
-          numeroLicitacao:      dados.numeroLicitacao,
-          descricao:            dados.descricao,
-          valorOriginal:        dados.valor,
-          contaBancaria:        dados.contaBancaria,
-          observacoes:          dados.observacoes,
-          emitidoPor:           ctx.usuarioId,
-          status:               'EMITIDO',
-        },
-      })
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'CREATE',
-      modulo: 'sefin',
-      recurso: 'empenho',
-      registroId: empenho.id,
-      dadosNovos: { numero: empenho.numero, valor: dados.valor, tipoDespesa: dados.tipoDespesa },
-    })
-
-    return NextResponse.json({ empenho }, { status: 201 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
+      total = await db.Empenho.count({ where })
     }
-    if (error instanceof Error && error.message.startsWith('SALDO_INSUFICIENTE')) {
-      const saldo = error.message.split(':')[1]
-      return NextResponse.json({ erro: 'Saldo insuficiente na dotação da unidade', saldoDisponivel: parseFloat(saldo) }, { status: 422 })
-    }
-    console.error('[EMPENHO]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+
+    return NextResponse.json({
+      data: empenhos,
+      meta: { total, page, limit, pages: Math.ceil(total / limit) },
+    })
+  } catch (e: any) {
+    console.error('[GET /api/sefin/empenhos]', e.message)
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }
 
-// GET /api/sefin/empenhos
-export async function GET(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
-
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'sefin:empenho:read')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
-
-  const { searchParams } = new URL(request.url)
-  const exercicio     = searchParams.get('exercicio')
-  const status        = searchParams.get('status')
-  const tipoDespesa   = searchParams.get('tipoDespesa')
-  const fornecedorId  = searchParams.get('fornecedorId')
-  const unidadeId     = searchParams.get('unidadeId')
-  const busca         = searchParams.get('busca')
-  const page          = parseInt(searchParams.get('page') || '1')
-  const limit         = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
-  const skip          = (page - 1) * limit
-
-  const where: any = {
-    municipioId: ctx.municipioId,
-    ...(exercicio    && { exercicio: parseInt(exercicio) }),
-    ...(status       && { status: status as any }),
-    ...(tipoDespesa  && { tipoDespesa: tipoDespesa as any }),
-    ...(fornecedorId && { fornecedorId }),
-    ...(unidadeId    && { unidadeId }),
-    ...(busca && {
-      OR: [
-        { numero:    { contains: busca } },
-        { descricao: { contains: busca } },
-        { fornecedor: { nome: { contains: busca } } },
-      ],
-    }),
-  }
-
-  const [empenhos, total] = await Promise.all([
-    prisma.empenho.findMany({
-      where,
-      include: {
-        fornecedor: { select: { id: true, nome: true, cnpjCpf: true } },
-        unidade:    { select: { id: true, nomeUnidade: true } },
-        _count:     { select: { pagamentos: true } },
-      },
-      orderBy: [{ exercicio: 'desc' }, { createdAt: 'desc' }],
-      skip,
-      take: limit,
-    }),
-    prisma.empenho.count({ where }),
-  ])
-
-  return NextResponse.json({
-    dados: empenhos,
-    paginacao: { total, page, limit, totalPages: Math.ceil(total / limit) },
-  })
-}
-
-// PATCH /api/sefin/empenhos — liquidar / pagar / anular / reforçar
-export async function PATCH(request: NextRequest) {
-  const ctx = extrairContextoRequest(request.headers)
-
-  if (!temPermissao({ ...ctx, perfil: ctx.perfil as any, permissoesExtras: ctx.permissoes }, 'sefin:empenho:update')) {
-    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
-  }
+export async function POST(req: NextRequest) {
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   try {
-    const body = await request.json()
-    const dados = LiquidarSchema.parse(body)
+    const body = await req.json()
+    const {
+      dotacaoId, fornecedorId, numero, exercicio,
+      dataEmissao, tipo, modalidade, descricao, valor, processo,
+    } = body
 
-    const atual = await prisma.empenho.findFirst({
-      where: { id: dados.id, municipioId: ctx.municipioId },
-    })
-    if (!atual) return NextResponse.json({ erro: 'Empenho não encontrado' }, { status: 404 })
-
-    const valorEfetivo = dados.valor ?? Number(atual.valorOriginal) + Number(atual.valorReforco) - Number(atual.valorAnulado)
-
-    const atualizado = await prisma.$transaction(async (tx) => {
-      let updateData: Record<string, unknown> = {}
-
-      if (dados.acao === 'LIQUIDAR') {
-        if (atual.status !== 'EMITIDO' && atual.status !== 'REFORCO') throw new Error('Empenho não pode ser liquidado neste status')
-        updateData = { status: 'LIQUIDADO', valorLiquidado: { increment: valorEfetivo }, dataLiquidacao: new Date(dados.dataEfetiva) }
-        if (atual.unidadeId) await tx.orcamentoUnidade.update({ where: { id: atual.unidadeId }, data: { liquidado: { increment: valorEfetivo } } })
-      }
-
-      if (dados.acao === 'PAGAR') {
-        if (atual.status !== 'LIQUIDADO') throw new Error('Empenho precisa estar liquidado antes de pagar')
-        updateData = { status: 'PAGO', valorPago: { increment: valorEfetivo }, dataPagamento: new Date(dados.dataEfetiva) }
-        if (atual.unidadeId) await tx.orcamentoUnidade.update({ where: { id: atual.unidadeId }, data: { pago: { increment: valorEfetivo } } })
-        // Registrar pagamento
-        await tx.pagamentoEmpenho.create({
-          data: {
-            municipioId:   ctx.municipioId,
-            empenhoId:     dados.id,
-            valor:         valorEfetivo,
-            dataPagamento: new Date(dados.dataEfetiva),
-            contaDebito:   dados.contaDebito,
-            documento:     dados.documento,
-            observacoes:   dados.observacoes,
-            registradoPor: ctx.usuarioId,
-          },
-        })
-      }
-
-      if (dados.acao === 'ANULAR') {
-        const valorAnular = dados.valor ?? Number(atual.valorOriginal)
-        updateData = { status: 'ANULADO', valorAnulado: { increment: valorAnular } }
-        if (atual.unidadeId) await tx.orcamentoUnidade.update({ where: { id: atual.unidadeId }, data: { empenhado: { decrement: valorAnular } } })
-      }
-
-      if (dados.acao === 'REFORCO') {
-        if (!dados.valor) throw new Error('Valor do reforço é obrigatório')
-        updateData = { status: 'REFORCO', valorReforco: { increment: dados.valor } }
-        if (atual.unidadeId) await tx.orcamentoUnidade.update({ where: { id: atual.unidadeId }, data: { empenhado: { increment: dados.valor } } })
-      }
-
-      return tx.empenho.update({ where: { id: dados.id }, data: updateData })
-    })
-
-    await auditLog({
-      municipioId: ctx.municipioId,
-      usuarioId: ctx.usuarioId,
-      acao: 'UPDATE',
-      modulo: 'sefin',
-      recurso: 'empenho',
-      registroId: dados.id,
-      dadosAntigos: { status: atual.status },
-      dadosNovos:   { status: dados.acao, valor: valorEfetivo },
-    })
-
-    return NextResponse.json({ empenho: atualizado })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ erro: 'Dados inválidos', detalhes: error.flatten() }, { status: 400 })
+    if (!numero || !dataEmissao || !descricao || !valor) {
+      return NextResponse.json({ erro: 'Campos obrigatórios: numero, dataEmissao, descricao, valor' }, { status: 400 })
     }
-    if (error instanceof Error) {
-      return NextResponse.json({ erro: error.message }, { status: 422 })
+
+    const empenho = await db.Empenho.create({
+      data: {
+        id: randomUUID(),
+        municipioId,
+        dotacaoId: dotacaoId ?? null,
+        fornecedorId: fornecedorId ?? null,
+        numero,
+        exercicio: exercicio ?? new Date().getFullYear(),
+        dataEmissao,
+        tipo: tipo ?? 'ORDINARIO',
+        modalidade: modalidade ?? null,
+        descricao,
+        valor: parseFloat(valor),
+        valorAnulado: 0,
+        status: 'EMITIDO',
+        processo: processo ?? null,
+      },
+    })
+
+    return NextResponse.json({ ok: true, empenho }, { status: 201 })
+  } catch (e: any) {
+    if (e.message?.includes('Duplicate entry')) {
+      return NextResponse.json({ erro: 'Número de empenho já existe neste exercício' }, { status: 409 })
     }
-    console.error('[EMPENHO PATCH]', error)
-    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
 }

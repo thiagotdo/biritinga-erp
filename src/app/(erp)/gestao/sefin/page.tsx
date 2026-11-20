@@ -1,293 +1,474 @@
 'use client'
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  DollarSign, TrendingUp, TrendingDown, AlertTriangle, ChevronRight,
-  BarChart3, ArrowUpRight, ArrowDownRight, Wallet, FileText,
-  Building2, PieChart, Calendar, CheckCircle, Clock, Landmark,
+  TrendingUp, TrendingDown, Wallet, BarChart2, FileText,
+  AlertTriangle, ChevronRight, RefreshCw, CalendarDays,
+  ArrowUpRight, ArrowDownRight, CircleDollarSign,
 } from 'lucide-react'
+import Link from 'next/link'
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
-interface KpiFinanceiro {
-  receitaPrevista: number
-  receitaArrecadada: number
-  despesaEmpenhada: number
-  despesaPaga: number
-  saldoDisponivel: number
-  saldoCaixa: number
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+interface KPI {
+  orcamentoTotal:      number
+  totalEmpenhado:      number
+  totalPago:           number
+  totalReceita:        number
+  receitaPrevista:     number
+  percentualEmpenhado: string
+  percentualReceita:   string
+}
+interface MensalRow { mes: string; tipo: 'receita' | 'despesa'; valor: number }
+interface UnidadeRow { unidade: string; sigla: string; orcado: number; empenhado: number; pago: number }
+interface EmpenhoRow { id: string; numero: string; dataEmissao: string; valor: number; status: string; descricao: string; fornecedorNome?: string }
+interface DashData {
+  kpi: KPI
+  mensal:          MensalRow[]
+  porUnidade:      UnidadeRow[]
+  ultimosEmpenhos: EmpenhoRow[]
+  alertas:         { dotacoesAcima90pct: number }
+  exercicio:       number
 }
 
-interface ExecucaoUnidade {
-  unidade: string
-  dotacao: number
-  empenhado: number
-  pago: number
-  pct: number
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const brl = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 })
+
+const brlM = (v: number) => {
+  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2).replace('.', ',')} mi`
+  if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(1).replace('.', ',')} mil`
+  return brl(v)
 }
 
-interface ReceitaMes {
-  mes: number
-  nomeMes: string
-  previsto: number
-  arrecadado: number
+const statusColor: Record<string, string> = {
+  EMITIDO:   'bg-blue-100 text-blue-800',
+  LIQUIDADO: 'bg-yellow-100 text-yellow-800',
+  PAGO:      'bg-green-100 text-green-800',
+  ANULADO:   'bg-red-100 text-red-800',
+  CANCELADO: 'bg-gray-100 text-gray-600',
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Barra de progresso ───────────────────────────────────────────────────────
+function ProgressBar({ value, max, color = 'var(--cor-primaria)' }: { value: number; max: number; color?: string }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
+  return (
+    <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+      <div style={{ width: `${pct}%`, background: color, height: '100%', borderRadius: 4, transition: 'width .4s' }} />
+    </div>
+  )
+}
 
-function fmtMoeda(v: number, compact = false) {
-  if (compact) {
-    if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`
-    if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(0)}k`
+// ─── Gráfico mensal simples (barras SVG) ──────────────────────────────────────
+function GraficoMensal({ dados }: { dados: MensalRow[] }) {
+  if (!dados.length) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 160, color: '#9ca3af', fontSize: 14 }}>
+      Sem dados
+    </div>
+  )
+
+  // Agrupar por mês
+  const meses = [...new Set(dados.map(r => r.mes))].sort().slice(-6)
+  const grupos = meses.map(mes => ({
+    mes,
+    receita: dados.find(r => r.mes === mes && r.tipo === 'receita')?.valor ?? 0,
+    despesa: dados.find(r => r.mes === mes && r.tipo === 'despesa')?.valor ?? 0,
+  }))
+
+  const maxVal = Math.max(...grupos.flatMap(g => [g.receita, g.despesa]), 1)
+  const H = 120
+  const nomeMes = (m: string) => {
+    const [, mm] = m.split('-')
+    return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mm) - 1] ?? mm
   }
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function pct(a: number, b: number) {
-  return b > 0 ? Math.min((a / b) * 100, 100) : 0
-}
-
-const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-
-// ─── Mock ─────────────────────────────────────────────────────────────────────
-
-const KPI_MOCK: KpiFinanceiro = {
-  receitaPrevista:   24_500_000,
-  receitaArrecadada: 20_812_000,
-  despesaEmpenhada:  19_430_000,
-  despesaPaga:       16_980_000,
-  saldoDisponivel:   5_070_000,
-  saldoCaixa:        3_832_000,
-}
-
-const EXECUCAO_MOCK: ExecucaoUnidade[] = [
-  { unidade: 'Secretaria de Educação',    dotacao: 8_200_000, empenhado: 7_650_000, pago: 6_800_000, pct: 93 },
-  { unidade: 'Secretaria de Saúde',       dotacao: 6_400_000, empenhado: 5_900_000, pago: 5_200_000, pct: 92 },
-  { unidade: 'Administração Municipal',   dotacao: 3_100_000, empenhado: 2_480_000, pago: 2_100_000, pct: 80 },
-  { unidade: 'Secretaria de Obras',       dotacao: 2_800_000, empenhado: 1_960_000, pago: 1_540_000, pct: 70 },
-  { unidade: 'Assistência Social',        dotacao: 2_200_000, empenhado: 1_540_000, pago: 1_340_000, pct: 70 },
-  { unidade: 'Outras Secretarias',        dotacao: 1_800_000, empenhado:   900_000, pago:   700_000, pct: 50 },
-]
-
-const RECEITA_MESES_MOCK: ReceitaMes[] = MESES.slice(0, 11).map((nomeMes, i) => ({
-  mes: i + 1,
-  nomeMes,
-  previsto:    2_040_000 + Math.random() * 400_000,
-  arrecadado:  i < 10 ? 1_800_000 + Math.random() * 600_000 : 0,
-}))
-
-const ALERTAS_MOCK = [
-  { tipo: 'warning', msg: 'Empenhos pendentes de liquidação: 23' },
-  { tipo: 'info',    msg: 'FPM — parcela de novembro aguardada' },
-  { tipo: 'danger',  msg: '5 empenhos com prazo de pagamento vencido' },
-]
-
-// ─── Página ───────────────────────────────────────────────────────────────────
-
-export default function DashboardSefin() {
-  const [kpi] = useState<KpiFinanceiro>(KPI_MOCK)
-  const exercicio = new Date().getFullYear()
-
-  const pctReceita   = pct(kpi.receitaArrecadada,  kpi.receitaPrevista)
-  const pctDespesa   = pct(kpi.despesaEmpenhada,   kpi.receitaPrevista)
-  const superavit    = kpi.receitaArrecadada - kpi.despesaPaga
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div style={{ overflowX: 'auto' }}>
+      <svg viewBox={`0 0 ${grupos.length * 70} ${H + 30}`} style={{ width: '100%', minWidth: grupos.length * 70 }}>
+        {grupos.map((g, i) => {
+          const x     = i * 70
+          const hR    = (g.receita / maxVal) * H
+          const hD    = (g.despesa / maxVal) * H
+          return (
+            <g key={g.mes}>
+              {/* Receita */}
+              <rect x={x + 8}  y={H - hR} width={22} height={hR} fill="var(--cor-primaria)" rx={3} opacity={.85}>
+                <title>{`Receita: ${brl(g.receita)}`}</title>
+              </rect>
+              {/* Despesa */}
+              <rect x={x + 34} y={H - hD} width={22} height={hD} fill="var(--cor-acento)" rx={3} opacity={.85}>
+                <title>{`Despesa: ${brl(g.despesa)}`}</title>
+              </rect>
+              {/* Rótulo mês */}
+              <text x={x + 35} y={H + 16} textAnchor="middle" fontSize={10} fill="#6b7280">
+                {nomeMes(g.mes)}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--cor-primaria)', display: 'inline-block' }} /> Receita
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--cor-acento)', display: 'inline-block' }} /> Despesa
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+export default function SefinDashboard() {
+  const [data, setData]       = useState<DashData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [erro, setErro]       = useState<string | null>(null)
+  const [exercicio, setExercicio] = useState(new Date().getFullYear())
+
+  async function carregar() {
+    setLoading(true)
+    setErro(null)
+    try {
+      const r = await fetch(`/api/sefin/dashboard?exercicio=${exercicio}`)
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.erro ?? `HTTP ${r.status}`)
+      }
+      setData(await r.json())
+    } catch (e: any) {
+      setErro(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { carregar() }, [exercicio])
+
+  const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i)
+
+  return (
+    <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto' }}>
 
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Landmark className="w-7 h-7 text-emerald-600" />
-            Finanças Municipais
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
+            SEFIN — Secretaria de Finanças
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Execução orçamentária {exercicio} — SEFIN</p>
-        </div>
-        <div className="flex gap-2">
-          <a href="/gestao/sefin/empenhos/novo" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Novo Empenho
-          </a>
-        </div>
-      </div>
-
-      {/* KPIs principais */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {/* Receita */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-sm text-slate-500"><TrendingUp className="w-4 h-4 text-emerald-500" /> Receita Arrecadada</div>
-            <span className="text-xs font-semibold text-emerald-600">{pctReceita.toFixed(1)}%</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{fmtMoeda(kpi.receitaArrecadada, true)}</p>
-          <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pctReceita}%` }} />
-          </div>
-          <p className="text-xs text-slate-400 mt-1">de {fmtMoeda(kpi.receitaPrevista, true)} previstos</p>
-        </div>
-
-        {/* Despesa empenhada */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-sm text-slate-500"><TrendingDown className="w-4 h-4 text-red-400" /> Despesa Empenhada</div>
-            <span className="text-xs font-semibold text-orange-600">{pctDespesa.toFixed(1)}%</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{fmtMoeda(kpi.despesaEmpenhada, true)}</p>
-          <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-orange-400 rounded-full" style={{ width: `${pctDespesa}%` }} />
-          </div>
-          <p className="text-xs text-slate-400 mt-1">pago: {fmtMoeda(kpi.despesaPaga, true)}</p>
-        </div>
-
-        {/* Superávit */}
-        <div className={`rounded-xl border shadow-sm p-5 ${superavit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-          <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
-            <Wallet className="w-4 h-4" /> Resultado do Período
-          </div>
-          <p className={`text-2xl font-bold ${superavit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-            {superavit >= 0 ? '+' : ''}{fmtMoeda(superavit, true)}
-          </p>
-          <p className={`text-xs mt-1 ${superavit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-            {superavit >= 0 ? 'Superávit' : 'Déficit'} — receita × pago
+          <p style={{ fontSize: 14, color: '#6b7280', margin: '4px 0 0' }}>
+            Painel de execução orçamentária e financeira
           </p>
         </div>
-      </div>
-
-      {/* KPIs secundários */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Saldo Disponível',     value: kpi.saldoDisponivel, icon: DollarSign,  cls: 'text-emerald-600', href: '/gestao/sefin/orcamento' },
-          { label: 'Saldo em Caixa',        value: kpi.saldoCaixa,       icon: Wallet,       cls: 'text-sky-600',     href: undefined },
-          { label: 'Dotação Total',         value: kpi.receitaPrevista,   icon: BarChart3,    cls: 'text-indigo-600',  href: '/gestao/sefin/orcamento' },
-          { label: 'Pago no Exercício',     value: kpi.despesaPaga,       icon: CheckCircle,  cls: 'text-violet-600',  href: '/gestao/sefin/empenhos?status=PAGO' },
-        ].map(({ label, value, icon: Icon, cls, href }) => (
-          <div
-            key={label}
-            className={`bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3 shadow-sm ${href ? 'cursor-pointer hover:border-emerald-200' : ''}`}
-            onClick={() => href && (window.location.href = href)}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select
+            value={exercicio}
+            onChange={e => setExercicio(parseInt(e.target.value))}
+            style={{
+              padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db',
+              fontSize: 14, background: '#fff', cursor: 'pointer',
+            }}
           >
-            <Icon className={`w-5 h-5 ${cls} shrink-0`} />
-            <div>
-              <p className="text-xs text-slate-400">{label}</p>
-              <p className="font-bold text-slate-800">{fmtMoeda(value, true)}</p>
+            {anos.map(a => <option key={a}>{a}</option>)}
+          </select>
+          <button
+            onClick={carregar}
+            disabled={loading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 8, border: '1px solid #d1d5db',
+              background: '#fff', fontSize: 14, cursor: 'pointer', color: '#374151',
+            }}
+          >
+            <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            Atualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Alerta de erro */}
+      {erro && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10,
+          padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 8, alignItems: 'center',
+          color: '#dc2626', fontSize: 14,
+        }}>
+          <AlertTriangle size={16} />
+          {erro.includes('Table') || erro.includes('doesn\'t exist')
+            ? 'Tabelas SEFIN ainda não foram criadas. Execute /api/migrate para configurar o banco.'
+            : erro}
+        </div>
+      )}
+
+      {/* Alerta dotações acima de 90% */}
+      {data && data.alertas.dotacoesAcima90pct > 0 && (
+        <div style={{
+          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10,
+          padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 8, alignItems: 'center',
+          color: '#92400e', fontSize: 14,
+        }}>
+          <AlertTriangle size={16} />
+          <strong>{data.alertas.dotacoesAcima90pct}</strong>&nbsp;
+          dotação(ões) com mais de 90% do saldo utilizado.
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      {loading && !data ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} style={{
+              background: '#f3f4f6', borderRadius: 12, height: 110,
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }} />
+          ))}
+        </div>
+      ) : data ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {/* Orçamento */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: 0, fontWeight: 500 }}>ORÇAMENTO LOA</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '6px 0 0' }}>
+                  {brlM(data.kpi.orcamentoTotal)}
+                </p>
+              </div>
+              <div style={{ background: '#eff6ff', borderRadius: 8, padding: 8 }}>
+                <BarChart2 size={20} color="#3b82f6" strokeWidth={1.5} />
+              </div>
+            </div>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '10px 0 0' }}>Exercício {exercicio}</p>
+          </div>
+
+          {/* Empenhado */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: 0, fontWeight: 500 }}>EMPENHADO</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '6px 0 0' }}>
+                  {brlM(data.kpi.totalEmpenhado)}
+                </p>
+              </div>
+              <div style={{ background: '#fefce8', borderRadius: 8, padding: 8 }}>
+                <FileText size={20} color="#ca8a04" strokeWidth={1.5} />
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <ProgressBar value={data.kpi.totalEmpenhado} max={data.kpi.orcamentoTotal} color="#ca8a04" />
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
+                {data.kpi.percentualEmpenhado}% do orçamento
+              </p>
             </div>
           </div>
+
+          {/* Pago */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: 0, fontWeight: 500 }}>PAGO</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '6px 0 0' }}>
+                  {brlM(data.kpi.totalPago)}
+                </p>
+              </div>
+              <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 8 }}>
+                <Wallet size={20} color="#16a34a" strokeWidth={1.5} />
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <ProgressBar value={data.kpi.totalPago} max={data.kpi.totalEmpenhado} color="#16a34a" />
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
+                {data.kpi.totalEmpenhado > 0
+                  ? ((data.kpi.totalPago / data.kpi.totalEmpenhado) * 100).toFixed(1)
+                  : '0'}% do empenhado
+              </p>
+            </div>
+          </div>
+
+          {/* Receita arrecadada */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: 0, fontWeight: 500 }}>RECEITA ARRECADADA</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '6px 0 0' }}>
+                  {brlM(data.kpi.totalReceita)}
+                </p>
+              </div>
+              <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 8 }}>
+                <TrendingUp size={20} color="#16a34a" strokeWidth={1.5} />
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <ProgressBar value={data.kpi.totalReceita} max={data.kpi.receitaPrevista} color="var(--cor-primaria)" />
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>
+                {data.kpi.percentualReceita}% da meta
+              </p>
+            </div>
+          </div>
+
+          {/* Saldo */}
+          <div style={{
+            background: data.kpi.totalReceita >= data.kpi.totalPago ? '#f0fdf4' : '#fef2f2',
+            borderRadius: 12,
+            border: `1px solid ${data.kpi.totalReceita >= data.kpi.totalPago ? '#bbf7d0' : '#fca5a5'}`,
+            padding: 20,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: 0, fontWeight: 500 }}>SALDO FINANCEIRO</p>
+                <p style={{
+                  fontSize: 20, fontWeight: 700,
+                  color: data.kpi.totalReceita >= data.kpi.totalPago ? '#16a34a' : '#dc2626',
+                  margin: '6px 0 0',
+                }}>
+                  {brlM(data.kpi.totalReceita - data.kpi.totalPago)}
+                </p>
+              </div>
+              <div style={{
+                background: data.kpi.totalReceita >= data.kpi.totalPago ? '#dcfce7' : '#fee2e2',
+                borderRadius: 8, padding: 8,
+              }}>
+                {data.kpi.totalReceita >= data.kpi.totalPago
+                  ? <ArrowUpRight size={20} color="#16a34a" strokeWidth={1.5} />
+                  : <ArrowDownRight size={20} color="#dc2626" strokeWidth={1.5} />
+                }
+              </div>
+            </div>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '10px 0 0' }}>Receita − Pagamentos</p>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Grid: Gráfico + Unidades */}
+      {data && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+
+          {/* Gráfico mensal */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
+              Receita × Despesa (últimos 6 meses)
+            </h2>
+            <GraficoMensal dados={data.mensal} />
+          </div>
+
+          {/* Execução por unidade */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
+              Execução por Unidade
+            </h2>
+            {data.porUnidade.length === 0 ? (
+              <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', paddingTop: 32 }}>
+                Nenhuma unidade cadastrada
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {data.porUnidade.slice(0, 5).map(u => (
+                  <div key={u.unidade}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 500, color: '#374151' }}>{u.sigla || u.unidade}</span>
+                      <span style={{ color: '#6b7280' }}>
+                        {brlM(u.empenhado)} / {brlM(u.orcado)}
+                      </span>
+                    </div>
+                    <ProgressBar value={u.empenhado} max={u.orcado} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Últimos empenhos */}
+      {data && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#111827' }}>
+              Últimos Empenhos
+            </h2>
+            <Link href="/gestao/sefin/empenhos" style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 13, color: 'var(--cor-primaria)', textDecoration: 'none', fontWeight: 500,
+            }}>
+              Ver todos <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          {data.ultimosEmpenhos.length === 0 ? (
+            <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
+              Nenhum empenho cadastrado
+            </p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    {['Número', 'Data', 'Fornecedor', 'Descrição', 'Valor', 'Status'].map(h => (
+                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 12 }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.ultimosEmpenhos.map(e => (
+                    <tr key={e.id} style={{ borderBottom: '1px solid #f9fafb' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--cor-primaria)' }}>{e.numero}</td>
+                      <td style={{ padding: '10px 12px', color: '#374151' }}>
+                        {new Date(e.dataEmissao).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td style={{ padding: '10px 12px', color: '#374151' }}>{e.fornecedorNome ?? '—'}</td>
+                      <td style={{ padding: '10px 12px', color: '#374151', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {e.descricao}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111827' }}>{brl(e.valor)}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{
+                          padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                          ...(statusColor[e.status]
+                            ? {}
+                            : { background: '#f3f4f6', color: '#6b7280' }),
+                        }}
+                          className={statusColor[e.status] ?? ''}
+                        >
+                          {e.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Acesso rápido */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 20 }}>
+        {[
+          { href: '/gestao/sefin/empenhos',  icon: FileText,         label: 'Empenhos'   },
+          { href: '/gestao/sefin/receitas',  icon: TrendingUp,       label: 'Receitas'   },
+          { href: '/gestao/sefin/pagamentos',icon: CircleDollarSign, label: 'Pagamentos' },
+          { href: '/gestao/sefin/orcamento', icon: BarChart2,        label: 'Orçamento'  },
+          { href: '/gestao/sefin/fornecedores', icon: CalendarDays,  label: 'Fornecedores' },
+        ].map(({ href, icon: Icon, label }) => (
+          <Link key={href} href={href} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 8, padding: '16px 12px', background: '#fff', borderRadius: 10,
+            border: '1px solid #e5e7eb', textDecoration: 'none',
+            transition: 'border-color .15s, box-shadow .15s',
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--cor-primaria)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e5e7eb' }}
+          >
+            <Icon size={22} color="var(--cor-primaria)" strokeWidth={1.5} />
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>{label}</span>
+          </Link>
         ))}
       </div>
 
-      {/* Linha central: execução por unidade + alertas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Execução por unidade */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-emerald-500" /> Execução por Secretaria
-            </h2>
-            <a href="/gestao/sefin/orcamento" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
-              Detalhar <ArrowUpRight className="w-3 h-3" />
-            </a>
-          </div>
-          <div className="space-y-3">
-            {EXECUCAO_MOCK.map((u) => (
-              <div key={u.unidade}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-700 truncate max-w-[200px]">{u.unidade}</span>
-                  <span className="text-slate-500 shrink-0 ml-2">{fmtMoeda(u.empenhado, true)} / {fmtMoeda(u.dotacao, true)}</span>
-                </div>
-                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden flex gap-0.5">
-                  <div className="h-full bg-emerald-500 rounded-l-full" style={{ width: `${pct(u.pago, u.dotacao)}%` }} />
-                  <div className="h-full bg-emerald-200" style={{ width: `${pct(u.empenhado - u.pago, u.dotacao)}%` }} />
-                </div>
-                <div className="flex justify-between text-xs text-slate-400 mt-0.5">
-                  <span>Pago: {fmtMoeda(u.pago, true)}</span>
-                  <span className={u.pct >= 90 ? 'text-orange-500 font-medium' : ''}>{u.pct}% executado</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex gap-4 text-xs text-slate-400">
-            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-emerald-500 inline-block" /> Pago</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-emerald-200 inline-block" /> Empenhado s/ pagar</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-slate-100 inline-block" /> Saldo</span>
-          </div>
-        </div>
-
-        {/* Alertas */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h2 className="font-semibold text-slate-800 flex items-center gap-2 mb-3">
-              <AlertTriangle className="w-4 h-4 text-orange-500" /> Alertas
-            </h2>
-            <div className="space-y-2">
-              {ALERTAS_MOCK.map((a, i) => (
-                <div key={i} className={`flex items-start gap-2 p-2 rounded-lg text-sm ${
-                  a.tipo === 'danger'  ? 'bg-red-50 text-red-700' :
-                  a.tipo === 'warning' ? 'bg-amber-50 text-amber-700' :
-                  'bg-sky-50 text-sky-700'
-                }`}>
-                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>{a.msg}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Acesso rápido */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h2 className="font-semibold text-slate-800 mb-3">Acesso Rápido</h2>
-            <div className="space-y-1">
-              {[
-                { label: 'Receitas',    href: '/gestao/sefin/receitas',  icon: TrendingUp },
-                { label: 'Empenhos',    href: '/gestao/sefin/empenhos',  icon: FileText },
-                { label: 'Orçamento',   href: '/gestao/sefin/orcamento', icon: PieChart },
-                { label: 'Transparência', href: '/transparencia/financas', icon: Landmark },
-              ].map(({ label, href, icon: Icon }) => (
-                <a key={label} href={href} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 text-sm text-slate-700 transition-colors">
-                  <Icon className="w-4 h-4 text-emerald-500" />
-                  <span>{label}</span>
-                  <ChevronRight className="w-3 h-3 ml-auto text-slate-300" />
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Receita mensal */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-500" /> Arrecadação Mensal {exercicio}
-          </h2>
-          <a href="/gestao/sefin/receitas" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
-            Ver detalhes <ArrowUpRight className="w-3 h-3" />
-          </a>
-        </div>
-        <div className="flex items-end gap-2 h-32">
-          {RECEITA_MESES_MOCK.map((m) => {
-            const maxVal = Math.max(...RECEITA_MESES_MOCK.map(x => x.previsto))
-            const hPrev = (m.previsto / maxVal) * 100
-            const hArr  = (m.arrecadado / maxVal) * 100
-            return (
-              <div key={m.mes} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex items-end gap-0.5 h-24">
-                  <div className="flex-1 bg-slate-100 rounded-t" style={{ height: `${hPrev}%` }} />
-                  {m.arrecadado > 0 && (
-                    <div className="flex-1 bg-emerald-500 rounded-t" style={{ height: `${hArr}%` }} />
-                  )}
-                </div>
-                <span className="text-xs text-slate-400">{m.nomeMes}</span>
-              </div>
-            )
-          })}
-        </div>
-        <div className="flex gap-4 mt-2 text-xs text-slate-400">
-          <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-slate-100 inline-block" /> Previsto</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-emerald-500 inline-block" /> Arrecadado</span>
-        </div>
-      </div>
-
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+      `}</style>
     </div>
   )
 }

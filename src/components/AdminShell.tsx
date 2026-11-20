@@ -8,6 +8,7 @@ import {
   Newspaper, Leaf, HardHat, Globe, LogOut,
   ChevronLeft, ChevronRight, CalendarDays, Image,
   Zap, CircleCheck, CircleDot,
+  FileText, TrendingUp, CircleDollarSign,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -101,7 +102,14 @@ const NAV_OUVIDORIA = [
 const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
   SEMSA: [{ grupo: 'Saúde',           items: [{ href: '/gestao/semsa', label: 'Painel SEMSA', Icon: Stethoscope  }] }],
   SEDUC: [{ grupo: 'Educação',        items: [{ href: '/gestao/seduc', label: 'Painel SEDUC', Icon: GraduationCap}] }],
-  SEFIN: [{ grupo: 'Financeiro',      items: [{ href: '/gestao/sefin', label: 'Painel SEFIN', Icon: Wallet       }] }],
+  SEFIN: [{ grupo: 'Financeiro', items: [
+    { href: '/gestao/sefin',              label: 'Painel SEFIN',  Icon: Wallet           },
+    { href: '/gestao/sefin/empenhos',     label: 'Empenhos',      Icon: FileText         },
+    { href: '/gestao/sefin/receitas',     label: 'Receitas',      Icon: TrendingUp       },
+    { href: '/gestao/sefin/pagamentos',   label: 'Pagamentos',    Icon: CircleDollarSign },
+    { href: '/gestao/sefin/orcamento',    label: 'Orçamento',     Icon: BarChart2        },
+    { href: '/gestao/sefin/fornecedores', label: 'Fornecedores',  Icon: Users            },
+  ]}],
   SEMAD: [{ grupo: 'Administrativo',  items: [{ href: '/gestao/semad', label: 'Painel SEMAD', Icon: FolderOpen   }] }],
   SEMMA: [{ grupo: 'Meio Ambiente',   items: [{ href: '/gestao/semma', label: 'Painel SEMMA', Icon: Leaf         }] }],
   SEMOB: [{ grupo: 'Obras',           items: [{ href: '/gestao/semob', label: 'Painel SEMOB', Icon: HardHat      }] }],
