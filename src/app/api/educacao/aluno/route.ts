@@ -1,143 +1,147 @@
+/**
+ * GET  /api/educacao/aluno         — lista alunos com busca
+ * GET  /api/educacao/aluno?id=X    — detalhe com matrículas
+ * POST /api/educacao/aluno         — cadastra aluno
+ * PATCH /api/educacao/aluno        — atualiza aluno
+ */
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
-import { auditLog } from '@/lib/audit'
+import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 
-// LGPD Art. 14 — Dados de menores de idade: tratamento permitido com
-// consentimento específico do responsável legal.
+function mid(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
 
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const id      = searchParams.get('id')
-  const busca   = searchParams.get('busca')
-  const pcd     = searchParams.get('pcd')
-  const bolsa   = searchParams.get('bolsaFamilia')
+  const id    = searchParams.get('id')
+  const busca = searchParams.get('busca')
+  const pcd   = searchParams.get('pcd')
+  const bolsa = searchParams.get('bolsaFamilia')
 
-  if (id) {
-    const aluno = await prisma.aluno.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-      include: {
-        matriculas: {
-          include: {
-            turma: {
-              include: { escola: { select: { nome: true } } },
-            },
-          },
-          orderBy: { anoLetivo: 'desc' },
-        },
-      },
-    })
-    if (!aluno) return NextResponse.json({ erro: 'Aluno não encontrado' }, { status: 404 })
-    return NextResponse.json({ aluno })
+  try {
+    if (id) {
+      const alunos = await db.$queryRaw`
+        SELECT * FROM Aluno WHERE id = ${id} AND municipioId = ${municipioId}
+      ` as any[]
+      if (!alunos.length) return NextResponse.json({ erro: 'Aluno não encontrado' }, { status: 404 })
+
+      const matriculas = await db.$queryRaw`
+        SELECT m.*, t.serie, t.turma, t.turno, t.anoLetivo, e.nome as escolaNome
+        FROM Matricula m
+        JOIN Turma t ON t.id = m.turmaId
+        JOIN Escola e ON e.id = t.escolaId
+        WHERE m.alunoId = ${id}
+        ORDER BY m.anoLetivo DESC
+      ` as any[]
+
+      return NextResponse.json({ aluno: { ...alunos[0], matriculas } })
+    }
+
+    if (busca) {
+      const like = `%${busca}%`
+      const alunos = await db.$queryRaw`
+        SELECT id, nome, cpf, nis, dataNascimento, sexo, pcd, bolsaFamilia,
+               situacao, responsavelNome, responsavelTelefone
+        FROM Aluno
+        WHERE municipioId = ${municipioId} AND ativo = 1
+          AND (nome LIKE ${like} OR cpf LIKE ${like} OR nis LIKE ${like})
+        ORDER BY nome ASC LIMIT 100
+      ` as any[]
+      return NextResponse.json({ alunos, total: alunos.length })
+    }
+
+    // Filtros opcionais
+    let sql = `SELECT id, nome, cpf, nis, dataNascimento, sexo, pcd, bolsaFamilia,
+                      situacao, responsavelNome, responsavelTelefone
+               FROM Aluno WHERE municipioId = ${municipioId} AND ativo = 1`
+
+    const filters: string[] = []
+    if (pcd === '1')   filters.push(' AND pcd = 1')
+    if (bolsa === '1') filters.push(' AND bolsaFamilia = 1')
+
+    const alunos = await db.$queryRaw`
+      SELECT id, nome, cpf, nis, dataNascimento, sexo, pcd, bolsaFamilia,
+             situacao, responsavelNome, responsavelTelefone
+      FROM Aluno
+      WHERE municipioId = ${municipioId} AND ativo = 1
+        ${pcd === '1' ? 'AND pcd = 1' : ''}
+        ${bolsa === '1' ? 'AND bolsaFamilia = 1' : ''}
+      ORDER BY nome ASC LIMIT 200
+    ` as any[]
+
+    return NextResponse.json({ alunos, total: alunos.length })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const where: any = { municipioId: usuario.municipioId, ativo: true }
-  if (pcd === '1')   where.pcd          = true
-  if (bolsa === '1') where.bolsaFamilia = true
-
-  if (busca) {
-    // Busca por nome, CPF ou NIS (strips não-dígitos para CPF/NIS)
-    const termo = busca.replace(/\D/g, '')
-    where.OR = [
-      { nome: { contains: busca } },
-      ...(termo.length >= 6 ? [{ cpf: { contains: termo } }, { nis: { contains: termo } }] : []),
-    ]
-  }
-
-  const alunos = await prisma.aluno.findMany({
-    where, orderBy: { nome: 'asc' }, take: 200,
-    select: {
-      id: true, nome: true, cpf: true, nis: true,
-      dataNascimento: true, sexo: true,
-      pcd: true, bolsaFamilia: true, situacao: true,
-      responsavelNome: true, responsavelTelefone: true,
-    },
-  })
-
-  return NextResponse.json({ alunos, total: alunos.length })
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  const Schema = z.object({
-    nome:                z.string().min(3),
-    nomeMae:             z.string().optional(),
-    nomePai:             z.string().optional(),
-    cpf:                 z.string().optional(),
-    nis:                 z.string().optional(),
-    dataNascimento:      z.string().optional(),
-    sexo:                z.enum(['M','F']).optional(),
-    racaCor:             z.string().optional(),
-    logradouro:          z.string().optional(),
-    numero:              z.string().optional(),
-    bairro:              z.string().optional(),
-    cep:                 z.string().optional(),
-    responsavelNome:     z.string().optional(),
-    responsavelTelefone: z.string().optional(),
-    responsavelEmail:    z.string().email().optional().or(z.literal('')),
-    responsavelCpf:      z.string().optional(),
-    bolsaFamilia:        z.boolean().default(false),
-    pcd:                 z.boolean().default(false),
-    laudoPcd:            z.string().optional(),
-  })
+  try {
+    const body = await req.json()
+    const { nome, nomeMae, nomePai, cpf, nis, dataNascimento, sexo, racaCor,
+            logradouro, numero, bairro, cep,
+            responsavelNome, responsavelTelefone, responsavelEmail, responsavelCpf,
+            bolsaFamilia, pcd, laudoPcd } = body
 
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
-  const d = val.data
+    if (!nome) return NextResponse.json({ erro: 'Nome é obrigatório' }, { status: 400 })
 
-  // CPF único por município (se informado)
-  if (d.cpf) {
-    const cpfLimpo = d.cpf.replace(/\D/g, '')
-    const existe = await prisma.aluno.findFirst({
-      where: { municipioId: usuario.municipioId, cpf: cpfLimpo },
-    })
-    if (existe) {
-      return NextResponse.json({ erro: 'CPF já cadastrado', alunoId: existe.id }, { status: 409 })
+    const cpfLimpo = cpf ? cpf.replace(/\D/g, '') : null
+    if (cpfLimpo) {
+      const existe = await db.Aluno.findFirst({ where: { municipioId, cpf: cpfLimpo } })
+      if (existe) return NextResponse.json({ erro: 'CPF já cadastrado', alunoId: existe.id }, { status: 409 })
     }
-    d.cpf = cpfLimpo
+
+    const aluno = await db.Aluno.create({
+      data: {
+        id: randomUUID(), municipioId, nome,
+        nomeMae: nomeMae || null, nomePai: nomePai || null,
+        cpf: cpfLimpo, nis: nis ? nis.replace(/\D/g, '') : null,
+        dataNascimento: dataNascimento || null,
+        sexo: sexo || null, racaCor: racaCor || null,
+        logradouro: logradouro || null, numero: numero || null,
+        bairro: bairro || null, cep: cep || null,
+        responsavelNome: responsavelNome || null,
+        responsavelTelefone: responsavelTelefone || null,
+        responsavelEmail: responsavelEmail || null,
+        responsavelCpf: responsavelCpf || null,
+        bolsaFamilia: bolsaFamilia ? 1 : 0,
+        pcd: pcd ? 1 : 0,
+        laudoPcd: laudoPcd || null,
+      },
+    })
+
+    return NextResponse.json({ aluno }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  if (d.nis) d.nis = d.nis.replace(/\D/g, '')
-
-  const aluno = await prisma.aluno.create({
-    data: {
-      municipioId: usuario.municipioId,
-      ...d,
-      dataNascimento: d.dataNascimento ? new Date(d.dataNascimento) : undefined,
-    },
-  })
-
-  await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'CADASTRAR_ALUNO', entidade: 'Aluno', entidadeId: aluno.id,
-    detalhes: { nome: aluno.nome, pcd: aluno.pcd, bolsaFamilia: aluno.bolsaFamilia },
-  })
-
-  return NextResponse.json({ aluno }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  const { id, ...dados } = await req.json()
-  if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
+  try {
+    const { id, ...dados } = await req.json()
+    if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const aluno = await prisma.aluno.findFirst({ where: { id, municipioId: usuario.municipioId } })
-  if (!aluno) return NextResponse.json({ erro: 'Aluno não encontrado' }, { status: 404 })
+    const aluno = await db.Aluno.findFirst({ where: { id, municipioId } })
+    if (!aluno) return NextResponse.json({ erro: 'Aluno não encontrado' }, { status: 404 })
 
-  if (dados.cpf) dados.cpf = dados.cpf.replace(/\D/g, '')
-  if (dados.nis) dados.nis = dados.nis.replace(/\D/g, '')
-  if (dados.dataNascimento) dados.dataNascimento = new Date(dados.dataNascimento)
+    if (dados.cpf) dados.cpf = dados.cpf.replace(/\D/g, '')
+    if (dados.nis) dados.nis = dados.nis.replace(/\D/g, '')
 
-  const atualizado = await prisma.aluno.update({ where: { id }, data: dados })
-  return NextResponse.json({ aluno: atualizado })
+    await db.Aluno.update({ where: { id }, data: dados })
+    return NextResponse.json({ sucesso: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }

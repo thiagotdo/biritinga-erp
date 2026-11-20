@@ -1,112 +1,125 @@
+/**
+ * GET  /api/educacao/escola        — lista escolas
+ * GET  /api/educacao/escola?id=X   — detalhe com turmas
+ * POST /api/educacao/escola        — cria escola
+ * PATCH /api/educacao/escola       — atualiza escola
+ */
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
-import { auditLog } from '@/lib/audit'
+import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 
+function mid(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
+}
+
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const id   = searchParams.get('id')
   const tipo = searchParams.get('tipo')
 
-  if (id) {
-    const escola = await prisma.escola.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-      include: {
-        turmas: {
-          where: { ativo: true },
-          include: {
-            _count: { select: { matriculas: { where: { situacao: 'ATIVA' } } } },
-          },
-          orderBy: [{ anoLetivo: 'desc' }, { serie: 'asc' }, { turma: 'asc' }],
-        },
-      },
-    })
-    if (!escola) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
-    return NextResponse.json({ escola })
+  try {
+    if (id) {
+      const escolas = await db.$queryRaw`
+        SELECT e.*,
+          COUNT(t.id) as totalTurmas,
+          SUM(CASE WHEN t.ativo = 1 THEN 1 ELSE 0 END) as turmasAtivas
+        FROM Escola e
+        LEFT JOIN Turma t ON t.escolaId = e.id AND t.ativo = 1
+        WHERE e.id = ${id} AND e.municipioId = ${municipioId}
+        GROUP BY e.id
+      ` as any[]
+
+      if (!escolas.length) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
+
+      const turmas = await db.$queryRaw`
+        SELECT t.*,
+          COUNT(m.id) as totalMatriculas
+        FROM Turma t
+        LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
+        WHERE t.escolaId = ${id} AND t.ativo = 1
+        GROUP BY t.id
+        ORDER BY t.serie ASC, t.turma ASC
+      ` as any[]
+
+      return NextResponse.json({ escola: { ...escolas[0], turmas } })
+    }
+
+    let escolas: any[]
+    if (tipo) {
+      escolas = await db.$queryRaw`
+        SELECT e.*, COUNT(t.id) as totalTurmas
+        FROM Escola e
+        LEFT JOIN Turma t ON t.escolaId = e.id AND t.ativo = 1
+        WHERE e.municipioId = ${municipioId} AND e.ativo = 1 AND e.tipo = ${tipo}
+        GROUP BY e.id ORDER BY e.nome ASC
+      ` as any[]
+    } else {
+      escolas = await db.$queryRaw`
+        SELECT e.*, COUNT(t.id) as totalTurmas
+        FROM Escola e
+        LEFT JOIN Turma t ON t.escolaId = e.id AND t.ativo = 1
+        WHERE e.municipioId = ${municipioId} AND e.ativo = 1
+        GROUP BY e.id ORDER BY e.nome ASC
+      ` as any[]
+    }
+
+    return NextResponse.json({ escolas, total: escolas.length })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const where: any = { municipioId: usuario.municipioId, ativo: true }
-  if (tipo) where.tipo = tipo
-
-  const escolas = await prisma.escola.findMany({
-    where, orderBy: { nome: 'asc' },
-    include: {
-      _count: {
-        select: {
-          turmas: { where: { ativo: true } },
-        },
-      },
-    },
-  })
-
-  return NextResponse.json({ escolas, total: escolas.length })
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  const Schema = z.object({
-    nome:        z.string().min(3),
-    tipo:        z.enum(['CRECHE','PRE_ESCOLA','ENSINO_FUNDAMENTAL_I','ENSINO_FUNDAMENTAL_II','EJA','INTEGRAL']),
-    inep:        z.string().optional(),
-    cnpj:        z.string().optional(),
-    diretor:     z.string().optional(),
-    logradouro:  z.string().optional(),
-    numero:      z.string().optional(),
-    bairro:      z.string().optional(),
-    cep:         z.string().optional(),
-    telefone:    z.string().optional(),
-    email:       z.string().email().optional().or(z.literal('')),
-    totalSalas:  z.number().int().min(0).default(0),
-    capacidade:  z.number().int().min(0).default(0),
-  })
+  try {
+    const { nome, inep, tipo, cnpj, diretor, logradouro, numero, bairro, cep,
+            telefone, email, totalSalas, capacidade } = await req.json()
 
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
-  const d = val.data
+    if (!nome) return NextResponse.json({ erro: 'Nome é obrigatório' }, { status: 400 })
 
-  // Código INEP deve ser único por município
-  if (d.inep) {
-    const existe = await prisma.escola.findFirst({
-      where: { municipioId: usuario.municipioId, inep: d.inep },
+    if (inep) {
+      const existe = await db.Escola.findFirst({ where: { municipioId, inep } })
+      if (existe) return NextResponse.json({ erro: 'Código INEP já cadastrado' }, { status: 409 })
+    }
+
+    const escola = await db.Escola.create({
+      data: {
+        id: randomUUID(), municipioId, nome,
+        inep: inep || null, tipo: tipo || null, cnpj: cnpj || null,
+        diretor: diretor || null, logradouro: logradouro || null,
+        numero: numero || null, bairro: bairro || null, cep: cep || null,
+        telefone: telefone || null, email: email || null,
+        totalSalas: totalSalas ?? 0, capacidade: capacidade ?? 0,
+      },
     })
-    if (existe) return NextResponse.json({ erro: 'Código INEP já cadastrado' }, { status: 409 })
+
+    return NextResponse.json({ escola }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const escola = await prisma.escola.create({
-    data: { municipioId: usuario.municipioId, ...d },
-  })
-
-  await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'CADASTRAR_ESCOLA', entidade: 'Escola', entidadeId: escola.id,
-    detalhes: { nome: escola.nome, tipo: escola.tipo, inep: escola.inep },
-  })
-
-  return NextResponse.json({ escola }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  const { id, ...dados } = await req.json()
-  if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
+  try {
+    const { id, ...dados } = await req.json()
+    if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const escola = await prisma.escola.findFirst({ where: { id, municipioId: usuario.municipioId } })
-  if (!escola) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
+    const escola = await db.Escola.findFirst({ where: { id, municipioId } })
+    if (!escola) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
 
-  const atualizada = await prisma.escola.update({
-    where: { id },
-    data: dados,
-  })
-
-  return NextResponse.json({ escola: atualizada })
+    await db.Escola.update({ where: { id }, data: dados })
+    return NextResponse.json({ sucesso: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }

@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, CalendarDays, Image,
   Zap, CircleCheck, CircleDot,
   FileText, TrendingUp, CircleDollarSign,
+  School, BookOpen, Heart, UtensilsCrossed,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -75,8 +76,8 @@ const NAV_ADMIN = [
   { grupo: 'ERP', items: [
     { href: '/gestao/sefin',         label: 'Financeiro',       Icon: Wallet          },
     { href: '/gestao/semad',         label: 'Administrativo',   Icon: FolderOpen      },
-    { href: '/gestao/semsa',         label: 'Saúde',            Icon: Stethoscope     },
-    { href: '/gestao/seduc',         label: 'Educação',         Icon: GraduationCap   },
+    { href: '/gestao/saude',          label: 'Saúde',            Icon: Stethoscope     },
+    { href: '/gestao/educacao',       label: 'Educação',         Icon: GraduationCap   },
     { href: '/gestao/comunicacao/noticias', label: 'SECOM',     Icon: Newspaper       },
   ]},
 ]
@@ -101,7 +102,14 @@ const NAV_OUVIDORIA = [
 
 const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
   SEMSA: [{ grupo: 'Saúde',           items: [{ href: '/gestao/semsa', label: 'Painel SEMSA', Icon: Stethoscope  }] }],
-  SEDUC: [{ grupo: 'Educação',        items: [{ href: '/gestao/seduc', label: 'Painel SEDUC', Icon: GraduationCap}] }],
+  SEDUC: [{ grupo: 'Educação', items: [
+    { href: '/gestao/educacao',          label: 'Painel SEDUC',  Icon: GraduationCap     },
+    { href: '/gestao/educacao/escolas',  label: 'Escolas',       Icon: School            },
+    { href: '/gestao/educacao/alunos',   label: 'Alunos',        Icon: Users             },
+    { href: '/gestao/educacao/turmas',   label: 'Turmas',        Icon: BookOpen          },
+    { href: '/gestao/educacao/diario',   label: 'Diário',        Icon: FileText          },
+    { href: '/gestao/educacao/merenda',  label: 'Merenda',       Icon: UtensilsCrossed   },
+  ]}],
   SEFIN: [{ grupo: 'Financeiro', items: [
     { href: '/gestao/sefin',              label: 'Painel SEFIN',  Icon: Wallet           },
     { href: '/gestao/sefin/empenhos',     label: 'Empenhos',      Icon: FileText         },

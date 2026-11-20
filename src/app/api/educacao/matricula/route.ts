@@ -1,30 +1,21 @@
+/**
+ * GET  /api/educacao/matricula                     — lista / dashboard
+ * POST /api/educacao/matricula                     — matricula aluno
+ * PATCH /api/educacao/matricula                    — ação (transferir/cancelar/fecharAno)
+ */
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { obterUsuario } from '@/lib/auth'
-import { auditLog } from '@/lib/audit'
+import { db } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 
-// ─── Matrícula ────────────────────────────────────────────────────────────────
-// Número: "2026-00001"
-// Regras LDB Art. 24 V-a: frequência mínima 75% para aprovação.
-// Resultado final calculado ao fechar ano letivo.
-
-async function gerarNumeroMatricula(municipioId: string, ano: number): Promise<string> {
-  const count = await prisma.matricula.count({ where: { municipioId, anoLetivo: ano } })
-  return `${ano}-${String(count + 1).padStart(5, '0')}`
-}
-
-function calcularResultado(percentualFreq: number, mediaGeral: number | null, mediaAprovacao = 5.0): string {
-  if (percentualFreq < 75) return 'REPROVADO'  // LDB Art. 24 V-a
-  if (mediaGeral === null) return 'EM_PROGRESSO'
-  return mediaGeral >= mediaAprovacao ? 'APROVADO' : 'REPROVADO'
+function mid(req: NextRequest) {
+  return req.headers.get('x-erp-municipio-id') ?? ''
 }
 
 export async function GET(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const id        = searchParams.get('id')
@@ -33,197 +24,198 @@ export async function GET(req: NextRequest) {
   const relatorio = searchParams.get('relatorio')
   const anoLetivo = searchParams.get('anoLetivo')
 
-  if (relatorio === 'DASHBOARD') {
-    const ano = Number(anoLetivo) || new Date().getFullYear()
-    const [totalMatriculas, ativas, transferidas, evadidas, pcd, bolsaFamilia] = await Promise.all([
-      prisma.matricula.count({ where: { municipioId: usuario.municipioId, anoLetivo: ano } }),
-      prisma.matricula.count({ where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'ATIVA' } }),
-      prisma.matricula.count({ where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'TRANSFERIDA' } }),
-      prisma.matricula.count({ where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'EVADIDA' } }),
-      prisma.matricula.count({
-        where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'ATIVA', aluno: { pcd: true } },
-      }),
-      prisma.matricula.count({
-        where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'ATIVA', aluno: { bolsaFamilia: true } },
-      }),
-    ])
+  try {
+    if (relatorio === 'DASHBOARD') {
+      const ano = Number(anoLetivo) || new Date().getFullYear()
 
-    // Matriculas por escola
-    const porEscola = await prisma.matricula.groupBy({
-      by: ['turmaId'],
-      where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'ATIVA' },
-      _count: true,
-    })
+      const counts = await db.$queryRaw`
+        SELECT
+          COUNT(*) as totalMatriculas,
+          SUM(CASE WHEN situacao = 'ATIVA'       THEN 1 ELSE 0 END) as ativas,
+          SUM(CASE WHEN situacao = 'TRANSFERIDA' THEN 1 ELSE 0 END) as transferidas,
+          SUM(CASE WHEN situacao = 'EVADIDA'     THEN 1 ELSE 0 END) as evadidas,
+          SUM(CASE WHEN situacao = 'ATIVA' AND percentualFreq < 75 THEN 1 ELSE 0 END) as emRisco,
+          AVG(CASE WHEN situacao = 'ATIVA' THEN percentualFreq END) as freqMedia
+        FROM Matricula
+        WHERE municipioId = ${municipioId} AND anoLetivo = ${ano}
+      ` as any[]
 
-    // Frequência média geral
-    const freqAgg = await prisma.matricula.aggregate({
-      where: { municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'ATIVA' },
-      _avg: { percentualFreq: true },
-    })
+      const pcdCount = await db.$queryRaw`
+        SELECT COUNT(*) as n FROM Matricula m JOIN Aluno a ON a.id = m.alunoId
+        WHERE m.municipioId = ${municipioId} AND m.anoLetivo = ${ano}
+          AND m.situacao = 'ATIVA' AND a.pcd = 1
+      ` as any[]
 
-    // Alunos em risco (freq < 75%)
-    const emRisco = await prisma.matricula.count({
-      where: {
-        municipioId: usuario.municipioId, anoLetivo: ano, situacao: 'ATIVA',
-        percentualFreq: { lt: 75 },
-      },
-    })
+      const bolsaCount = await db.$queryRaw`
+        SELECT COUNT(*) as n FROM Matricula m JOIN Aluno a ON a.id = m.alunoId
+        WHERE m.municipioId = ${municipioId} AND m.anoLetivo = ${ano}
+          AND m.situacao = 'ATIVA' AND a.bolsaFamilia = 1
+      ` as any[]
 
-    return NextResponse.json({
-      kpis: {
-        totalMatriculas, ativas, transferidas, evadidas, pcd, bolsaFamilia, emRisco,
-        freqMedia: Number(freqAgg._avg.percentualFreq ?? 100).toFixed(1),
-      },
-    })
-  }
-
-  if (id) {
-    const mat = await prisma.matricula.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-      include: {
-        aluno: true,
-        turma: { include: { escola: { select: { nome: true } } } },
-        notas: {
-          include: { avaliacao: true },
-          orderBy: [{ avaliacao: { bimestre: 'asc' } }],
+      const c = counts[0] ?? {}
+      return NextResponse.json({
+        kpis: {
+          totalMatriculas: Number(c.totalMatriculas ?? 0),
+          ativas:          Number(c.ativas ?? 0),
+          transferidas:    Number(c.transferidas ?? 0),
+          evadidas:        Number(c.evadidas ?? 0),
+          emRisco:         Number(c.emRisco ?? 0),
+          pcd:             Number(pcdCount[0]?.n ?? 0),
+          bolsaFamilia:    Number(bolsaCount[0]?.n ?? 0),
+          freqMedia:       Number(c.freqMedia ?? 100).toFixed(1),
         },
-        frequencias: {
-          include: { aula: true },
-          orderBy: { aula: { data: 'desc' } },
-          take: 30,
-        },
-      },
-    })
-    if (!mat) return NextResponse.json({ erro: 'Matrícula não encontrada' }, { status: 404 })
-    return NextResponse.json({ matricula: mat })
+      })
+    }
+
+    if (id) {
+      const mats = await db.$queryRaw`
+        SELECT m.*, a.nome as alunoNome, a.dataNascimento, a.pcd, a.bolsaFamilia,
+               t.serie, t.turma, t.turno, e.nome as escolaNome
+        FROM Matricula m
+        JOIN Aluno a ON a.id = m.alunoId
+        JOIN Turma t ON t.id = m.turmaId
+        JOIN Escola e ON e.id = t.escolaId
+        WHERE m.id = ${id} AND m.municipioId = ${municipioId}
+      ` as any[]
+      if (!mats.length) return NextResponse.json({ erro: 'Matrícula não encontrada' }, { status: 404 })
+      return NextResponse.json({ matricula: mats[0] })
+    }
+
+    if (turmaId) {
+      const matriculas = await db.$queryRaw`
+        SELECT m.*, a.nome as alunoNome, a.dataNascimento, a.pcd, a.bolsaFamilia
+        FROM Matricula m JOIN Aluno a ON a.id = m.alunoId
+        WHERE m.turmaId = ${turmaId} AND m.municipioId = ${municipioId}
+        ORDER BY a.nome ASC
+      ` as any[]
+      return NextResponse.json({ matriculas, total: matriculas.length })
+    }
+
+    if (alunoId) {
+      const matriculas = await db.$queryRaw`
+        SELECT m.*, t.serie, t.turma, t.turno, e.nome as escolaNome
+        FROM Matricula m
+        JOIN Turma t ON t.id = m.turmaId JOIN Escola e ON e.id = t.escolaId
+        WHERE m.alunoId = ${alunoId} AND m.municipioId = ${municipioId}
+        ORDER BY m.anoLetivo DESC
+      ` as any[]
+      return NextResponse.json({ matriculas, total: matriculas.length })
+    }
+
+    const ano = anoLetivo ? parseInt(anoLetivo) : new Date().getFullYear()
+    const matriculas = await db.$queryRaw`
+      SELECT m.numero, m.situacao, m.anoLetivo, m.percentualFreq, m.mediaGeral, m.resultadoFinal,
+             a.nome as alunoNome, a.pcd, a.bolsaFamilia,
+             t.serie, t.turma, t.turno
+      FROM Matricula m
+      JOIN Aluno a ON a.id = m.alunoId
+      JOIN Turma t ON t.id = m.turmaId
+      WHERE m.municipioId = ${municipioId} AND m.anoLetivo = ${ano}
+      ORDER BY a.nome ASC LIMIT 500
+    ` as any[]
+
+    return NextResponse.json({ matriculas, total: matriculas.length })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  const where: any = { municipioId: usuario.municipioId }
-  if (turmaId)   where.turmaId   = turmaId
-  if (alunoId)   where.alunoId   = alunoId
-  if (anoLetivo) where.anoLetivo = Number(anoLetivo)
-
-  const matriculas = await prisma.matricula.findMany({
-    where, orderBy: { aluno: { nome: 'asc' } }, take: 500,
-    include: {
-      aluno: { select: { nome: true, dataNascimento: true, pcd: true, bolsaFamilia: true } },
-      turma: { select: { serie: true, turma: true, turno: true } },
-    },
-  })
-
-  return NextResponse.json({ matriculas, total: matriculas.length })
 }
 
 export async function POST(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  const Schema = z.object({
-    alunoId:  z.string(),
-    turmaId:  z.string(),
-    anoLetivo: z.number().int().default(new Date().getFullYear()),
-  })
+  try {
+    const { alunoId, turmaId, anoLetivo } = await req.json()
+    if (!alunoId || !turmaId) return NextResponse.json({ erro: 'alunoId e turmaId são obrigatórios' }, { status: 400 })
 
-  const val = Schema.safeParse(await req.json())
-  if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
-  const d = val.data
+    const ano = anoLetivo ?? new Date().getFullYear()
 
-  // Verificar turma existe e tem vaga
-  const turma = await prisma.turma.findFirst({
-    where: { id: d.turmaId, municipioId: usuario.municipioId },
-    include: { _count: { select: { matriculas: { where: { situacao: 'ATIVA' } } } } },
-  })
-  if (!turma) return NextResponse.json({ erro: 'Turma não encontrada' }, { status: 404 })
+    // Verifica turma e vagas
+    const turmas = await db.$queryRaw`
+      SELECT t.*, COUNT(m.id) as totalMatriculas
+      FROM Turma t
+      LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
+      WHERE t.id = ${turmaId} AND t.municipioId = ${municipioId}
+      GROUP BY t.id
+    ` as any[]
 
-  if (turma._count.matriculas >= turma.capacidade) {
-    return NextResponse.json({
-      erro: `Turma sem vagas. Capacidade: ${turma.capacidade}, Matriculados: ${turma._count.matriculas}`,
-    }, { status: 409 })
+    if (!turmas.length) return NextResponse.json({ erro: 'Turma não encontrada' }, { status: 404 })
+    const turma = turmas[0]
+    if (Number(turma.totalMatriculas) >= turma.capacidade) {
+      return NextResponse.json({ erro: `Turma sem vagas. Capacidade: ${turma.capacidade}` }, { status: 409 })
+    }
+
+    // Duplicidade
+    const existente = await db.Matricula.findFirst({ where: { alunoId, turmaId, anoLetivo: ano } })
+    if (existente) {
+      return NextResponse.json({ erro: 'Aluno já matriculado nesta turma no ano letivo', matriculaId: existente.id }, { status: 409 })
+    }
+
+    // Número sequencial
+    const ct = await db.$queryRaw`
+      SELECT COUNT(*) as n FROM Matricula WHERE municipioId = ${municipioId} AND anoLetivo = ${ano}
+    ` as any[]
+    const numero = `${ano}-${String(Number(ct[0].n) + 1).padStart(5, '0')}`
+
+    const matricula = await db.Matricula.create({
+      data: {
+        id: randomUUID(), municipioId, numero,
+        alunoId, turmaId, anoLetivo: ano,
+      },
+    })
+
+    return NextResponse.json({ matricula, numero }, { status: 201 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
   }
-
-  // Verificar duplicidade
-  const existente = await prisma.matricula.findFirst({
-    where: { alunoId: d.alunoId, turmaId: d.turmaId, anoLetivo: d.anoLetivo },
-  })
-  if (existente) {
-    return NextResponse.json({ erro: 'Aluno já matriculado nesta turma no ano letivo', matriculaId: existente.id }, { status: 409 })
-  }
-
-  const numero = await gerarNumeroMatricula(usuario.municipioId, d.anoLetivo)
-  const matricula = await prisma.matricula.create({
-    data: {
-      municipioId: usuario.municipioId,
-      numero, alunoId: d.alunoId, turmaId: d.turmaId,
-      anoLetivo: d.anoLetivo, usuarioId: usuario.id,
-    },
-    include: { aluno: { select: { nome: true } }, turma: { select: { serie: true, turma: true } } },
-  })
-
-  await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'MATRICULAR_ALUNO', entidade: 'Matricula', entidadeId: matricula.id,
-    detalhes: { numero, aluno: matricula.aluno.nome, turma: `${matricula.turma.serie}${matricula.turma.turma}` },
-  })
-
-  return NextResponse.json({ matricula, numero }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {
-  const usuario = await obterUsuario(req)
-  if (!usuario) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  const municipioId = mid(req)
+  if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
-  const { id, acao, ...extras } = await req.json()
-  if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
+  try {
+    const { id, acao, ...extras } = await req.json()
+    if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const mat = await prisma.matricula.findFirst({ where: { id, municipioId: usuario.municipioId } })
-  if (!mat) return NextResponse.json({ erro: 'Matrícula não encontrada' }, { status: 404 })
+    const mat = await db.Matricula.findFirst({ where: { id, municipioId } })
+    if (!mat) return NextResponse.json({ erro: 'Matrícula não encontrada' }, { status: 404 })
 
-  if (acao === 'TRANSFERIR') {
-    const { escolaDestino } = extras
-    if (!escolaDestino) return NextResponse.json({ erro: 'escolaDestino obrigatório' }, { status: 400 })
-    await prisma.matricula.update({
-      where: { id },
-      data: { situacao: 'TRANSFERIDA', dataTransferencia: new Date(), escolaDestino },
-    })
-    await prisma.aluno.update({ where: { id: mat.alunoId }, data: { situacao: 'TRANSFERIDO' } })
-    return NextResponse.json({ sucesso: true })
-  }
-
-  if (acao === 'CANCELAR') {
-    await prisma.matricula.update({
-      where: { id },
-      data: { situacao: 'CANCELADA', motivoCancelamento: extras.motivo },
-    })
-    return NextResponse.json({ sucesso: true })
-  }
-
-  if (acao === 'FECHAR_ANO') {
-    // Recalcular resultado final
-    const resultado = calcularResultado(
-      Number(mat.percentualFreq),
-      mat.mediaGeral !== null ? Number(mat.mediaGeral) : null,
-    )
-    await prisma.matricula.update({
-      where: { id },
-      data: {
-        situacao: resultado === 'APROVADO' ? 'CONCLUIDA' : 'ATIVA',
-        resultadoFinal: resultado as any,
-      },
-    })
-    return NextResponse.json({ sucesso: true, resultadoFinal: resultado })
-  }
-
-  if (acao === 'CONSELHO_APROVACAO') {
-    // Conselho de classe pode aprovar aluno reprovado por nota (mantendo freq obrigatória)
-    if (Number(mat.percentualFreq) < 75) {
-      return NextResponse.json({ erro: 'Frequência abaixo de 75% não pode ser aprovada pelo conselho (LDB Art. 24)' }, { status: 409 })
+    if (acao === 'TRANSFERIR') {
+      const { escolaDestino } = extras
+      if (!escolaDestino) return NextResponse.json({ erro: 'escolaDestino obrigatório' }, { status: 400 })
+      await db.Matricula.update({
+        where: { id },
+        data: { situacao: 'TRANSFERIDA', dataTransferencia: new Date().toISOString().split('T')[0], escolaDestino },
+      })
+      await db.Aluno.update({ where: { id: (mat as any).alunoId }, data: { situacao: 'TRANSFERIDO' } })
+      return NextResponse.json({ sucesso: true })
     }
-    await prisma.matricula.update({
-      where: { id },
-      data: { resultadoFinal: 'APROVADO_CONSELHO', situacao: 'CONCLUIDA' },
-    })
-    return NextResponse.json({ sucesso: true })
-  }
 
-  return NextResponse.json({ erro: 'Ação inválida' }, { status: 400 })
+    if (acao === 'CANCELAR') {
+      await db.Matricula.update({ where: { id }, data: { situacao: 'CANCELADA', motivoCancelamento: extras.motivo } })
+      return NextResponse.json({ sucesso: true })
+    }
+
+    if (acao === 'FECHAR_ANO') {
+      const freq = Number((mat as any).percentualFreq)
+      const media = (mat as any).mediaGeral !== null ? Number((mat as any).mediaGeral) : null
+      let resultado = 'EM_PROGRESSO'
+      if (freq < 75) resultado = 'REPROVADO'
+      else if (media !== null) resultado = media >= 5.0 ? 'APROVADO' : 'REPROVADO'
+
+      await db.Matricula.update({
+        where: { id },
+        data: {
+          resultadoFinal: resultado,
+          situacao: resultado === 'APROVADO' ? 'CONCLUIDA' : 'ATIVA',
+        },
+      })
+      return NextResponse.json({ sucesso: true, resultadoFinal: resultado })
+    }
+
+    return NextResponse.json({ erro: 'Ação inválida' }, { status: 400 })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
 }
