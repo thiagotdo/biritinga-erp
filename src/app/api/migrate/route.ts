@@ -350,12 +350,24 @@ const DDL: Array<{ nome: string; sql: string }> = [
   },
 ]
 
-// ── Colunas extras no Municipio (migration graceful) ──────────────────────────
+// ── Colunas extras (migration graceful) ──────────────────────────────────────
 const COLS_EXTRA = [
+  // Municipio
   "ALTER TABLE `Municipio` ADD COLUMN brasaoUrl     VARCHAR(500) NULL",
   "ALTER TABLE `Municipio` ADD COLUMN favicon       VARCHAR(500) NULL",
   "ALTER TABLE `Municipio` ADD COLUMN corSecundaria CHAR(7)      NULL",
   "ALTER TABLE `Municipio` ADD COLUMN corAcento     CHAR(7)      NULL",
+  // Fornecedor — tabela antiga pode ter 'razaoSocial' em vez de 'nome'
+  "ALTER TABLE `Fornecedor` ADD COLUMN nome        VARCHAR(300) NULL",
+  "ALTER TABLE `Fornecedor` ADD COLUMN tipo        ENUM('PJ','PF') NOT NULL DEFAULT 'PJ'",
+  "ALTER TABLE `Fornecedor` ADD COLUMN cpfCnpj     VARCHAR(18) NULL",
+  "ALTER TABLE `Fornecedor` ADD COLUMN ativo       TINYINT(1)  NOT NULL DEFAULT 1",
+  "ALTER TABLE `Fornecedor` ADD COLUMN createdAt   DATETIME    NULL",
+  "ALTER TABLE `Fornecedor` ADD COLUMN updatedAt   DATETIME    NULL",
+  // Preencher nome a partir de razaoSocial (se existir)
+  "UPDATE `Fornecedor` SET nome = razaoSocial WHERE nome IS NULL AND razaoSocial IS NOT NULL",
+  // Preencher cpfCnpj a partir de cnpj (se existir)
+  "UPDATE `Fornecedor` SET cpfCnpj = cnpj WHERE cpfCnpj IS NULL AND cnpj IS NOT NULL",
 ]
 
 export async function GET(req: NextRequest) {

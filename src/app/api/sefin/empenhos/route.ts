@@ -38,11 +38,11 @@ export async function GET(req: NextRequest) {
     if (q) {
       const like = `%${q}%`
       empenhos = await db.$queryRaw`
-        SELECT e.*, f.nome as fornecedorNome, f.cpfCnpj as fornecedorDoc
+        SELECT e.*, COALESCE(f.nome, f.razaoSocial) as fornecedorNome, COALESCE(f.cpfCnpj, f.cnpj) as fornecedorDoc
         FROM Empenho e
         LEFT JOIN Fornecedor f ON f.id = e.fornecedorId
         WHERE e.municipioId = ${municipioId}
-          AND (e.numero LIKE ${like} OR e.descricao LIKE ${like} OR f.nome LIKE ${like})
+          AND (e.numero LIKE ${like} OR e.descricao LIKE ${like} OR f.nome LIKE ${like} OR f.razaoSocial LIKE ${like})
         ORDER BY e.dataEmissao DESC
         LIMIT ${limit} OFFSET ${skip}
       `
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         FROM Empenho e
         LEFT JOIN Fornecedor f ON f.id = e.fornecedorId
         WHERE e.municipioId = ${municipioId}
-          AND (e.numero LIKE ${like} OR e.descricao LIKE ${like} OR f.nome LIKE ${like})
+          AND (e.numero LIKE ${like} OR e.descricao LIKE ${like} OR f.nome LIKE ${like} OR f.razaoSocial LIKE ${like})
       ` as any[]
       total = Number(ct[0]?.n ?? 0)
     } else {
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       for (const e of empenhos) {
         if (e.fornecedorId) {
           const f = await db.Fornecedor.findFirst({ where: { id: e.fornecedorId } }) as any
-          if (f) { e.fornecedorNome = f.nome; e.fornecedorDoc = f.cpfCnpj }
+          if (f) { e.fornecedorNome = f.nome ?? f.razaoSocial; e.fornecedorDoc = f.cpfCnpj ?? f.cnpj }
         }
       }
       total = await db.Empenho.count({ where })

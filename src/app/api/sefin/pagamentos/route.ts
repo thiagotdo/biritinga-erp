@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         l.numero as liquidacaoNumero,
         e.numero as empenhoNumero,
         e.descricao as empenhoDescricao,
-        f.nome as fornecedorNome,
+        COALESCE(f.nome, f.razaoSocial) as fornecedorNome,
         f.cpfCnpj as fornecedorDoc,
         cb.nome as contaNome
       FROM Pagamento p

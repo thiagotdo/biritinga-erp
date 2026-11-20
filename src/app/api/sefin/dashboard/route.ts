@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
     const ultimosEmpenhos = await db.$queryRaw`
       SELECT
         e.id, e.numero, e.dataEmissao, e.valor, e.status, e.descricao,
-        f.nome as fornecedorNome
+        COALESCE(f.nome, f.razaoSocial) as fornecedorNome
       FROM Empenho e
       LEFT JOIN Fornecedor f ON f.id = e.fornecedorId
       WHERE e.municipioId = ${municipioId} AND e.exercicio = ${exercicio}
