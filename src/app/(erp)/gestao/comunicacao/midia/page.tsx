@@ -1,362 +1,321 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import AdminShell from '@/components/AdminShell'
 
-type Midia = {
-  id: string; titulo: string; tipo: string; categoria: string; url: string
-  urlThumb?: string; nomeArquivo: string; tamanhoBytes?: number; mimeType?: string
-  tags?: string; autor?: string; destaque: boolean; criadoEm: string
-  album?: { id: string; nome: string }
+type Album = { id: string; nome: string; descricao?: string; categoria: string; _count?: { midias: number }; criadoEm: string }
+type Midia = { id: string; titulo: string; tipo: string; categoria: string; url: string; urlThumb?: string; nomeArquivo: string; tamanhoBytes?: number; autor?: string; destaque: boolean; albumId?: string; criadoEm: string }
+
+const TIPO_MIDIA: Record<string, { label: string; emoji: string }> = {
+  FOTO: { label: 'Foto', emoji: '🖼️' }, VIDEO: { label: 'Vídeo', emoji: '🎥' },
+  DOCUMENTO: { label: 'Documento', emoji: '📄' }, AUDIO: { label: 'Áudio', emoji: '🎵' },
 }
-
-type Album = { id: string; nome: string; categoria: string; _count: { midias: number } }
-
-const TIPO_INFO: Record<string, { label: string; emoji: string; cor: string }> = {
-  FOTO:      { label: 'Foto',      emoji: '🖼️', cor: '#1565C0' },
-  VIDEO:     { label: 'Vídeo',     emoji: '🎬', cor: '#AD1457' },
-  DOCUMENTO: { label: 'Documento', emoji: '📄', cor: '#2E7D32' },
-  AUDIO:     { label: 'Áudio',     emoji: '🎵', cor: '#6A1B9A' },
-}
-
-const CAT_LABELS: Record<string, string> = {
+const CATEGORIA_MIDIA: Record<string, string> = {
   INFRAESTRUTURA: 'Infraestrutura', SAUDE: 'Saúde', EDUCACAO: 'Educação',
-  CULTURA: 'Cultura', ESPORTE: 'Esporte', EVENTO: 'Evento', INSTITUCIONAL: 'Institucional', OUTRO: 'Outro'
+  CULTURA: 'Cultura', ESPORTE: 'Esporte', EVENTO: 'Evento', INSTITUCIONAL: 'Institucional', OUTRO: 'Outro',
 }
 
-function formatBytes(b?: number) {
-  if (!b) return ''
-  if (b < 1024) return `${b} B`
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`
+function formatarBytes(bytes?: number) {
+  if (!bytes) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(1)} KB`
+  return `${(bytes/1024/1024).toFixed(1)} MB`
 }
 
 export default function MidiaPage() {
-  const [midias, setMidias]       = useState<Midia[]>([])
-  const [albuns, setAlbuns]       = useState<Album[]>([])
-  const [kpiMap, setKpiMap]       = useState<Record<string, number>>({})
-  const [total, setTotal]         = useState(0)
-  const [filtroTipo, setFiltroTipo] = useState('')
-  const [filtroAlbum, setFiltroAlbum] = useState('')
-  const [busca, setBusca]         = useState('')
-  const [aba, setAba]             = useState<'galeria'|'albuns'>('galeria')
-  const [selecionada, setSelecionada] = useState<Midia | null>(null)
-  const [showModalMidia, setShowModalMidia] = useState(false)
-  const [showModalAlbum, setShowModalAlbum] = useState(false)
-  const [form, setForm]           = useState<any>({})
-  const [loading, setLoading]     = useState(false)
-  const [salvando, setSalvando]   = useState(false)
+  const [aba, setAba]           = useState<'galeria' | 'albums'>('galeria')
+  const [midias, setMidias]     = useState<Midia[]>([])
+  const [albums, setAlbums]     = useState<Album[]>([])
+  const [total, setTotal]       = useState(0)
+  const [pagina, setPagina]     = useState(1)
+  const [filtroTipo, setFiltroTipo]           = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [carregando, setCarregando]           = useState(true)
+  const [modal, setModal]       = useState<'nova-midia' | 'novo-album' | null>(null)
+  const [midiaAtual, setMidiaAtual]   = useState<Partial<Midia>>({})
+  const [albumAtual, setAlbumAtual]   = useState<Partial<Album>>({})
+  const [salvando, setSalvando] = useState(false)
+  const [msg, setMsg]           = useState('')
+
+  const perPagina = 20
 
   const carregarMidias = useCallback(async () => {
-    setLoading(true)
-    const qs = new URLSearchParams()
-    if (filtroTipo)  qs.set('tipo', filtroTipo)
-    if (filtroAlbum) qs.set('albumId', filtroAlbum)
-    if (busca)       qs.set('busca', busca)
-    const r = await fetch(`/api/comunicacao/midia?${qs}`).then(r => r.json())
-    const kpis: Record<string, number> = {}
-    r.kpiMap?.forEach((k: any) => { kpis[k.tipo] = k._count._all })
-    setKpiMap(kpis)
-    setMidias(r.midias ?? [])
-    setTotal(r.total ?? 0)
-    setLoading(false)
-  }, [filtroTipo, filtroAlbum, busca])
+    setCarregando(true)
+    const p = new URLSearchParams({ pagina: String(pagina), limite: String(perPagina) })
+    if (filtroTipo)      p.set('tipo', filtroTipo)
+    if (filtroCategoria) p.set('categoria', filtroCategoria)
+    const r = await fetch(`/api/comunicacao/midia?${p}`)
+    if (r.ok) { const d = await r.json(); setMidias(d.midias); setTotal(d.total) }
+    setCarregando(false)
+  }, [pagina, filtroTipo, filtroCategoria])
 
-  const carregarAlbuns = useCallback(async () => {
-    const r = await fetch('/api/comunicacao/midia?albuns=true').then(r => r.json())
-    setAlbuns(r.albuns ?? [])
+  const carregarAlbums = useCallback(async () => {
+    setCarregando(true)
+    const r = await fetch('/api/comunicacao/midia?tipo=albums')
+    if (r.ok) { const d = await r.json(); setAlbums(d.albums ?? []) }
+    setCarregando(false)
   }, [])
 
-  useEffect(() => { carregarMidias(); carregarAlbuns() }, [carregarMidias, carregarAlbuns])
+  useEffect(() => {
+    if (aba === 'galeria') carregarMidias()
+    else carregarAlbums()
+  }, [aba, carregarMidias, carregarAlbums])
 
   async function salvarMidia() {
     setSalvando(true)
-    const metodo = form.id ? 'PATCH' : 'POST'
     const r = await fetch('/api/comunicacao/midia', {
-      method: metodo, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
-    }).then(r => r.json())
+      method: midiaAtual.id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...midiaAtual, recurso: 'midia' }),
+    })
+    const d = await r.json()
     setSalvando(false)
-    if (r.resultados || r.midia) { setShowModalMidia(false); carregarMidias() }
-    else alert(JSON.stringify(r.erro))
+    if (r.ok) { setMsg('Mídia salva!'); setModal(null); carregarMidias() }
+    else setMsg(d.erro ?? 'Erro')
   }
 
   async function salvarAlbum() {
     setSalvando(true)
     const r = await fetch('/api/comunicacao/midia', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ acao: 'CRIAR_ALBUM', ...form })
-    }).then(r => r.json())
+      method: albumAtual.id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...albumAtual, recurso: 'album' }),
+    })
+    const d = await r.json()
     setSalvando(false)
-    if (r.album) { setShowModalAlbum(false); carregarAlbuns() }
-    else alert(JSON.stringify(r.erro))
+    if (r.ok) { setMsg('Álbum salvo!'); setModal(null); carregarAlbums() }
+    else setMsg(d.erro ?? 'Erro')
   }
 
-  async function excluir(id: string) {
-    if (!confirm('Remover esta mídia?')) return
-    await fetch(`/api/comunicacao/midia?id=${id}`, { method: 'DELETE' })
-    setSelecionada(null); carregarMidias()
+  async function excluirMidia(id: string) {
+    if (!confirm('Excluir esta mídia?')) return
+    const r = await fetch(`/api/comunicacao/midia?id=${id}&recurso=midia`, { method: 'DELETE' })
+    if (r.ok) { setMsg('Mídia excluída'); carregarMidias() }
   }
+
+  const totalPaginas = Math.ceil(total / perPagina)
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter,sans-serif', background: '#F4F6F8' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Header */}
-        <div style={{ padding: '20px 24px 0', background: '#fff', borderBottom: '1px solid #E0E0E0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1B5E20' }}>🗂️ Galeria de Mídia</h1>
-              <p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>{total} arquivos</p>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { setForm({ tipo: 'FOTO', categoria: 'OUTRO', destaque: false }); setShowModalAlbum(true) }}
-                style={{ background: '#fff', color: '#2E7D32', border: '2px solid #2E7D32', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-                + Álbum
-              </button>
-              <button onClick={() => { setForm({ tipo: 'FOTO', categoria: 'OUTRO', destaque: false }); setShowModalMidia(true) }}
-                style={{ background: '#2E7D32', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', cursor: 'pointer', fontWeight: 600 }}>
-                + Adicionar Mídia
-              </button>
-            </div>
+    <AdminShell>
+      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1B5E20' }}>🗂️ Galeria de Mídia</h1>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>Fotos, vídeos e documentos da Prefeitura</p>
           </div>
-
-          {/* KPIs tipo */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-            {Object.entries(TIPO_INFO).map(([k, v]) => (
-              <div key={k} onClick={() => setFiltroTipo(filtroTipo === k ? '' : k)}
-                style={{ background: filtroTipo === k ? v.cor + '15' : '#F9FBF9', border: `2px solid ${filtroTipo === k ? v.cor : '#E0E0E0'}`, borderRadius: 10, padding: '8px 14px', cursor: 'pointer', flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: 18 }}>{v.emoji}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: v.cor }}>{kpiMap[k] ?? 0}</div>
-                <div style={{ fontSize: 10, color: '#666' }}>{v.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Abas + Filtros */}
-          <div style={{ display: 'flex', gap: 10, paddingBottom: 12, alignItems: 'center' }}>
-            <div style={{ display: 'flex', border: '1px solid #DDD', borderRadius: 8, overflow: 'hidden' }}>
-              {(['galeria', 'albuns'] as const).map(a => (
-                <button key={a} onClick={() => setAba(a)}
-                  style={{ padding: '7px 16px', border: 'none', background: aba === a ? '#2E7D32' : '#fff', color: aba === a ? '#fff' : '#555', cursor: 'pointer', fontSize: 13, fontWeight: aba === a ? 600 : 400 }}>
-                  {a === 'galeria' ? '🖼️ Galeria' : '📁 Álbuns'}
-                </button>
-              ))}
-            </div>
-            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
-              style={{ flex: 1, border: '1px solid #DDD', borderRadius: 8, padding: '7px 12px', fontSize: 13 }} />
-            {aba === 'galeria' && (
-              <select value={filtroAlbum} onChange={e => setFiltroAlbum(e.target.value)}
-                style={{ border: '1px solid #DDD', borderRadius: 8, padding: '7px 10px', fontSize: 13, background: '#fff' }}>
-                <option value="">Todos os álbuns</option>
-                {albuns.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-              </select>
-            )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => { setAlbumAtual({ categoria: 'OUTRO' }); setModal('novo-album') }}
+              style={{ background: '#fff', color: '#1B5E20', border: '1px solid #1B5E20', borderRadius: 8, padding: '9px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              + Novo Álbum
+            </button>
+            <button onClick={() => { setMidiaAtual({ tipo: 'FOTO', categoria: 'OUTRO', destaque: false }); setModal('nova-midia') }}
+              style={{ background: '#1B5E20', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              + Adicionar Mídia
+            </button>
           </div>
         </div>
 
-        {/* Conteúdo */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-          {aba === 'albuns' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 16 }}>
-              {albuns.map(a => (
-                <div key={a.id} onClick={() => { setAba('galeria'); setFiltroAlbum(a.id) }}
-                  style={{ background: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', border: '2px solid #E0E0E0', textAlign: 'center',
-                    transition: 'border-color 0.2s' }} onMouseOver={e => (e.currentTarget.style.borderColor = '#2E7D32')} onMouseOut={e => (e.currentTarget.style.borderColor = '#E0E0E0')}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>📁</div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A', marginBottom: 4 }}>{a.nome}</div>
-                  <div style={{ fontSize: 12, color: '#999' }}>{CAT_LABELS[a.categoria]}</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#2E7D32', marginTop: 8 }}>{a._count.midias}</div>
-                  <div style={{ fontSize: 11, color: '#666' }}>arquivos</div>
-                </div>
-              ))}
+        {msg && (
+          <div style={{ background: msg.includes('rro') ? '#FFEBEE' : '#E8F5E9', color: msg.includes('rro') ? '#B71C1C' : '#1B5E20', padding: '10px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+            {msg} <button onClick={() => setMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
+
+        {/* Abas */}
+        <div style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', marginBottom: 20, gap: 0 }}>
+          {(['galeria', 'albums'] as const).map(a => (
+            <button key={a} onClick={() => { setAba(a); setPagina(1) }}
+              style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: aba === a ? 700 : 400, color: aba === a ? '#1B5E20' : '#666', borderBottom: aba === a ? '2px solid #1B5E20' : '2px solid transparent', marginBottom: -2 }}>
+              {a === 'galeria' ? '🖼️ Galeria' : '📁 Álbuns'}
+            </button>
+          ))}
+        </div>
+
+        {aba === 'galeria' && (
+          <>
+            {/* Filtros */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+              <select value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPagina(1) }}
+                style={{ padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, background: '#fff' }}>
+                <option value="">Todos os tipos</option>
+                {Object.entries(TIPO_MIDIA).map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.label}</option>)}
+              </select>
+              <select value={filtroCategoria} onChange={e => { setFiltroCategoria(e.target.value); setPagina(1) }}
+                style={{ padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, background: '#fff' }}>
+                <option value="">Todas as categorias</option>
+                {Object.entries(CATEGORIA_MIDIA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
             </div>
-          ) : (
-            loading ? <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Carregando...</div> : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 }}>
-                {midias.map(m => {
-                  const tp = TIPO_INFO[m.tipo] ?? TIPO_INFO.FOTO
-                  const sel = selecionada?.id === m.id
+
+            {/* Grade de mídia */}
+            {carregando ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Carregando...</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                {midias.length === 0 ? (
+                  <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 40, color: '#999' }}>Nenhuma mídia encontrada.</div>
+                ) : midias.map(m => {
+                  const t = TIPO_MIDIA[m.tipo] ?? { label: m.tipo, emoji: '📎' }
                   return (
-                    <div key={m.id} onClick={() => setSelecionada(sel ? null : m)}
-                      style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-                        border: `2px solid ${sel ? '#2E7D32' : '#E0E0E0'}` }}>
-                      {m.tipo === 'FOTO' ? (
-                        <img src={m.urlThumb || m.url} alt={m.titulo}
-                          style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }}
-                          onError={(e: any) => { e.target.style.display = 'none' }} />
-                      ) : (
-                        <div style={{ width: '100%', height: 120, background: tp.cor + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 42 }}>
-                          {tp.emoji}
+                    <div key={m.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E7EB', overflow: 'hidden', position: 'relative' }}>
+                      {/* Thumbnail ou ícone */}
+                      <div style={{ height: 140, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, position: 'relative', overflow: 'hidden' }}>
+                        {m.urlThumb || m.tipo === 'FOTO' ? (
+                          m.urlThumb ? <img src={m.urlThumb} alt={m.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} /> : <span>{t.emoji}</span>
+                        ) : <span>{t.emoji}</span>}
+                        {m.destaque && <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 14 }}>⭐</span>}
+                        <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.5)', color: '#fff', borderRadius: 4, padding: '2px 6px', fontSize: 10 }}>
+                          {t.label}
                         </div>
-                      )}
-                      <div style={{ padding: '8px 10px' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.titulo}</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ background: tp.cor + '15', color: tp.cor, borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 600 }}>{tp.label}</span>
-                          {m.destaque && <span style={{ color: '#F9A825', fontSize: 12 }}>⭐</span>}
+                      </div>
+                      <div style={{ padding: '10px 12px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#111', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.titulo}</div>
+                        <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+                          {CATEGORIA_MIDIA[m.categoria] ?? m.categoria} · {formatarBytes(m.tamanhoBytes)}
                         </div>
-                        {m.tamanhoBytes && <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>{formatBytes(m.tamanhoBytes)}</div>}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <a href={m.url} target="_blank" rel="noreferrer"
+                            style={{ flex: 1, background: '#EFF6FF', border: 'none', borderRadius: 5, padding: '4px 8px', cursor: 'pointer', fontSize: 11, textDecoration: 'none', color: '#1D4ED8', textAlign: 'center' }}>
+                            🔗 Ver
+                          </a>
+                          <button onClick={() => excluirMidia(m.id)}
+                            style={{ background: '#FEF2F2', border: 'none', borderRadius: 5, padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>🗑️</button>
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
-            )
-          )}
-        </div>
-      </div>
-
-      {/* Detalhe */}
-      {selecionada && (
-        <div style={{ width: 340, background: '#fff', borderLeft: '1px solid #E0E0E0', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          <div style={{ padding: '20px 20px 0', borderBottom: '1px solid #E0E0E0', marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, flex: 1, paddingRight: 10 }}>{selecionada.titulo}</h3>
-              <button onClick={() => setSelecionada(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#999' }}>✕</button>
-            </div>
-          </div>
-          <div style={{ padding: '0 20px 20px' }}>
-            {selecionada.tipo === 'FOTO' ? (
-              <img src={selecionada.url} alt={selecionada.titulo} style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
-            ) : (
-              <a href={selecionada.url} target="_blank" rel="noopener"
-                style={{ display: 'block', background: '#F9FBF9', borderRadius: 8, padding: 16, textAlign: 'center', color: '#1565C0', fontWeight: 600, textDecoration: 'none', marginBottom: 12 }}>
-                {TIPO_INFO[selecionada.tipo]?.emoji} Abrir arquivo
-              </a>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-              <div style={{ background: '#F9FBF9', borderRadius: 8, padding: 8 }}>
-                <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase' }}>Tipo</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{TIPO_INFO[selecionada.tipo]?.emoji} {TIPO_INFO[selecionada.tipo]?.label}</div>
+
+            {totalPaginas > 1 && (
+              <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', gap: 8 }}>
+                <button disabled={pagina === 1} onClick={() => setPagina(p => p - 1)}
+                  style={{ padding: '7px 16px', border: '1px solid #DDD', borderRadius: 7, cursor: pagina === 1 ? 'default' : 'pointer', fontSize: 13, background: pagina === 1 ? '#F9FAFB' : '#fff' }}>← Anterior</button>
+                <span style={{ padding: '7px 12px', fontSize: 13, color: '#666' }}>{pagina} / {totalPaginas}</span>
+                <button disabled={pagina === totalPaginas} onClick={() => setPagina(p => p + 1)}
+                  style={{ padding: '7px 16px', border: '1px solid #DDD', borderRadius: 7, cursor: pagina === totalPaginas ? 'default' : 'pointer', fontSize: 13, background: pagina === totalPaginas ? '#F9FAFB' : '#fff' }}>Próxima →</button>
               </div>
-              <div style={{ background: '#F9FBF9', borderRadius: 8, padding: 8 }}>
-                <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase' }}>Tamanho</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{formatBytes(selecionada.tamanhoBytes) || '—'}</div>
-              </div>
-              {selecionada.album && <div style={{ background: '#F9FBF9', borderRadius: 8, padding: 8, gridColumn: '1/-1' }}>
-                <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase' }}>Álbum</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>📁 {selecionada.album.nome}</div>
-              </div>}
-              {selecionada.autor && <div style={{ background: '#F9FBF9', borderRadius: 8, padding: 8, gridColumn: '1/-1' }}>
-                <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase' }}>Autor</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{selecionada.autor}</div>
-              </div>}
-            </div>
-            {selecionada.tags && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Tags</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {selecionada.tags.split(',').map(t => <span key={t} style={{ background: '#E8F5E9', color: '#2E7D32', borderRadius: 4, padding: '1px 7px', fontSize: 11 }}>{t.trim()}</span>)}
+            )}
+          </>
+        )}
+
+        {aba === 'albums' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+            {carregando ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999', gridColumn: '1/-1' }}>Carregando...</div>
+            ) : albums.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999', gridColumn: '1/-1' }}>Nenhum álbum criado ainda.</div>
+            ) : albums.map(a => (
+              <div key={a.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E5E7EB', padding: 16 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 4 }}>{a.nome}</div>
+                {a.descricao && <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>{a.descricao}</div>}
+                <div style={{ fontSize: 11, color: '#888' }}>
+                  {CATEGORIA_MIDIA[a.categoria] ?? a.categoria} · {a._count?.midias ?? 0} mídias
                 </div>
               </div>
-            )}
-            <button onClick={() => excluir(selecionada.id)}
-              style={{ width: '100%', background: '#fff', color: '#C62828', border: '1px solid #FFCDD2', borderRadius: 8, padding: '8px 0', cursor: 'pointer', fontSize: 12 }}>
-              Remover
-            </button>
+            ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Modal Mídia */}
-      {showModalMidia && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Adicionar Mídia</h2>
-              <button onClick={() => setShowModalMidia(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Título *</label>
-                <input value={form.titulo ?? ''} onChange={e => setForm((f: any) => ({ ...f, titulo: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>URL do Arquivo *</label>
-                <input value={form.url ?? ''} onChange={e => setForm((f: any) => ({ ...f, url: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {/* Modal Nova Mídia */}
+        {modal === 'nova-midia' && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#1B5E20' }}>+ Adicionar Mídia</h2>
+              <div style={{ display: 'grid', gap: 14 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Tipo</label>
-                  <select value={form.tipo ?? 'FOTO'} onChange={e => setForm((f: any) => ({ ...f, tipo: e.target.value }))}
-                    style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 10px', fontSize: 13 }}>
-                    {Object.entries(TIPO_INFO).map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.label}</option>)}
-                  </select>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Título *</label>
+                  <input value={midiaAtual.titulo ?? ''} onChange={e => setMidiaAtual(p => ({ ...p, titulo: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Tipo</label>
+                    <select value={midiaAtual.tipo ?? 'FOTO'} onChange={e => setMidiaAtual(p => ({ ...p, tipo: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, background: '#fff' }}>
+                      {Object.entries(TIPO_MIDIA).map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Categoria</label>
+                    <select value={midiaAtual.categoria ?? 'OUTRO'} onChange={e => setMidiaAtual(p => ({ ...p, categoria: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, background: '#fff' }}>
+                      {Object.entries(CATEGORIA_MIDIA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>URL do arquivo *</label>
+                  <input value={midiaAtual.url ?? ''} onChange={e => setMidiaAtual(p => ({ ...p, url: e.target.value }))}
+                    placeholder="https://..."
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Nome do arquivo *</label>
+                  <input value={midiaAtual.nomeArquivo ?? ''} onChange={e => setMidiaAtual(p => ({ ...p, nomeArquivo: e.target.value }))}
+                    placeholder="foto-inauguracao.jpg"
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Autor/Fotógrafo</label>
+                  <input value={midiaAtual.autor ?? ''} onChange={e => setMidiaAtual(p => ({ ...p, autor: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" id="mDestaque" checked={midiaAtual.destaque ?? false}
+                    onChange={e => setMidiaAtual(p => ({ ...p, destaque: e.target.checked }))} />
+                  <label htmlFor="mDestaque" style={{ fontSize: 13, color: '#555' }}>⭐ Destaque</label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+                <button onClick={() => setModal(null)}
+                  style={{ padding: '9px 20px', border: '1px solid #DDD', borderRadius: 7, background: '#fff', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+                <button onClick={salvarMidia} disabled={salvando}
+                  style={{ padding: '9px 20px', background: '#1B5E20', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: salvando ? 0.7 : 1 }}>
+                  {salvando ? 'Salvando...' : 'Adicionar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Novo Álbum */}
+        {modal === 'novo-album' && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#1B5E20' }}>📁 Novo Álbum</h2>
+              <div style={{ display: 'grid', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Nome *</label>
+                  <input value={albumAtual.nome ?? ''} onChange={e => setAlbumAtual(p => ({ ...p, nome: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Categoria</label>
-                  <select value={form.categoria ?? 'OUTRO'} onChange={e => setForm((f: any) => ({ ...f, categoria: e.target.value }))}
-                    style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 10px', fontSize: 13 }}>
-                    {Object.entries(CAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  <select value={albumAtual.categoria ?? 'OUTRO'} onChange={e => setAlbumAtual(p => ({ ...p, categoria: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, background: '#fff' }}>
+                    {Object.entries(CATEGORIA_MIDIA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Descrição</label>
+                  <textarea value={albumAtual.descricao ?? ''} onChange={e => setAlbumAtual(p => ({ ...p, descricao: e.target.value }))}
+                    rows={3} style={{ width: '100%', padding: '8px 12px', border: '1px solid #DDD', borderRadius: 7, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Álbum</label>
-                <select value={form.albumId ?? ''} onChange={e => setForm((f: any) => ({ ...f, albumId: e.target.value || null }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 10px', fontSize: 13 }}>
-                  <option value="">Sem álbum</option>
-                  {albuns.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                </select>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+                <button onClick={() => setModal(null)}
+                  style={{ padding: '9px 20px', border: '1px solid #DDD', borderRadius: 7, background: '#fff', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+                <button onClick={salvarAlbum} disabled={salvando}
+                  style={{ padding: '9px 20px', background: '#1B5E20', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: salvando ? 0.7 : 1 }}>
+                  {salvando ? 'Salvando...' : 'Criar Álbum'}
+                </button>
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Nome do Arquivo *</label>
-                <input value={form.nomeArquivo ?? ''} onChange={e => setForm((f: any) => ({ ...f, nomeArquivo: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Tags</label>
-                <input value={form.tags ?? ''} onChange={e => setForm((f: any) => ({ ...f, tags: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box' }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-              <button onClick={() => setShowModalMidia(false)} style={{ flex: 1, background: '#F5F5F5', border: 'none', borderRadius: 8, padding: '12px 0', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={salvarMidia} disabled={salvando}
-                style={{ flex: 2, background: '#2E7D32', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', cursor: 'pointer', fontWeight: 700 }}>
-                {salvando ? 'Salvando...' : 'Adicionar'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Modal Álbum */}
-      {showModalAlbum && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Novo Álbum</h2>
-              <button onClick={() => setShowModalAlbum(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Nome *</label>
-                <input value={form.nome ?? ''} onChange={e => setForm((f: any) => ({ ...f, nome: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 12px', fontSize: 14, boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Categoria</label>
-                <select value={form.categoria ?? 'OUTRO'} onChange={e => setForm((f: any) => ({ ...f, categoria: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 10px', fontSize: 13 }}>
-                  {Object.entries(CAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Descrição</label>
-                <textarea value={form.descricao ?? ''} onChange={e => setForm((f: any) => ({ ...f, descricao: e.target.value }))} rows={3}
-                  style={{ width: '100%', border: '1px solid #DDD', borderRadius: 8, padding: '9px 12px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-              <button onClick={() => setShowModalAlbum(false)} style={{ flex: 1, background: '#F5F5F5', border: 'none', borderRadius: 8, padding: '12px 0', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={salvarAlbum} disabled={salvando}
-                style={{ flex: 2, background: '#2E7D32', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', cursor: 'pointer', fontWeight: 700 }}>
-                {salvando ? 'Criando...' : 'Criar Álbum'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </AdminShell>
   )
 }

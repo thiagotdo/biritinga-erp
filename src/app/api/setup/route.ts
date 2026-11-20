@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
         senhaHash,
         perfil:      'SUPER_ADMIN' as any,
         ativo:       true,
-        primeiroAcesso: false,
       },
     })
 
