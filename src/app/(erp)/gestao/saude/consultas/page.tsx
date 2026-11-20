@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Stethoscope, Search, Plus, X, ChevronDown, ChevronUp,
   CheckCircle, Edit3, PenTool, Thermometer, Heart,
@@ -31,11 +31,7 @@ const IMC_LABEL = (imc: number): { label: string; cor: string } => {
   return { label: 'Obesidade', cor: 'text-red-600' }
 }
 
-const MOCK_FILA = [
-  { id: '1', paciente: 'Luciana Ferreira Costa', hora: '08:30', tipo: 'Pré-Natal', aguardando: true },
-  { id: '2', paciente: 'Francisca Oliveira Lima', hora: '09:00', tipo: 'Puericultura', aguardando: true },
-  { id: '3', paciente: 'Antônio Carlos Souza', hora: '09:30', tipo: 'Saúde Mental', aguardando: true },
-]
+interface FilaItem { id: string; paciente: string; hora: string; tipo: string }
 
 function calcIMC(peso: number, altura: number): number {
   const hm = altura / 100
@@ -43,6 +39,7 @@ function calcIMC(peso: number, altura: number): number {
 }
 
 export default function ConsultasPage() {
+  const [fila, setFila] = useState<FilaItem[]>([])
   const [consultaAtiva, setConsultaAtiva] = useState<string | null>(null)
   const [secaoAberta, setSecaoAberta] = useState<string>('sinais')
   const [salvando, setSalvando] = useState(false)
@@ -75,6 +72,16 @@ export default function ConsultasPage() {
     setForm(f => ({ ...f, exames: [...f.exames, { nome: novoExame.trim() }] }))
     setNovoExame('')
   }
+
+  useEffect(() => {
+    const data = new Date().toISOString().split('T')[0]
+    fetch(`/api/saude/agendamentos?data=${data}&status=CONFIRMADO`)
+      .then(r => r.json())
+      .then(d => setFila((d.agendamentos ?? []).map((a: any) => ({
+        id: a.id, paciente: a.pacienteNome, hora: a.hora, tipo: a.tipoConsulta ?? 'Consulta'
+      }))))
+      .catch(() => {})
+  }, [])
 
   const handleSalvar = async (acao: 'salvar_rascunho' | 'finalizar' | 'assinar') => {
     setSalvando(true)
@@ -111,7 +118,7 @@ export default function ConsultasPage() {
               </h2>
             </div>
             <div className="divide-y divide-gray-50">
-              {MOCK_FILA.map(f => (
+              {fila.map(f => (
                 <div
                   key={f.id}
                   className={`p-3 cursor-pointer hover:bg-indigo-50 transition-colors ${consultaAtiva === f.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`}

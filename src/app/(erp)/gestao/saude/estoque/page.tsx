@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Pill, Plus, X, Search, AlertTriangle,
   TrendingDown, Package, CheckCircle,
@@ -33,24 +33,7 @@ const STATUS_INFO: Record<StatusEstoque, { label: string; cor: string; bg: strin
   VENCIDO:      { label: 'Vencido',       cor: 'text-gray-700',   bg: 'bg-gray-200',   icone: <AlertTriangle className="w-3.5 h-3.5" /> },
 }
 
-const MOCK_ESTOQUE: Medicamento[] = [
-  { id: '1', nome: 'Losartana Potássica', concentracao: '50mg', forma: 'Comprimido', lote: 'LOT001', dataValidade: '28/02/2027', qtAtual: 5000, qtMinima: 500, status: 'DISPONIVEL', unidade: 'Farmácia Central', controlado: false, diasValidade: 107 },
-  { id: '2', nome: 'Metformina', concentracao: '850mg', forma: 'Comprimido', lote: 'LOT002', dataValidade: '30/06/2027', qtAtual: 3200, qtMinima: 300, status: 'DISPONIVEL', unidade: 'Farmácia Central', controlado: false, diasValidade: 229 },
-  { id: '3', nome: 'Hidroclorotiazida', concentracao: '25mg', forma: 'Comprimido', lote: 'LOT003', dataValidade: '31/03/2027', qtAtual: 150, qtMinima: 200, status: 'BAIXO_ESTOQUE', unidade: 'Farmácia Central', controlado: false, diasValidade: 138 },
-  { id: '4', nome: 'Amoxicilina', concentracao: '500mg', forma: 'Cápsula', lote: 'LOT004', dataValidade: '15/11/2026', qtAtual: 80, qtMinima: 150, status: 'BAIXO_ESTOQUE', unidade: 'UBS Centro', controlado: false, diasValidade: 2 },
-  { id: '5', nome: 'Ibuprofeno', concentracao: '600mg', forma: 'Comprimido', lote: 'LOT005', dataValidade: '10/11/2026', qtAtual: 0, qtMinima: 100, status: 'VENCIDO', unidade: 'UPA Municipal', controlado: false, diasValidade: -3 },
-  { id: '6', nome: 'Clonazepam', concentracao: '2mg', forma: 'Comprimido', lote: 'LOT006', dataValidade: '31/12/2027', qtAtual: 500, qtMinima: 100, status: 'DISPONIVEL', unidade: 'CAPS João da Cruz', controlado: true, diasValidade: 413 },
-  { id: '7', nome: 'Sulfato Ferroso', concentracao: '40mg', forma: 'Comprimido', lote: 'LOT007', dataValidade: '28/02/2027', qtAtual: 0, qtMinima: 200, status: 'INDISPONIVEL', unidade: 'UBS Centro', controlado: false, diasValidade: 107 },
-  { id: '8', nome: 'Paracetamol', concentracao: '500mg', forma: 'Comprimido', lote: 'LOT008', dataValidade: '30/09/2027', qtAtual: 8000, qtMinima: 500, status: 'DISPONIVEL', unidade: 'Farmácia Central', controlado: false, diasValidade: 320 },
-  { id: '9', nome: 'Atorvastatina', concentracao: '20mg', forma: 'Comprimido', lote: 'LOT009', dataValidade: '31/08/2027', qtAtual: 1200, qtMinima: 200, status: 'DISPONIVEL', unidade: 'Farmácia Central', controlado: false, diasValidade: 290 },
-]
-
-const MOVIMENTACOES = [
-  { id: '1', med: 'Losartana 50mg', tipo: 'SAIDA_DISPENSACAO', qtd: 30, antes: 5030, depois: 5000, usuario: 'Farm. Roberto', data: '13/11 09:15', paciente: 'Maria G. Santos' },
-  { id: '2', med: 'Metformina 850mg', tipo: 'ENTRADA', qtd: 1000, antes: 2200, depois: 3200, usuario: 'Farm. Roberto', data: '13/11 08:00' },
-  { id: '3', med: 'Paracetamol 500mg', tipo: 'SAIDA_DISPENSACAO', qtd: 20, antes: 8020, depois: 8000, usuario: 'Enf. Clara', data: '12/11 16:40', paciente: 'Pedro Alves' },
-  { id: '4', med: 'Amoxicilina 500mg', tipo: 'SAIDA_DISPENSACAO', qtd: 20, antes: 100, depois: 80, usuario: 'Enf. Clara', data: '12/11 11:20', paciente: 'Julia Matos' },
-]
+interface Movimentacao { id: string; med: string; tipo: string; qtd: number; antes: number; depois: number; usuario?: string; data: string; paciente?: string }
 
 export default function EstoquePage() {
   const [aba, setAba] = useState<TabEstoque>('estoque')
@@ -58,15 +41,57 @@ export default function EstoquePage() {
   const [filtroStatus, setFiltroStatus] = useState<StatusEstoque | ''>('')
   const [modalEntrada, setModalEntrada] = useState(false)
   const [modalDispensacao, setModalDispensacao] = useState(false)
+  const [estoque, setEstoque] = useState<Medicamento[]>([])
+  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([])
+  const [loading, setLoading] = useState(true)
+  const [formEntrada, setFormEntrada] = useState({ medicamentoId: '', quantidade: '', lote: '', dataValidade: '', qtMinima: '', unidadeId: '' })
+  const [formDispensa, setFormDispensa] = useState({ pacienteId: '', medicamentoId: '', quantidade: '', observacoes: '' })
+  const [pacientes, setPacientes] = useState<{ id: string; nome: string }[]>([])
+  const [unidades, setUnidades] = useState<{ id: string; nome: string }[]>([])
+  const [salvando, setSalvando] = useState(false)
 
-  const filtrados = MOCK_ESTOQUE.filter(m => {
+  const carregar = useCallback(() => {
+    setLoading(true)
+    fetch('/api/saude/estoque-medicamentos')
+      .then(r => r.json())
+      .then(d => { setEstoque(d.medicamentos ?? []); setMovimentacoes(d.movimentacoes ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => {
+    fetch('/api/saude/pacientes?limit=200').then(r => r.json()).then(d => setPacientes(d.pacientes ?? [])).catch(() => {})
+    fetch('/api/saude/unidade').then(r => r.json()).then(d => setUnidades(d.unidades ?? [])).catch(() => {})
+  }, [])
+
+  const registrarEntrada = async () => {
+    if (!formEntrada.medicamentoId || !formEntrada.quantidade) return
+    setSalvando(true)
+    await fetch('/api/saude/estoque-medicamentos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'ENTRADA', ...formEntrada, quantidade: Number(formEntrada.quantidade) }),
+    })
+    setSalvando(false); setModalEntrada(false); carregar()
+  }
+
+  const registrarDispensa = async () => {
+    if (!formDispensa.medicamentoId || !formDispensa.quantidade) return
+    setSalvando(true)
+    await fetch('/api/saude/estoque-medicamentos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'SAIDA_DISPENSACAO', ...formDispensa, quantidade: Number(formDispensa.quantidade) }),
+    })
+    setSalvando(false); setModalDispensacao(false); carregar()
+  }
+
+  const filtrados = estoque.filter(m => {
     const matchBusca = !busca || m.nome.toLowerCase().includes(busca.toLowerCase())
     const matchStatus = !filtroStatus || m.status === filtroStatus
     return matchBusca && matchStatus
   })
 
-  const alertas = MOCK_ESTOQUE.filter(m => m.status !== 'DISPONIVEL').length
-  const vencendo15 = MOCK_ESTOQUE.filter(m => m.diasValidade > 0 && m.diasValidade <= 15).length
+  const alertas = estoque.filter(m => m.status !== 'DISPONIVEL').length
+  const vencendo15 = estoque.filter(m => m.diasValidade > 0 && m.diasValidade <= 15).length
 
   return (
     <div className="space-y-5">
@@ -94,7 +119,7 @@ export default function EstoquePage() {
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Medicamentos', valor: MOCK_ESTOQUE.length.toString(), sub: 'cadastrados', cor: 'text-gray-800' },
+          { label: 'Medicamentos', valor: estoque.length.toString(), sub: 'cadastrados', cor: 'text-gray-800' },
           { label: 'Alertas', valor: alertas.toString(), sub: 'itens críticos', cor: 'text-red-600' },
           { label: 'Vencendo em 15d', valor: vencendo15.toString(), sub: 'itens', cor: 'text-orange-600' },
           { label: 'Dispensados Mês', valor: '3.472', sub: 'unidades', cor: 'text-purple-600' },
@@ -108,13 +133,13 @@ export default function EstoquePage() {
       </div>
 
       {/* Alertas críticos */}
-      {MOCK_ESTOQUE.filter(m => m.status === 'VENCIDO' || m.diasValidade <= 15).length > 0 && (
+      {estoque.filter(m => m.status === 'VENCIDO' || m.diasValidade <= 15).length > 0 && (
         <div className="bg-red-50 border border-red-100 rounded-xl p-4">
           <p className="text-xs font-semibold text-red-800 mb-2 flex items-center gap-1.5">
             <AlertTriangle className="w-4 h-4" /> Itens que requerem atenção imediata
           </p>
           <div className="space-y-1">
-            {MOCK_ESTOQUE.filter(m => m.status === 'VENCIDO' || m.diasValidade <= 15).map(m => (
+            {estoque.filter(m => m.status === 'VENCIDO' || m.diasValidade <= 15).map(m => (
               <div key={m.id} className="flex items-center gap-2 text-xs">
                 <span className={`w-2 h-2 rounded-full ${m.status === 'VENCIDO' ? 'bg-red-500' : 'bg-orange-400'}`} />
                 <span className="text-gray-800">{m.nome} {m.concentracao} — {m.unidade}</span>
@@ -220,7 +245,7 @@ export default function EstoquePage() {
 
         {aba === 'movimentacao' && (
           <div className="p-4 space-y-2">
-            {MOVIMENTACOES.map(m => (
+            {movimentacoes.map(m => (
               <div key={m.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${m.tipo === 'ENTRADA' ? 'bg-green-100' : 'bg-red-50'}`}>
                   {m.tipo === 'ENTRADA' ? <ArrowUp className="w-4 h-4 text-green-600" /> : <ArrowDown className="w-4 h-4 text-red-500" />}
@@ -259,42 +284,46 @@ export default function EstoquePage() {
             <div className="p-5 space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-600">Medicamento *</label>
-                <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                  {MOCK_ESTOQUE.map(m => <option key={m.id}>{m.nome} {m.concentracao}</option>)}
+                <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white"
+                  value={formEntrada.medicamentoId} onChange={e => setFormEntrada(f => ({ ...f, medicamentoId: e.target.value }))}>
+                  <option value="">Selecionar...</option>
+                  {estoque.map(m => <option key={m.id} value={m.id}>{m.nome} {m.concentracao}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-600">Quantidade *</label>
-                  <input type="number" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="0" />
+                  <input type="number" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="0"
+                    value={formEntrada.quantidade} onChange={e => setFormEntrada(f => ({ ...f, quantidade: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600">Lote *</label>
-                  <input className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="Nº do lote" />
+                  <input className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="Nº do lote"
+                    value={formEntrada.lote} onChange={e => setFormEntrada(f => ({ ...f, lote: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600">Data de Validade *</label>
-                  <input type="date" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-600">Fabricante</label>
-                  <input className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="Fabricante" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-600">Unidade Destino *</label>
-                  <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    <option>Farmácia Central</option><option>UBS Centro</option><option>USF Bairro Novo</option><option>UPA Municipal</option>
-                  </select>
+                  <input type="date" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none"
+                    value={formEntrada.dataValidade} onChange={e => setFormEntrada(f => ({ ...f, dataValidade: e.target.value }))} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600">Estoque Mínimo</label>
-                  <input type="number" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="100" />
+                  <input type="number" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="100"
+                    value={formEntrada.qtMinima} onChange={e => setFormEntrada(f => ({ ...f, qtMinima: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-gray-600">Unidade Destino</label>
+                  <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white"
+                    value={formEntrada.unidadeId} onChange={e => setFormEntrada(f => ({ ...f, unidadeId: e.target.value }))}>
+                    <option value="">Selecionar...</option>
+                    {unidades.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 p-5 pt-0">
               <button onClick={() => setModalEntrada(false)} className="text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button className="text-sm px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Registrar Entrada</button>
+              <button onClick={registrarEntrada} disabled={salvando} className="text-sm px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">Registrar Entrada</button>
             </div>
           </div>
         </div>
@@ -319,25 +348,37 @@ export default function EstoquePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-600">Medicamento *</label>
-                  <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {MOCK_ESTOQUE.filter(m => m.status === 'DISPONIVEL' || m.status === 'BAIXO_ESTOQUE').map(m => (
-                      <option key={m.id}>{m.nome} {m.concentracao} (saldo: {m.qtAtual})</option>
+                  <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white"
+                    value={formDispensa.medicamentoId} onChange={e => setFormDispensa(f => ({ ...f, medicamentoId: e.target.value }))}>
+                    <option value="">Selecionar...</option>
+                    {estoque.filter(m => m.status === 'DISPONIVEL' || m.status === 'BAIXO_ESTOQUE').map(m => (
+                      <option key={m.id} value={m.id}>{m.nome} {m.concentracao} (saldo: {m.qtAtual})</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600">Quantidade *</label>
-                  <input type="number" min="1" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="0" />
+                  <input type="number" min="1" className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="0"
+                    value={formDispensa.quantidade} onChange={e => setFormDispensa(f => ({ ...f, quantidade: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-gray-600">Paciente</label>
+                  <select className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white"
+                    value={formDispensa.pacienteId} onChange={e => setFormDispensa(f => ({ ...f, pacienteId: e.target.value }))}>
+                    <option value="">Sem vínculo</option>
+                    {pacientes.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-gray-600">Observações</label>
-                  <input className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="Prescrição, posologia..." />
+                  <input className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" placeholder="Prescrição, posologia..."
+                    value={formDispensa.observacoes} onChange={e => setFormDispensa(f => ({ ...f, observacoes: e.target.value }))} />
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 p-5 pt-0">
               <button onClick={() => setModalDispensacao(false)} className="text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button className="text-sm px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700">Dispensar</button>
+              <button onClick={registrarDispensa} disabled={salvando} className="text-sm px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">Dispensar</button>
             </div>
           </div>
         </div>
