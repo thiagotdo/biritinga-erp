@@ -29,23 +29,23 @@ export async function GET(req: NextRequest) {
     if (q) {
       const like = `%${q}%`
       data = await db.$queryRaw`
-        SELECT *, COALESCE(nome, razaoSocial) as nome, COALESCE(cpfCnpj, cnpj) as cpfCnpj
+        SELECT *
         FROM Fornecedor
         WHERE municipioId = ${municipioId}
-          AND (COALESCE(nome, razaoSocial) LIKE ${like} OR COALESCE(cpfCnpj, cnpj) LIKE ${like})
-        ORDER BY COALESCE(nome, razaoSocial) LIMIT ${limit} OFFSET ${skip}
+          AND (nome LIKE ${like} OR cpfCnpj LIKE ${like})
+        ORDER BY nome LIMIT ${limit} OFFSET ${skip}
       `
       const ct = await db.$queryRaw`
         SELECT COUNT(*) as n FROM Fornecedor
         WHERE municipioId = ${municipioId}
-          AND (COALESCE(nome, razaoSocial) LIKE ${like} OR COALESCE(cpfCnpj, cnpj) LIKE ${like})
+          AND (nome LIKE ${like} OR cpfCnpj LIKE ${like})
       ` as any[]
       total = Number(ct[0]?.n ?? 0)
     } else {
       data  = await db.$queryRaw`
-        SELECT *, COALESCE(nome, razaoSocial) as nome, COALESCE(cpfCnpj, cnpj) as cpfCnpj
+        SELECT *
         FROM Fornecedor WHERE municipioId = ${municipioId}
-        ORDER BY COALESCE(nome, razaoSocial) LIMIT ${limit} OFFSET ${skip}
+        ORDER BY nome LIMIT ${limit} OFFSET ${skip}
       `
       total = await db.Fornecedor.count({ where: { municipioId } })
     }
