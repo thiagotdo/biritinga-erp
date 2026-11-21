@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
         dataProtocolo,
         dataLimiteResposta,
         tematico:           d.tematico,
-        usuarioId:          usuario.id,
+        usuarioId:          usuario.usuarioId,
       },
     })
 
@@ -271,17 +271,17 @@ export async function POST(req: NextRequest) {
         pedidoId:     pedido.id,
         despacho:     `Pedido protocolado. Prazo legal: ${dataLimiteResposta.toLocaleDateString('pt-BR')} (20 dias úteis — Art. 11 Lei 12.527/2011).`,
         setorDestino: d.setorDestinatario ?? 'SIC',
-        usuarioId:    usuario.id,
+        usuarioId:    usuario.usuarioId,
       },
     })
 
     await auditLog({
       municipioId: usuario.municipioId,
-      usuarioId:   usuario.id,
-      acao:        'CRIAR_PEDIDO_SIC',
-      entidade:    'PedidoAcesso',
-      entidadeId:  pedido.id,
-      detalhes:    { protocolo },
+      usuarioId:   usuario.usuarioId,
+      acao: 'CREATE',
+      modulo: 'esic', recurso: 'pedido',
+      registroId:  pedido.id,
+      dadosNovos: { protocolo },
     })
 
     return NextResponse.json({ pedido }, { status: 201 })
@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
           despacho:     d.despacho,
           setorOrigem:  d.setorOrigem,
           setorDestino: d.setorDestino,
-          usuarioId:    usuario.id,
+          usuarioId:    usuario.usuarioId,
         },
       })
 
@@ -353,7 +353,7 @@ export async function POST(req: NextRequest) {
           nomeRecorrente:   d.nomeRecorrente,
           motivoRecurso:    d.motivoRecurso,
           dataLimiteDecisao,
-          usuarioId:        usuario.id,
+          usuarioId:        usuario.usuarioId,
         },
       })
 
@@ -368,11 +368,11 @@ export async function POST(req: NextRequest) {
 
     await auditLog({
       municipioId: usuario.municipioId,
-      usuarioId:   usuario.id,
-      acao:        'ABRIR_RECURSO_SIC',
-      entidade:    'RecursoPedido',
-      entidadeId:  recurso.id,
-      detalhes:    { numero, instancia: d.instancia },
+      usuarioId:   usuario.usuarioId,
+      acao: 'UPDATE',
+      modulo: 'esic', recurso: 'recurso',
+      registroId:  recurso.id,
+      dadosNovos: { numero, instancia: d.instancia },
     })
 
     return NextResponse.json({ recurso }, { status: 201 })
@@ -471,7 +471,7 @@ export async function PATCH(req: NextRequest) {
         despacho:     extras.despacho ?? `Encaminhado para ${extras.setorDestino}`,
         setorOrigem:  extras.setorOrigem,
         setorDestino: extras.setorDestino,
-        usuarioId:    usuario.id,
+        usuarioId:    usuario.usuarioId,
       },
     })
   }
@@ -543,10 +543,10 @@ export async function PATCH(req: NextRequest) {
 
   await auditLog({
     municipioId: usuario.municipioId,
-    usuarioId:   usuario.id,
+    usuarioId:   usuario.usuarioId,
     acao,
-    entidade:    'PedidoAcesso',
-    entidadeId:  id,
+    modulo: 'esic', recurso: 'pedido',
+    registroId:  id,
   })
 
   return NextResponse.json({ pedido: atualizado })

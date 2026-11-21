@@ -12,25 +12,25 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM Veiculo WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM Veiculo WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Não encontrado' }, { status: 404 })
-      const abastecimentos = await db.$queryRaw<any[]>`
+      const abastecimentos = await db.$queryRaw`
         SELECT * FROM AbastecimentoVeiculo WHERE veiculoId = ${id} AND municipioId = ${municipioId}
         ORDER BY dataAbastecimento DESC LIMIT 20`
-      const manutencoes = await db.$queryRaw<any[]>`
+      const manutencoes = await db.$queryRaw`
         SELECT * FROM ManutencaoVeiculo WHERE veiculoId = ${id} AND municipioId = ${municipioId}
         ORDER BY dataEntrada DESC LIMIT 10`
       return NextResponse.json({ veiculo: rows[0], abastecimentos, manutencoes })
     }
     if (q && q.length >= 2) {
       const like = `%${q}%`
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT * FROM Veiculo WHERE municipioId = ${municipioId} AND ativo = 1
           AND (placa LIKE ${like} OR descricao LIKE ${like} OR modelo LIKE ${like})
         LIMIT 20`
       return NextResponse.json({ veiculos: rows })
     }
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT * FROM Veiculo WHERE municipioId = ${municipioId} AND ativo = 1
       ORDER BY placa`
     return NextResponse.json({ veiculos: rows })
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'Placa e descrição obrigatórias' }, { status: 400 })
   const placaNorm = placa.toUpperCase().replace(/[^A-Z0-9]/g, '')
   try {
-    const dup = await db.$queryRaw<any[]>`SELECT id FROM Veiculo WHERE municipioId = ${municipioId} AND placa = ${placaNorm} AND ativo = 1 LIMIT 1`
+    const dup = await db.$queryRaw`SELECT id FROM Veiculo WHERE municipioId = ${municipioId} AND placa = ${placaNorm} AND ativo = 1 LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Placa já cadastrada' }, { status: 409 })
     const id = crypto.randomUUID()
     await db.$queryRaw`

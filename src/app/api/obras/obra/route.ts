@@ -15,21 +15,21 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM Obra WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM Obra WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Não encontrado' }, { status: 404 })
       return NextResponse.json({ obra: rows[0] })
     }
     let rows: any[]
     if (status) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Obra WHERE municipioId = ${municipioId} AND status = ${status}
         ORDER BY dataInicio DESC LIMIT ${limit} OFFSET ${offset}`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Obra WHERE municipioId = ${municipioId}
         ORDER BY dataInicio DESC LIMIT ${limit} OFFSET ${offset}`
     }
-    const [total] = await db.$queryRaw<any[]>`SELECT COUNT(*) AS n FROM Obra WHERE municipioId = ${municipioId}`
+    const [total] = await db.$queryRaw`SELECT COUNT(*) AS n FROM Obra WHERE municipioId = ${municipioId}`
     return NextResponse.json({ obras: rows, total: Number(total.n), page, limit })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })

@@ -21,7 +21,7 @@ export async function handleLogin(request: NextRequest) {
     const body = await request.json()
     const dados = LoginSchema.parse(body)
 
-    const ip        = request.headers.get('x-forwarded-for') ?? request.ip
+    const ip        = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip')
     const userAgent = request.headers.get('user-agent') ?? undefined
 
     // Buscar município pelo header Host se não vier no body

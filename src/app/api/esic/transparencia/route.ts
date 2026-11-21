@@ -141,17 +141,17 @@ export async function POST(req: NextRequest) {
         : null,
       publicadoEm:         d.publicarAgora ? agora : null,
       dataUltimaAtualizacao: d.publicarAgora ? agora : null,
-      usuarioId:     usuario.id,
+      usuarioId:     usuario.usuarioId,
     },
   })
 
   await auditLog({
     municipioId: usuario.municipioId,
-    usuarioId:   usuario.id,
-    acao:        d.publicarAgora ? 'PUBLICAR_TRANSPARENCIA' : 'CRIAR_RASCUNHO_TRANSPARENCIA',
-    entidade:    'TransparenciaAtiva',
-    entidadeId:  item.id,
-    detalhes:    { tipo: d.tipo, titulo: d.titulo },
+    usuarioId:   usuario.usuarioId,
+    acao: 'CREATE',
+    modulo: 'esic', recurso: 'transparencia',
+    registroId:  item.id,
+    dadosNovos: { tipo: d.tipo, titulo: d.titulo },
   })
 
   return NextResponse.json({ transparencia: item }, { status: 201 })
@@ -220,10 +220,10 @@ export async function PATCH(req: NextRequest) {
   if (!['INCREMENTAR_VISUALIZACAO','INCREMENTAR_DOWNLOAD'].includes(acao)) {
     await auditLog({
       municipioId: usuario.municipioId,
-      usuarioId:   usuario.id,
+      usuarioId:   usuario.usuarioId,
       acao,
-      entidade:    'TransparenciaAtiva',
-      entidadeId:  id,
+      modulo: 'esic', recurso: 'transparencia',
+      registroId:  id,
     })
   }
 

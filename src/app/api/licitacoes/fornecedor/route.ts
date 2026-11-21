@@ -14,14 +14,14 @@ export async function GET(req: NextRequest) {
     let rows: any[]
     if (q && q.length >= 3) {
       const like = `%${q}%`
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT id, nome, cpfCnpj, email, telefone, ie AS inscricaoEstadual
         FROM Contribuinte
         WHERE municipioId = ${municipioId} AND ativo = 1
           AND (nome LIKE ${like} OR cpfCnpj LIKE ${like})
         LIMIT 30`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT id, nome, cpfCnpj, email, telefone, ie AS inscricaoEstadual
         FROM Contribuinte
         WHERE municipioId = ${municipioId} AND tipo = 'PJ' AND ativo = 1
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!nome?.trim() || !cnpj) return NextResponse.json({ erro: 'Nome e CNPJ obrigatórios' }, { status: 400 })
   const doc = cnpj.replace(/\D/g, '')
   try {
-    const dup = await db.$queryRaw<any[]>`SELECT id FROM Contribuinte WHERE municipioId = ${municipioId} AND cpfCnpj = ${doc} LIMIT 1`
+    const dup = await db.$queryRaw`SELECT id FROM Contribuinte WHERE municipioId = ${municipioId} AND cpfCnpj = ${doc} LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'CNPJ já cadastrado' }, { status: 409 })
     const id = crypto.randomUUID()
     await db.$queryRaw`

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     let rows: any[]
     if (q && q.length >= 2) {
       const like = `%${q}%`
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT s.id, s.nome, s.matricula, s.cpf, s.celular,
                c.nome AS cargoNome, l.funcao, l.secretaria
         FROM Servidor s
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
           AND (c.nome LIKE '%motorista%' OR l.funcao LIKE '%motorista%')
         LIMIT 20`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT s.id, s.nome, s.matricula, s.cpf, s.celular,
                c.nome AS cargoNome, l.funcao, l.secretaria
         FROM Servidor s

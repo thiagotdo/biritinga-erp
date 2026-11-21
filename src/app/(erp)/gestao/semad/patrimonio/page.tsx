@@ -196,7 +196,7 @@ function PainelBem({ id, onFechar, onAtualizar }: { id: string; onFechar: () => 
     try {
       const r = await fetch('/api/semad/patrimonio', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: 'MANUTENCAO', bemId: id, ...formManut, valorManutencao: formManut.valorManutencao ? Number(formManut.valorManutencao) : undefined }),
+        body: JSON.stringify({ bemId: id, ...formManut, tipo: 'MANUTENCAO', valorManutencao: formManut.valorManutencao ? Number(formManut.valorManutencao) : undefined }),
       })
       if (!r.ok) { const d = await r.json(); throw new Error(d.erro ?? 'Erro') }
       setFormManut({ tipo: 'CORRETIVA', descricao: '', fornecedorNome: '', valorManutencao: '', dataInicio: '' })

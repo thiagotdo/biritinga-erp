@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const mid = municipioId(req)
 
   try {
-    const unidades = await db.$queryRaw<any[]>`
+    const unidades = await db.$queryRaw`
       SELECT u.id, u.nome, u.bairro, u.responsavel, u.telefone,
         (SELECT COUNT(*) FROM ProfissionalSaude ps WHERE ps.unidadeId = u.id AND ps.ativo = 1) AS totalProfissionais,
         (SELECT COUNT(*) FROM Paciente p WHERE p.unidadeReferenciaId = u.id AND p.situacao = 'ATIVO') AS totalPacientes,
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       ORDER BY u.nome`
 
     // Atendimentos do mês corrente por UBS
-    const atendimentosMes = await db.$queryRaw<any[]>`
+    const atendimentosMes = await db.$queryRaw`
       SELECT a.unidadeId, COUNT(*) AS total
       FROM Atendimento a
       WHERE a.municipioId = ${mid}

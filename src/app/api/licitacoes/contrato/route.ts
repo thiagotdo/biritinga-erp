@@ -13,16 +13,16 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM ContratoAdm WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM ContratoAdm WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ contrato: rows[0] ?? null })
     }
     if (licitacaoId) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT * FROM ContratoAdm WHERE municipioId = ${municipioId} AND licitacaoId = ${licitacaoId}
         ORDER BY dataInicio DESC`
       return NextResponse.json({ contratos: rows })
     }
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT c.*, l.numero AS licitacaoNumero, l.objeto AS licitacaoObjeto
       FROM ContratoAdm c LEFT JOIN Licitacao l ON l.id = c.licitacaoId
       WHERE c.municipioId = ${municipioId} AND c.status = ${status}

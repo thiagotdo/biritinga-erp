@@ -232,9 +232,9 @@ function PainelISS({ lanc, onAcao }: { lanc: any; onAcao: (acao: string, extras?
           <div><p className="text-slate-400">Deduções</p><p className="font-semibold">{moeda(lanc.deducoes ?? 0)}</p></div>
         </div>
 
-        {(acoes[lanc.situacao] ?? []).length > 0 && !acao && (
+        {(acoes[lanc.situacao as SituacaoISS] ?? []).length > 0 && !acao && (
           <div className="flex gap-2 mt-3 flex-wrap">
-            {(acoes[lanc.situacao] ?? []).map(a => (
+            {(acoes[lanc.situacao as SituacaoISS] ?? []).map((a: string) => (
               <button key={a} onClick={() => setAcao(a)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg text-white ${
                   a === 'CANCELAR' ? 'bg-red-500 hover:bg-red-600' :

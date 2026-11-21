@@ -12,14 +12,14 @@ export async function GET(req: NextRequest) {
 
   try {
     if (veiculoId) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT m.*, v.placa FROM ManutencaoVeiculo m JOIN Veiculo v ON v.id = m.veiculoId
         WHERE m.municipioId = ${municipioId} AND m.veiculoId = ${veiculoId}
         ORDER BY m.dataEntrada DESC LIMIT 10`
       return NextResponse.json({ agendamentos: rows })
     }
     if (data) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT m.*, v.placa, v.descricao AS veiculoDesc
         FROM ManutencaoVeiculo m JOIN Veiculo v ON v.id = m.veiculoId
         WHERE m.municipioId = ${municipioId} AND DATE(m.dataEntrada) = ${data}
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ agendamentos: rows })
     }
     // Próximas manutenções agendadas
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT m.*, v.placa, v.descricao AS veiculoDesc
       FROM ManutencaoVeiculo m JOIN Veiculo v ON v.id = m.veiculoId
       WHERE m.municipioId = ${municipioId} AND m.status IN ('AGUARDANDO', 'EM_ANDAMENTO')

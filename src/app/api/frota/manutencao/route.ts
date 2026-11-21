@@ -13,13 +13,13 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (veiculoId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT m.*, v.placa, v.descricao AS veiculoDesc
         FROM ManutencaoVeiculo m JOIN Veiculo v ON v.id = m.veiculoId
         WHERE m.municipioId = ${municipioId} AND m.veiculoId = ${veiculoId}
         ORDER BY m.dataEntrada DESC`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT m.*, v.placa, v.descricao AS veiculoDesc
         FROM ManutencaoVeiculo m JOIN Veiculo v ON v.id = m.veiculoId
         WHERE m.municipioId = ${municipioId} AND m.status = ${status}
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest) {
     if (observacoes !== undefined) await db.$queryRaw`UPDATE ManutencaoVeiculo SET observacoes = ${observacoes} WHERE id = ${id} AND municipioId = ${municipioId}`
     // Se concluída, libera veículo
     if (status === 'CONCLUIDA') {
-      const m = await db.$queryRaw<any[]>`SELECT veiculoId FROM ManutencaoVeiculo WHERE id = ${id} LIMIT 1`
+      const m = await db.$queryRaw`SELECT veiculoId FROM ManutencaoVeiculo WHERE id = ${id} LIMIT 1`
       if (m.length) await db.$queryRaw`UPDATE Veiculo SET status = 'ATIVO' WHERE id = ${m[0].veiculoId} AND municipioId = ${municipioId}`
     }
     return NextResponse.json({ ok: true })

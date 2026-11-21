@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Propostas ficam linkadas à licitação via fornecedorVencedor e valorHomologado
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT * FROM Licitacao WHERE id = ${licitacaoId} AND municipioId = ${municipioId} LIMIT 1`
     return NextResponse.json({ licitacao: rows[0] ?? null })
   } catch (e: any) {

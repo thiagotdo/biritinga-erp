@@ -16,12 +16,12 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM BemPatrimonial WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM BemPatrimonial WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ bem: rows[0] ?? null })
     }
     if (q && q.length >= 3) {
       const like = `%${q}%`
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT * FROM BemPatrimonial
         WHERE municipioId = ${municipioId} AND ativo = 1
           AND (descricao LIKE ${like} OR tombamento LIKE ${like} OR plaqueta LIKE ${like})
@@ -30,16 +30,16 @@ export async function GET(req: NextRequest) {
     }
     let rows: any[]
     if (categoria) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM BemPatrimonial
         WHERE municipioId = ${municipioId} AND ativo = 1 AND categoria = ${categoria}
         ORDER BY descricao LIMIT ${limit} OFFSET ${offset}`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM BemPatrimonial WHERE municipioId = ${municipioId} AND ativo = 1
         ORDER BY descricao LIMIT ${limit} OFFSET ${offset}`
     }
-    const [total] = await db.$queryRaw<any[]>`SELECT COUNT(*) AS n FROM BemPatrimonial WHERE municipioId = ${municipioId} AND ativo = 1`
+    const [total] = await db.$queryRaw`SELECT COUNT(*) AS n FROM BemPatrimonial WHERE municipioId = ${municipioId} AND ativo = 1`
     return NextResponse.json({ bens: rows, total: Number(total.n), page, limit })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (!descricao?.trim() || !tombamento)
     return NextResponse.json({ erro: 'Descrição e tombamento obrigatórios' }, { status: 400 })
   try {
-    const dup = await db.$queryRaw<any[]>`SELECT id FROM BemPatrimonial WHERE municipioId = ${municipioId} AND tombamento = ${tombamento} AND ativo = 1 LIMIT 1`
+    const dup = await db.$queryRaw`SELECT id FROM BemPatrimonial WHERE municipioId = ${municipioId} AND tombamento = ${tombamento} AND ativo = 1 LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Tombamento já existe' }, { status: 409 })
     const id = crypto.randomUUID()
     await db.$queryRaw`

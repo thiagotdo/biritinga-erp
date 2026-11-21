@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (!obraId) return NextResponse.json({ erro: 'obraId obrigatório' }, { status: 400 })
 
   try {
-    const obra = await db.$queryRaw<any[]>`
+    const obra = await db.$queryRaw`
       SELECT id, nome, valorContrato, valorExecutado, percentualConcluido
       FROM Obra WHERE id = ${obraId} AND municipioId = ${municipioId} LIMIT 1`
     return NextResponse.json({ obra: obra[0] ?? null })

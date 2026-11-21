@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     // Detalhe de um paciente
     if (id) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT p.*,
                u.nome AS unidadeNome
         FROM Paciente p
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       if (!rows.length) return NextResponse.json({ erro: 'Paciente não encontrado' }, { status: 404 })
 
       // Atendimentos recentes
-      const atendimentos = await db.$queryRaw<any[]>`
+      const atendimentos = await db.$queryRaw`
         SELECT a.id, a.dataHora, a.tipo, a.cid10, a.queixa,
                u.nome AS unidadeNome, ps.nome AS profissionalNome
         FROM Atendimento a
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
         LIMIT 10`
 
       // Vacinas
-      const vacinas = await db.$queryRaw<any[]>`
+      const vacinas = await db.$queryRaw`
         SELECT v.id, v.vacina, v.dose, v.dataAplicacao, v.lote, v.proximaDose
         FROM Vacinacao v
         WHERE v.pacienteId = ${id} AND v.municipioId = ${mid}
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
         LIMIT 20`
 
       // Próximos agendamentos
-      const agendamentos = await db.$queryRaw<any[]>`
+      const agendamentos = await db.$queryRaw`
         SELECT ag.id, ag.dataHora, ag.tipo, ag.status, ag.especialidade,
                u.nome AS unidadeNome
         FROM Agendamento ag
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     // Busca
     if (busca && busca.length >= 3) {
       const like = `%${busca}%`
-      const pacientes = await db.$queryRaw<any[]>`
+      const pacientes = await db.$queryRaw`
         SELECT p.id, p.nome, p.cpf, p.cns, p.dataNascimento, p.sexo,
                p.telefone, p.situacao, u.nome AS unidadeNome
         FROM Paciente p
@@ -78,11 +78,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Lista paginada
-    const countRows = await db.$queryRaw<any[]>`
+    const countRows = await db.$queryRaw`
       SELECT COUNT(*) as total FROM Paciente WHERE municipioId = ${mid}`
     const total = Number(countRows[0]?.total ?? 0)
 
-    const pacientes = await db.$queryRaw<any[]>`
+    const pacientes = await db.$queryRaw`
       SELECT p.id, p.nome, p.cpf, p.cns, p.dataNascimento, p.sexo,
              p.telefone, p.situacao, u.nome AS unidadeNome
       FROM Paciente p
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
   try {
     // Checar CPF duplicado
     if (cpfClean) {
-      const dup = await db.$queryRaw<any[]>`
+      const dup = await db.$queryRaw`
         SELECT id FROM Paciente WHERE municipioId = ${mid} AND cpf = ${cpfClean} LIMIT 1`
       if (dup.length) return NextResponse.json({ erro: 'CPF já cadastrado' }, { status: 409 })
     }

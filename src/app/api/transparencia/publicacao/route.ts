@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
   const p = await prisma.publicacaoTransparencia.create({
     data: {
       municipioId: usuario.municipioId,
-      usuarioId: usuario.id,
+      usuarioId: usuario.usuarioId,
       ...d,
       tipo: d.tipo as any,
       situacao: d.situacao as any,
@@ -157,9 +157,9 @@ export async function POST(req: NextRequest) {
   })
 
   await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'PUBLICAR_TRANSPARENCIA', entidade: 'PublicacaoTransparencia', entidadeId: p.id,
-    detalhes: { tipo: d.tipo, titulo: d.titulo },
+    municipioId: usuario.municipioId, usuarioId: usuario.usuarioId,
+    acao: 'CREATE', modulo: 'misc', recurso: 'PublicacaoTransparencia', registroId: p.id,
+    dadosNovos: { tipo: d.tipo, titulo: d.titulo },
   })
 
   return NextResponse.json({ publicacao: p }, { status: 201 })

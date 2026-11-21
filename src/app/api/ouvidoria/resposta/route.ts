@@ -64,9 +64,9 @@ export async function POST(req: NextRequest) {
       manifestacaoId: d.manifestacaoId,
       texto: d.texto,
       tipo: d.tipo,
-      remetente: d.remetente ?? usuario.id,
+      remetente: d.remetente ?? usuario.usuarioId,
       publica: d.publica,
-      usuarioId: usuario.id,
+      usuarioId: usuario.usuarioId,
     },
   })
 
@@ -84,16 +84,16 @@ export async function POST(req: NextRequest) {
           situacaoDe:  manifestacao.situacao as any,
           situacaoPara: 'RESPONDIDA',
           motivo: 'Resposta oficial emitida',
-          usuarioId: usuario.id,
+          usuarioId: usuario.usuarioId,
         },
       })
     })
   }
 
   await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'RESPONDER_MANIFESTACAO', entidade: 'RespostaManifestacao', entidadeId: resposta.id,
-    detalhes: { protocolo: manifestacao.protocolo, tipo: d.tipo, publica: d.publica },
+    municipioId: usuario.municipioId, usuarioId: usuario.usuarioId,
+    acao: 'CREATE', modulo: 'misc', recurso: 'RespostaManifestacao', registroId: resposta.id,
+    dadosNovos: { protocolo: manifestacao.protocolo, tipo: d.tipo, publica: d.publica },
   })
 
   return NextResponse.json({ resposta }, { status: 201 })

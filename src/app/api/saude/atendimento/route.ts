@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   try {
     let atendimentos: any[]
     if (pacienteId) {
-      atendimentos = await db.$queryRaw<any[]>`
+      atendimentos = await db.$queryRaw`
         SELECT a.*, u.nome AS unidadeNome, ps.nome AS profissionalNome
         FROM Atendimento a
         LEFT JOIN UnidadeSaude u ON u.id = a.unidadeId
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         ORDER BY a.dataHora DESC
         LIMIT ${limit} OFFSET ${offset}`
     } else {
-      atendimentos = await db.$queryRaw<any[]>`
+      atendimentos = await db.$queryRaw`
         SELECT a.id, a.dataHora, a.tipo, a.cid10,
                p.nome AS pacienteNome, u.nome AS unidadeNome, ps.nome AS profissionalNome
         FROM Atendimento a

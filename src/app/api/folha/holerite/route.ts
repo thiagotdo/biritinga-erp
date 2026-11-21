@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (servidorId) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT s.nome AS servidorNome, s.matricula, s.cpf,
                c.nome AS cargoNome, f.mes, f.ano, f.tipo,
                srv.salarioBase, srv.salarioBase AS vencimento
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ holerite: rows[0] ?? null })
     }
     if (folhaId) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT s.id AS servidorId, s.nome AS servidorNome, s.matricula,
                c.nome AS cargoNome, s.salarioBase, s.salarioBase AS vencimento
         FROM Servidor s

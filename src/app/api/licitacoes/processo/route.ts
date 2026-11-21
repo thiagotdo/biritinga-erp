@@ -13,11 +13,11 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (status) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Licitacao WHERE municipioId = ${municipioId} AND status = ${status}
         ORDER BY dataAbertura DESC LIMIT 50`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Licitacao WHERE municipioId = ${municipioId}
         ORDER BY dataAbertura DESC LIMIT 50`
     }

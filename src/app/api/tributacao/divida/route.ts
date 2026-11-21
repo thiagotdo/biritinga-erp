@@ -14,20 +14,20 @@ export async function GET(req: NextRequest) {
     let rows: any[]
     const baseStatus = 'INSCRITO_DIVIDA'
     if (contribuinteId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome
         FROM DebitoTributario d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.municipioId = ${municipioId} AND d.contribuinteId = ${contribuinteId}
           AND d.status = ${baseStatus}
         ORDER BY d.anoExercicio DESC`
     } else if (tipo) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome, c.cpfCnpj
         FROM DebitoTributario d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.municipioId = ${municipioId} AND d.tipo = ${tipo} AND d.status = ${baseStatus}
         ORDER BY d.vencimento`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome, c.cpfCnpj
         FROM DebitoTributario d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.municipioId = ${municipioId} AND d.status = ${baseStatus}

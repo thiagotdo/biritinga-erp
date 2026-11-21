@@ -15,23 +15,23 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM Contribuinte WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM Contribuinte WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Não encontrado' }, { status: 404 })
-      const debitos = await db.$queryRaw<any[]>`
+      const debitos = await db.$queryRaw`
         SELECT * FROM DebitoTributario WHERE contribuinteId = ${id} AND municipioId = ${municipioId} ORDER BY anoExercicio DESC, tipo`
       return NextResponse.json({ contribuinte: rows[0], debitos })
     }
     if (q && q.length >= 3) {
       const like = `%${q}%`
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT * FROM Contribuinte
         WHERE municipioId = ${municipioId} AND ativo = 1
           AND (nome LIKE ${like} OR cpfCnpj LIKE ${like} OR inscricaoMunicipal LIKE ${like})
         LIMIT 30`
       return NextResponse.json({ contribuintes: rows })
     }
-    const [total] = await db.$queryRaw<any[]>`SELECT COUNT(*) AS n FROM Contribuinte WHERE municipioId = ${municipioId} AND ativo = 1`
-    const rows = await db.$queryRaw<any[]>`
+    const [total] = await db.$queryRaw`SELECT COUNT(*) AS n FROM Contribuinte WHERE municipioId = ${municipioId} AND ativo = 1`
+    const rows = await db.$queryRaw`
       SELECT * FROM Contribuinte WHERE municipioId = ${municipioId} AND ativo = 1
       ORDER BY nome LIMIT ${limit} OFFSET ${offset}`
     return NextResponse.json({ contribuintes: rows, total: Number(total.n), page, limit })
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   const doc = cpfCnpj.replace(/\D/g, '')
   try {
-    const dup = await db.$queryRaw<any[]>`SELECT id FROM Contribuinte WHERE municipioId = ${municipioId} AND cpfCnpj = ${doc} LIMIT 1`
+    const dup = await db.$queryRaw`SELECT id FROM Contribuinte WHERE municipioId = ${municipioId} AND cpfCnpj = ${doc} LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'CPF/CNPJ já cadastrado' }, { status: 409 })
     const id = crypto.randomUUID()
     await db.$queryRaw`

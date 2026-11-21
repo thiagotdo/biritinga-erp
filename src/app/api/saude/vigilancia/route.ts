@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     let notificacoes: any[]
     if (status) {
-      notificacoes = await db.$queryRaw<any[]>`
+      notificacoes = await db.$queryRaw`
         SELECT n.*, u.nome AS unidadeNome, p.nome AS pacienteNome
         FROM NotificacaoEpidem n
         LEFT JOIN UnidadeSaude u ON u.id = n.unidadeId
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         LIMIT ${limit} OFFSET ${offset}`
     } else if (agravo) {
       const like = `%${agravo}%`
-      notificacoes = await db.$queryRaw<any[]>`
+      notificacoes = await db.$queryRaw`
         SELECT n.*, u.nome AS unidadeNome, p.nome AS pacienteNome
         FROM NotificacaoEpidem n
         LEFT JOIN UnidadeSaude u ON u.id = n.unidadeId
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         ORDER BY n.dataNotificacao DESC
         LIMIT ${limit} OFFSET ${offset}`
     } else {
-      notificacoes = await db.$queryRaw<any[]>`
+      notificacoes = await db.$queryRaw`
         SELECT n.*, u.nome AS unidadeNome, p.nome AS pacienteNome
         FROM NotificacaoEpidem n
         LEFT JOIN UnidadeSaude u ON u.id = n.unidadeId
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Contagens por status
-    const contagens = await db.$queryRaw<any[]>`
+    const contagens = await db.$queryRaw`
       SELECT status, COUNT(*) AS total
       FROM NotificacaoEpidem
       WHERE municipioId = ${mid}

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     let profissionais: any[]
     if (unidadeId) {
-      profissionais = await db.$queryRaw<any[]>`
+      profissionais = await db.$queryRaw`
         SELECT ps.id, ps.nome, ps.especialidade, ps.cargo, ps.conselho,
                ps.numeroConselho, ps.telefone, ps.email, ps.ativo,
                u.nome AS unidadeNome
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         WHERE ps.municipioId = ${mid} AND ps.unidadeId = ${unidadeId}
         ORDER BY ps.nome`
     } else {
-      profissionais = await db.$queryRaw<any[]>`
+      profissionais = await db.$queryRaw`
         SELECT ps.id, ps.nome, ps.especialidade, ps.cargo, ps.conselho,
                ps.numeroConselho, ps.telefone, ps.email, ps.ativo,
                u.nome AS unidadeNome

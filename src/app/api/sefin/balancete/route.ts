@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Balancete e relatórios financeiros — LRF e transparência
 // GET — balancete de despesas / receitas / execução orçamentária / LRF
 

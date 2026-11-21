@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Summary by category
-    const categorias = await db.$queryRaw<any[]>`
+    const categorias = await db.$queryRaw`
       SELECT categoria,
         COUNT(*) AS total,
         SUM(CASE WHEN estado = 'OTIMO' THEN 1 ELSE 0 END) AS otimo,
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       GROUP BY categoria
       ORDER BY categoria`
 
-    const [totais] = await db.$queryRaw<any[]>`
+    const [totais] = await db.$queryRaw`
       SELECT COUNT(*) AS total, SUM(valorAtual) AS valorTotal, SUM(valorAquisicao) AS valorAquisicao
       FROM BemPatrimonial WHERE municipioId = ${municipioId} AND ativo = 1`
 

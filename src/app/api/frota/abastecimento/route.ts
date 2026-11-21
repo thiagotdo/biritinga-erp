@@ -14,13 +14,13 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (veiculoId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT a.*, v.placa, v.descricao AS veiculoDesc
         FROM AbastecimentoVeiculo a JOIN Veiculo v ON v.id = a.veiculoId
         WHERE a.municipioId = ${municipioId} AND a.veiculoId = ${veiculoId}
         ORDER BY a.dataAbastecimento DESC LIMIT 50`
     } else if (mes && ano) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT a.*, v.placa, v.descricao AS veiculoDesc
         FROM AbastecimentoVeiculo a JOIN Veiculo v ON v.id = a.veiculoId
         WHERE a.municipioId = ${municipioId}
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
           AND YEAR(a.dataAbastecimento) = ${ano}
         ORDER BY a.dataAbastecimento DESC`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT a.*, v.placa, v.descricao AS veiculoDesc
         FROM AbastecimentoVeiculo a JOIN Veiculo v ON v.id = a.veiculoId
         WHERE a.municipioId = ${municipioId} AND YEAR(a.dataAbastecimento) = ${ano}

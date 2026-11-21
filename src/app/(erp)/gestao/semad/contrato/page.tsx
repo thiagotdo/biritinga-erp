@@ -177,7 +177,7 @@ function PainelContrato({ id, onFechar, onAtualizar }: { id: string; onFechar: (
     try {
       const r = await fetch('/api/semad/contrato', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: 'ADITIVO', contratoId: id, ...formAditivo, valorAcrescimo: formAditivo.valorAcrescimo ? Number(formAditivo.valorAcrescimo) : undefined }),
+        body: JSON.stringify({ contratoId: id, ...formAditivo, tipo: 'ADITIVO', valorAcrescimo: formAditivo.valorAcrescimo ? Number(formAditivo.valorAcrescimo) : undefined }),
       })
       if (!r.ok) { const d = await r.json(); throw new Error(d.erro ?? 'Erro') }
       setFormAditivo({ tipo: 'PRAZO', dataAssinatura: '', motivoJustificativa: '', novaDataFim: '', valorAcrescimo: '' })

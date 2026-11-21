@@ -11,14 +11,14 @@ export async function GET(req: NextRequest) {
 
   try {
     if (obraId) {
-      const obra = await db.$queryRaw<any[]>`SELECT * FROM Obra WHERE id = ${obraId} AND municipioId = ${municipioId} LIMIT 1`
+      const obra = await db.$queryRaw`SELECT * FROM Obra WHERE id = ${obraId} AND municipioId = ${municipioId} LIMIT 1`
       if (!obra.length) return NextResponse.json({ erro: 'Não encontrado' }, { status: 404 })
       const contrato = obra[0].licitacaoId
-        ? await db.$queryRaw<any[]>`SELECT * FROM ContratoAdm WHERE licitacaoId = ${obra[0].licitacaoId} AND municipioId = ${municipioId} LIMIT 1`
+        ? await db.$queryRaw`SELECT * FROM ContratoAdm WHERE licitacaoId = ${obra[0].licitacaoId} AND municipioId = ${municipioId} LIMIT 1`
         : []
       return NextResponse.json({ obra: obra[0], contrato: contrato[0] ?? null })
     }
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT o.id, o.nome, o.valorContrato, o.executora, o.dataInicio,
              c.numero AS contratoNumero, c.contratadoNome AS fornecedor
       FROM Obra o

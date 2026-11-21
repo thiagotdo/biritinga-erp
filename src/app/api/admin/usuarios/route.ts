@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           id: true, nome: true, email: true, cpf: true,
           perfil: true, secretaria: true, cargo: true, telefone: true,
           avatarUrl: true, ativo: true, ultimoLogin: true, mfaAtivado: true,
-          criadoEm: true,
+          createdAt: true,
           perfilCustom: { select: { id: true, nome: true } },
           _count: { select: { sessoes: true } },
         },
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         ativo:       true,
       },
       select: {
-        id: true, nome: true, email: true, perfil: true, secretaria: true, criadoEm: true,
+        id: true, nome: true, email: true, perfil: true, secretaria: true, createdAt: true,
       },
     })
 

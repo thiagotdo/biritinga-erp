@@ -13,14 +13,14 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (servidorId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT b.*, s.nome AS responsavelNome
         FROM BemPatrimonial b
         LEFT JOIN Servidor s ON s.id = b.responsavelId
         WHERE b.municipioId = ${municipioId} AND b.responsavelId = ${servidorId}
         ORDER BY b.descricao`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT b.*,
           s.nome AS responsavelNome,
           u.nome AS unidadeNome

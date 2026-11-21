@@ -12,10 +12,10 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM Folha WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM Folha WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ folha: rows[0] ?? null })
     }
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT * FROM Folha WHERE municipioId = ${municipioId} AND ano = ${ano}
       ORDER BY mes DESC, tipo`
     return NextResponse.json({ competencias: rows })
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     totalServidores, observacoes } = await req.json()
   if (!mes || !ano) return NextResponse.json({ erro: 'Mês e ano obrigatórios' }, { status: 400 })
   try {
-    const dup = await db.$queryRaw<any[]>`
+    const dup = await db.$queryRaw`
       SELECT id FROM Folha WHERE municipioId = ${municipioId} AND mes = ${mes} AND ano = ${ano} AND tipo = ${tipo ?? 'MENSAL'} LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Competência já existe' }, { status: 409 })
     const id = crypto.randomUUID()

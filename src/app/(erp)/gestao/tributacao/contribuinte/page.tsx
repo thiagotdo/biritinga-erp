@@ -266,7 +266,7 @@ function ModalNovoContribuinte({ onFechar, onSalvar }: { onFechar: () => void; o
 
         <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
           <button onClick={onFechar} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancelar</button>
-          <button onClick={() => onSalvar({ tipoPessoa: tipo, nome: tipo === 'FISICA' ? form.nome : (form.razaoSocial || form.nome), ...form })}
+          <button onClick={() => onSalvar({ tipoPessoa: tipo, ...form, nome: tipo === 'FISICA' ? form.nome : (form.razaoSocial || form.nome) })}
             disabled={!valido}
             className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50">
             Cadastrar
@@ -410,11 +410,11 @@ export default function ContribuintePage() {
                     {c.bairro && <p className="text-xs text-slate-400">{c.bairro}</p>}
                   </div>
                   <div className="text-right shrink-0">
-                    {c._count?.dividasAtivas > 0 && (
-                      <span className="text-xs text-red-500 font-medium">{c._count.dividasAtivas} DA</span>
+                    {(c._count?.dividasAtivas ?? 0) > 0 && (
+                      <span className="text-xs text-red-500 font-medium">{c._count?.dividasAtivas} DA</span>
                     )}
-                    {c._count?.imoveis > 0 && (
-                      <p className="text-xs text-slate-400">{c._count.imoveis} imóv.</p>
+                    {(c._count?.imoveis ?? 0) > 0 && (
+                      <p className="text-xs text-slate-400">{c._count?.imoveis} imóv.</p>
                     )}
                   </div>
                 </div>

@@ -13,14 +13,14 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (contribuinteId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT p.*, c.nome AS contribuinteNome
         FROM Parcelamento p JOIN Contribuinte c ON c.id = p.contribuinteId
         WHERE p.municipioId = ${municipioId} AND p.contribuinteId = ${contribuinteId}
         ORDER BY p.dataAcordo DESC`
     } else {
       const statusFilter = status ?? 'ATIVO'
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT p.*, c.nome AS contribuinteNome, c.cpfCnpj
         FROM Parcelamento p JOIN Contribuinte c ON c.id = p.contribuinteId
         WHERE p.municipioId = ${municipioId} AND p.status = ${statusFilter}

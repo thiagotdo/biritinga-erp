@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Resumo por secretaria
-    const secretarias = await db.$queryRaw<any[]>`
+    const secretarias = await db.$queryRaw`
       SELECT l.secretaria,
         COUNT(DISTINCT s.id) AS totalServidores,
         SUM(s.salarioBase) AS totalBruto
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       ORDER BY l.secretaria`
 
     // Resumo geral
-    const [geral] = await db.$queryRaw<any[]>`
+    const [geral] = await db.$queryRaw`
       SELECT
         COUNT(*) AS totalServidores,
         SUM(salarioBase) AS totalBruto
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       WHERE municipioId = ${municipioId} AND ativo = 1 AND situacao = 'ATIVO'`
 
     // Folha do mês
-    const folha = await db.$queryRaw<any[]>`
+    const folha = await db.$queryRaw`
       SELECT * FROM Folha WHERE municipioId = ${municipioId} AND mes = ${mes} AND ano = ${ano} LIMIT 1`
 
     return NextResponse.json({

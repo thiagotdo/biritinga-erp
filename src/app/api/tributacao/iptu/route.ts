@@ -13,14 +13,14 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (contribuinteId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome
         FROM DebitoTributario d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.municipioId = ${municipioId} AND d.contribuinteId = ${contribuinteId}
           AND d.tipo = 'IPTU'
         ORDER BY d.anoExercicio DESC`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome, c.cpfCnpj
         FROM DebitoTributario d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.municipioId = ${municipioId} AND d.tipo = 'IPTU' AND d.anoExercicio = ${anoExercicio}

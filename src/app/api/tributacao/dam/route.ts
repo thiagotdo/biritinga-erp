@@ -13,27 +13,27 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome, c.cpfCnpj
         FROM Dam d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.id = ${id} AND d.municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ dam: rows[0] ?? null })
     }
     if (numero) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT d.*, c.nome AS contribuinteNome
         FROM Dam d JOIN Contribuinte c ON c.id = d.contribuinteId
         WHERE d.municipioId = ${municipioId} AND d.numero = ${numero} LIMIT 1`
       return NextResponse.json({ dam: rows[0] ?? null })
     }
     if (contribuinteId) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT d.* FROM Dam d
         WHERE d.municipioId = ${municipioId} AND d.contribuinteId = ${contribuinteId}
         ORDER BY d.emissao DESC LIMIT 50`
       return NextResponse.json({ dams: rows })
     }
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT d.*, c.nome AS contribuinteNome
       FROM Dam d JOIN Contribuinte c ON c.id = d.contribuinteId
       WHERE d.municipioId = ${municipioId} AND d.status = 'EMITIDO'
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'Dados obrigatórios faltando' }, { status: 400 })
   try {
     // Gerar número sequencial
-    const [last] = await db.$queryRaw<any[]>`
+    const [last] = await db.$queryRaw`
       SELECT numero FROM Dam WHERE municipioId = ${municipioId} ORDER BY numero DESC LIMIT 1`
     const nextNum = last?.numero ? String(Number(last.numero) + 1).padStart(8, '0') : '00000001'
 

@@ -15,13 +15,13 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (servidorId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT f.*, s.nome AS servidorNome
         FROM FrequenciaServidor f JOIN Servidor s ON s.id = f.servidorId
         WHERE f.municipioId = ${municipioId} AND f.servidorId = ${servidorId}
         ORDER BY f.ano DESC, f.mes DESC LIMIT 24`
     } else if (mes && ano) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT f.*, s.nome AS servidorNome, s.matricula
         FROM FrequenciaServidor f JOIN Servidor s ON s.id = f.servidorId
         WHERE f.municipioId = ${municipioId} AND f.mes = ${mes} AND f.ano = ${ano}
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     } else {
       const curMes = new Date().getMonth() + 1
       const curAno = new Date().getFullYear()
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT f.*, s.nome AS servidorNome, s.matricula
         FROM FrequenciaServidor f JOIN Servidor s ON s.id = f.servidorId
         WHERE f.municipioId = ${municipioId} AND f.mes = ${curMes} AND f.ano = ${curAno}

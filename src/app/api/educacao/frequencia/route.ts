@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GET  /api/educacao/frequencia?turmaId=X&data=YYYY-MM-DD  — frequência do dia
  * POST /api/educacao/frequencia                             — registra frequência

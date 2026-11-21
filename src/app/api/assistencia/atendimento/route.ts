@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
     tipo:           z.enum([
       'RECEPCAO_TRIAGEM','ATENDIMENTO_INDIVIDUAL','ATENDIMENTO_FAMILIAR',
       'VISITA_DOMICILIAR','REUNIAO_GRUPO','OFICINA',
-      'ENCAMINHAMENTO','ACOMPANHAMENTO','CADASTRO_ATUALIZAÇÃO',
+      'ENCAMINHAMENTO','ACOMPANHAMENTO','CADASTRO_ATUALIZACAO',
     ]),
     dataAtendimento: z.string(),
     duracaoMinutos:  z.number().int().min(5).optional(),
@@ -172,14 +172,14 @@ export async function POST(req: NextRequest) {
       ...d,
       dataAtendimento: new Date(d.dataAtendimento),
       situacao:       'AGENDADO',
-      usuarioId:      usuario.id,
+      usuarioId:      usuario.usuarioId,
     },
   })
 
   await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'AGENDAR_ATENDIMENTO', entidade: 'AtendimentoSuas', entidadeId: atendimento.id,
-    detalhes: { familia: familia.responsavelNome, tipo: d.tipo, data: d.dataAtendimento },
+    municipioId: usuario.municipioId, usuarioId: usuario.usuarioId,
+    acao: 'CREATE', modulo: 'assistencia', recurso: 'atendimento', registroId: atendimento.id,
+    dadosNovos: { familia: familia.responsavelNome, tipo: d.tipo, data: d.dataAtendimento },
   })
 
   return NextResponse.json({ atendimento }, { status: 201 })

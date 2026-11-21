@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     if (busca) {
       const like = `%${busca}%`
-      medicamentos = await db.$queryRaw<any[]>`
+      medicamentos = await db.$queryRaw`
         SELECT m.*, u.nome AS unidadeNome
         FROM MedicamentoEstoque m
         LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         ORDER BY m.nome
         LIMIT 50`
     } else if (unidadeId && critico) {
-      medicamentos = await db.$queryRaw<any[]>`
+      medicamentos = await db.$queryRaw`
         SELECT m.*, u.nome AS unidadeNome
         FROM MedicamentoEstoque m
         LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
@@ -36,14 +36,14 @@ export async function GET(req: NextRequest) {
           AND m.ativo = 1 AND m.quantidadeTotal <= m.quantidadeMin
         ORDER BY m.quantidadeTotal ASC`
     } else if (unidadeId) {
-      medicamentos = await db.$queryRaw<any[]>`
+      medicamentos = await db.$queryRaw`
         SELECT m.*, u.nome AS unidadeNome
         FROM MedicamentoEstoque m
         LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
         WHERE m.municipioId = ${mid} AND m.unidadeId = ${unidadeId} AND m.ativo = 1
         ORDER BY m.nome`
     } else if (critico) {
-      medicamentos = await db.$queryRaw<any[]>`
+      medicamentos = await db.$queryRaw`
         SELECT m.*, u.nome AS unidadeNome
         FROM MedicamentoEstoque m
         LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
           AND m.quantidadeTotal <= m.quantidadeMin
         ORDER BY m.quantidadeTotal ASC`
     } else {
-      medicamentos = await db.$queryRaw<any[]>`
+      medicamentos = await db.$queryRaw`
         SELECT m.*, u.nome AS unidadeNome
         FROM MedicamentoEstoque m
         LEFT JOIN UnidadeSaude u ON u.id = m.unidadeId

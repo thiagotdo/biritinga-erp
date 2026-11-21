@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     let agendamentos: any[]
 
     if (data && unidade) {
-      agendamentos = await db.$queryRaw<any[]>`
+      agendamentos = await db.$queryRaw`
         SELECT ag.id, ag.dataHora, ag.tipo, ag.status, ag.especialidade, ag.observacoes,
                p.id AS pacienteId, p.nome AS pacienteNome, p.telefone AS pacienteTelefone,
                u.nome AS unidadeNome, ps.nome AS profissionalNome
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         ORDER BY ag.dataHora
         LIMIT ${limit} OFFSET ${offset}`
     } else if (data) {
-      agendamentos = await db.$queryRaw<any[]>`
+      agendamentos = await db.$queryRaw`
         SELECT ag.id, ag.dataHora, ag.tipo, ag.status, ag.especialidade,
                p.nome AS pacienteNome, p.telefone AS pacienteTelefone,
                u.nome AS unidadeNome, ps.nome AS profissionalNome
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
         ORDER BY ag.dataHora
         LIMIT ${limit} OFFSET ${offset}`
     } else {
-      agendamentos = await db.$queryRaw<any[]>`
+      agendamentos = await db.$queryRaw`
         SELECT ag.id, ag.dataHora, ag.tipo, ag.status, ag.especialidade,
                p.nome AS pacienteNome, p.telefone AS pacienteTelefone,
                u.nome AS unidadeNome, ps.nome AS profissionalNome

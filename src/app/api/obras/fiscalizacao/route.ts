@@ -11,13 +11,13 @@ export async function GET(req: NextRequest) {
 
   try {
     if (obraId) {
-      const obra = await db.$queryRaw<any[]>`
+      const obra = await db.$queryRaw`
         SELECT id, nome, status, percentualConcluido, responsavelTecnico, observacoes
         FROM Obra WHERE id = ${obraId} AND municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ obra: obra[0] ?? null })
     }
     // Obras em fiscalização (em andamento)
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT id, nome, status, percentualConcluido, responsavelTecnico,
              valorContrato, valorExecutado, dataInicio, dataPrevistaConclusao
       FROM Obra WHERE municipioId = ${municipioId} AND status = 'EM_ANDAMENTO'

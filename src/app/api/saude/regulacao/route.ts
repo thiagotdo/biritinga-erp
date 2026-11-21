@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Usa Agendamento com tipo CIRURGIA ou especialidade como proxy de regulação
-    const encaminhamentos = await db.$queryRaw<any[]>`
+    const encaminhamentos = await db.$queryRaw`
       SELECT ag.id, ag.dataHora, ag.especialidade, ag.tipo, ag.status, ag.observacoes,
              p.nome AS pacienteNome, p.telefone AS pacienteTelefone,
              u.nome AS unidadeNome
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       ORDER BY ag.dataHora DESC
       LIMIT ${limit} OFFSET ${offset}`
 
-    const countRows = await db.$queryRaw<any[]>`
+    const countRows = await db.$queryRaw`
       SELECT COUNT(*) AS total FROM Agendamento
       WHERE municipioId = ${mid} AND tipo IN ('CIRURGIA','EXAME')`
     const total = Number(countRows[0]?.total ?? 0)

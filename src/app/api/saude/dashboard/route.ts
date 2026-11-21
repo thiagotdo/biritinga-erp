@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Pacientes
-    const pacientesRows = await db.$queryRaw<any[]>`
+    const pacientesRows = await db.$queryRaw`
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN situacao = 'ATIVO' THEN 1 ELSE 0 END) AS ativos,
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       FROM Paciente WHERE municipioId = ${mid}`
 
     // Atendimentos do mês
-    const atendMesRows = await db.$queryRaw<any[]>`
+    const atendMesRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM Atendimento
       WHERE municipioId = ${mid}
@@ -28,14 +28,14 @@ export async function GET(req: NextRequest) {
         AND YEAR(dataHora) = YEAR(NOW())`
 
     // Atendimentos de hoje
-    const atendHojeRows = await db.$queryRaw<any[]>`
+    const atendHojeRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM Atendimento
       WHERE municipioId = ${mid}
         AND DATE(dataHora) = CURDATE()`
 
     // Agendamentos de hoje
-    const agendHojeRows = await db.$queryRaw<any[]>`
+    const agendHojeRows = await db.$queryRaw`
       SELECT COUNT(*) AS total,
         SUM(CASE WHEN status = 'AGENDADO' THEN 1 ELSE 0 END) AS pendentes,
         SUM(CASE WHEN status = 'ATENDIDO' THEN 1 ELSE 0 END) AS atendidos,
@@ -45,19 +45,19 @@ export async function GET(req: NextRequest) {
         AND DATE(dataHora) = CURDATE()`
 
     // Unidades ativas
-    const unidadesRows = await db.$queryRaw<any[]>`
+    const unidadesRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM UnidadeSaude
       WHERE municipioId = ${mid} AND ativo = 1`
 
     // Profissionais ativos
-    const profRows = await db.$queryRaw<any[]>`
+    const profRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM ProfissionalSaude
       WHERE municipioId = ${mid} AND ativo = 1`
 
     // Vacinas do mês
-    const vacinaMesRows = await db.$queryRaw<any[]>`
+    const vacinaMesRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM Vacinacao
       WHERE municipioId = ${mid}
@@ -65,21 +65,21 @@ export async function GET(req: NextRequest) {
         AND YEAR(dataAplicacao) = YEAR(NOW())`
 
     // Notificações epidemiológicas ativas
-    const notifRows = await db.$queryRaw<any[]>`
+    const notifRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM NotificacaoEpidem
       WHERE municipioId = ${mid}
         AND status IN ('SUSPEITO','INVESTIGANDO','CONFIRMADO')`
 
     // Estoque crítico
-    const estoqueCriticoRows = await db.$queryRaw<any[]>`
+    const estoqueCriticoRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM MedicamentoEstoque
       WHERE municipioId = ${mid} AND ativo = 1
         AND quantidadeTotal <= quantidadeMin`
 
     // Atendimentos por tipo (mês)
-    const tiposRows = await db.$queryRaw<any[]>`
+    const tiposRows = await db.$queryRaw`
       SELECT tipo, COUNT(*) AS total
       FROM Atendimento
       WHERE municipioId = ${mid}
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
       ORDER BY total DESC`
 
     // Unidades top (mais atendimentos mês)
-    const unidadesTopRows = await db.$queryRaw<any[]>`
+    const unidadesTopRows = await db.$queryRaw`
       SELECT u.nome, COUNT(a.id) AS atendimentos
       FROM Atendimento a
       JOIN UnidadeSaude u ON u.id = a.unidadeId
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       LIMIT 5`
 
     // CIDs mais frequentes (mês)
-    const cidsRows = await db.$queryRaw<any[]>`
+    const cidsRows = await db.$queryRaw`
       SELECT cid10, COUNT(*) AS total
       FROM Atendimento
       WHERE municipioId = ${mid} AND cid10 IS NOT NULL AND cid10 != ''

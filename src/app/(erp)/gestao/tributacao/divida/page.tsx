@@ -169,9 +169,9 @@ function PainelDivida({ divida, onAcao, onParcelar }: { divida: any; onAcao: (a:
           </div>
         )}
 
-        {(acoes[divida.situacao] ?? []).length > 0 && !acao && (
+        {(acoes[divida.situacao as SituacaoDA] ?? []).length > 0 && !acao && (
           <div className="flex gap-2 mt-3 flex-wrap">
-            {(acoes[divida.situacao] ?? []).map(a => (
+            {(acoes[divida.situacao as SituacaoDA] ?? []).map(a => (
               <button key={a}
                 onClick={() => a === 'PARCELAR' ? onParcelar() : setAcao(a)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg text-white ${

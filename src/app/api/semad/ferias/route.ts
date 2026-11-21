@@ -14,19 +14,19 @@ export async function GET(req: NextRequest) {
   try {
     let ferias: any[]
     if (servidorId) {
-      ferias = await db.$queryRaw<any[]>`
+      ferias = await db.$queryRaw`
         SELECT f.*, s.nome AS servidorNome, s.matricula
         FROM Ferias f JOIN Servidor s ON s.id = f.servidorId
         WHERE f.municipioId = ${municipioId} AND f.servidorId = ${servidorId}
         ORDER BY f.exercicio DESC`
     } else if (status) {
-      ferias = await db.$queryRaw<any[]>`
+      ferias = await db.$queryRaw`
         SELECT f.*, s.nome AS servidorNome, s.matricula
         FROM Ferias f JOIN Servidor s ON s.id = f.servidorId
         WHERE f.municipioId = ${municipioId} AND f.status = ${status}
         ORDER BY f.dataInicio`
     } else {
-      ferias = await db.$queryRaw<any[]>`
+      ferias = await db.$queryRaw`
         SELECT f.*, s.nome AS servidorNome, s.matricula
         FROM Ferias f JOIN Servidor s ON s.id = f.servidorId
         WHERE f.municipioId = ${municipioId}

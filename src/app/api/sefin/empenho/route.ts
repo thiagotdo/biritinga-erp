@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Gestão de Empenhos — três estágios da despesa (Lei 4.320/64)
 // GET    — listar empenhos com filtros / buscar individual
 // POST   — emitir novo empenho

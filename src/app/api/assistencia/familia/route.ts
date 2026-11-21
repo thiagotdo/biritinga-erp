@@ -201,14 +201,14 @@ export async function POST(req: NextRequest) {
       ...dadosFamilia,
       responsavelDatNasc: d.responsavelDatNasc ? new Date(d.responsavelDatNasc) : undefined,
       membrosJson: membros ? JSON.stringify(membros) : undefined,
-      usuarioId: usuario.id,
+      usuarioId: usuario.usuarioId,
     },
   })
 
   await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'CADASTRAR_FAMILIA', entidade: 'FamiliaReferenciada', entidadeId: familia.id,
-    detalhes: {
+    municipioId: usuario.municipioId, usuarioId: usuario.usuarioId,
+    acao: 'CREATE', modulo: 'misc', recurso: 'FamiliaReferenciada', registroId: familia.id,
+    dadosNovos: {
       numero: numeroProntuario, responsavel: familia.responsavelNome,
       nivel: familia.nivelVulnerabilidade,
     },

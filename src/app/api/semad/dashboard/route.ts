@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Contagem servidores por situação
-    const servidoresRows = await db.$queryRaw<any[]>`
+    const servidoresRows = await db.$queryRaw`
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN situacao = 'ATIVO'       THEN 1 ELSE 0 END) AS ativos,
@@ -22,20 +22,20 @@ export async function GET(req: NextRequest) {
       FROM Servidor WHERE municipioId = ${municipioId} AND ativo = 1`
 
     // Total de cargos
-    const cargosRows = await db.$queryRaw<any[]>`
+    const cargosRows = await db.$queryRaw`
       SELECT COUNT(*) AS total FROM Cargo WHERE municipioId = ${municipioId} AND ativo = 1`
 
     // Folha do mês atual
     const mesAtual = new Date().getMonth() + 1
     const anoAtual = new Date().getFullYear()
-    const folhaRows = await db.$queryRaw<any[]>`
+    const folhaRows = await db.$queryRaw`
       SELECT totalBruto, totalLiquido, totalDescontos, status
       FROM Folha
       WHERE municipioId = ${municipioId} AND mes = ${mesAtual} AND ano = ${anoAtual} AND tipo = 'MENSAL'
       LIMIT 1`
 
     // Férias no mês
-    const feriasRows = await db.$queryRaw<any[]>`
+    const feriasRows = await db.$queryRaw`
       SELECT COUNT(*) AS total
       FROM Ferias
       WHERE municipioId = ${municipioId}
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         AND dataFim >= CURDATE()`
 
     // Distribuição por secretaria
-    const secretariasRows = await db.$queryRaw<any[]>`
+    const secretariasRows = await db.$queryRaw`
       SELECT l.secretaria, COUNT(*) AS total
       FROM Lotacao l
       WHERE l.municipioId = ${municipioId} AND l.ativo = 1

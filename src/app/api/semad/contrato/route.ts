@@ -12,21 +12,21 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT c.*, s.nome AS servidorNome, s.matricula
         FROM ContratoAdm c JOIN Servidor s ON s.id = c.servidorId
         WHERE c.id = ${id} AND c.municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ contrato: rows[0] ?? null })
     }
     if (servidorId) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT c.*, s.nome AS servidorNome
         FROM ContratoAdm c JOIN Servidor s ON s.id = c.servidorId
         WHERE c.municipioId = ${municipioId} AND c.servidorId = ${servidorId}
         ORDER BY c.dataInicio DESC`
       return NextResponse.json({ contratos: rows })
     }
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT c.*, s.nome AS servidorNome, s.matricula
       FROM ContratoAdm c JOIN Servidor s ON s.id = c.servidorId
       WHERE c.municipioId = ${municipioId}

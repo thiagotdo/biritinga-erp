@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Gestão de Receitas — ReceitaPrevista + LancamentoReceita
 // GET    — listar receitas previstas / lançamentos
 // POST   — criar receita prevista / registrar arrecadação

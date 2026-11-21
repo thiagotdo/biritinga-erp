@@ -17,16 +17,16 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT s.*, c.nome AS cargoNome
         FROM Servidor s
         LEFT JOIN Cargo c ON c.id = s.cargoId
         WHERE s.id = ${id} AND s.municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Servidor não encontrado' }, { status: 404 })
 
-      const lotacoes = await db.$queryRaw<any[]>`
+      const lotacoes = await db.$queryRaw`
         SELECT * FROM Lotacao WHERE servidorId = ${id} ORDER BY dataInicio DESC LIMIT 5`
-      const ferias = await db.$queryRaw<any[]>`
+      const ferias = await db.$queryRaw`
         SELECT * FROM Ferias WHERE servidorId = ${id} ORDER BY exercicio DESC LIMIT 5`
 
       return NextResponse.json({ servidor: rows[0], lotacoes, ferias })
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     if (busca && busca.length >= 2) {
       const like = `%${busca}%`
-      const rows = await db.$queryRaw<any[]>`
+      const rows = await db.$queryRaw`
         SELECT s.id, s.matricula, s.nome, s.cpf, s.vinculo, s.situacao, s.dataAdmissao,
                c.nome AS cargoNome
         FROM Servidor s LEFT JOIN Cargo c ON c.id = s.cargoId
@@ -47,18 +47,18 @@ export async function GET(req: NextRequest) {
     // Lista com filtro opcional de situação
     let rows: any[]
     const countR = situacao
-      ? await db.$queryRaw<any[]>`SELECT COUNT(*) AS t FROM Servidor WHERE municipioId = ${municipioId} AND situacao = ${situacao} AND ativo = 1`
-      : await db.$queryRaw<any[]>`SELECT COUNT(*) AS t FROM Servidor WHERE municipioId = ${municipioId} AND ativo = 1`
+      ? await db.$queryRaw`SELECT COUNT(*) AS t FROM Servidor WHERE municipioId = ${municipioId} AND situacao = ${situacao} AND ativo = 1`
+      : await db.$queryRaw`SELECT COUNT(*) AS t FROM Servidor WHERE municipioId = ${municipioId} AND ativo = 1`
 
     if (situacao) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT s.id, s.matricula, s.nome, s.cpf, s.vinculo, s.regime, s.situacao,
                s.dataAdmissao, s.salarioBase, c.nome AS cargoNome
         FROM Servidor s LEFT JOIN Cargo c ON c.id = s.cargoId
         WHERE s.municipioId = ${municipioId} AND s.situacao = ${situacao} AND s.ativo = 1
         ORDER BY s.nome LIMIT ${limit} OFFSET ${offset}`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT s.id, s.matricula, s.nome, s.cpf, s.vinculo, s.regime, s.situacao,
                s.dataAdmissao, s.salarioBase, c.nome AS cargoNome
         FROM Servidor s LEFT JOIN Cargo c ON c.id = s.cargoId
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
   const cpfClean = cpf.replace(/\D/g, '')
   try {
-    const dup = await db.$queryRaw<any[]>`
+    const dup = await db.$queryRaw`
       SELECT id FROM Servidor WHERE municipioId = ${municipioId} AND matricula = ${matricula} LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Matrícula já cadastrada' }, { status: 409 })
 

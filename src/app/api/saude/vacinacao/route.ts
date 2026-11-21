@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     let vacinas: any[]
     if (pacienteId) {
-      vacinas = await db.$queryRaw<any[]>`
+      vacinas = await db.$queryRaw`
         SELECT v.*, u.nome AS unidadeNome, ps.nome AS profissionalNome
         FROM Vacinacao v
         LEFT JOIN UnidadeSaude u ON u.id = v.unidadeId
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         ORDER BY v.dataAplicacao DESC`
     } else if (vacina) {
       const like = `%${vacina}%`
-      vacinas = await db.$queryRaw<any[]>`
+      vacinas = await db.$queryRaw`
         SELECT v.id, v.vacina, v.dose, v.dataAplicacao, v.lote, v.fabricante,
                p.nome AS pacienteNome, u.nome AS unidadeNome
         FROM Vacinacao v
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         ORDER BY v.dataAplicacao DESC
         LIMIT ${limit} OFFSET ${offset}`
     } else {
-      vacinas = await db.$queryRaw<any[]>`
+      vacinas = await db.$queryRaw`
         SELECT v.id, v.vacina, v.dose, v.dataAplicacao, v.lote,
                p.nome AS pacienteNome, u.nome AS unidadeNome
         FROM Vacinacao v

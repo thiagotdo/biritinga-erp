@@ -14,14 +14,14 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows2 = await db.$queryRaw<any[]>`
+      const rows2 = await db.$queryRaw`
         SELECT u.*
         FROM UnidadeSaude u
         WHERE u.id = ${id} AND u.municipioId = ${mid}
         LIMIT 1`
       if (!rows2.length) return NextResponse.json({ erro: 'Unidade não encontrada' }, { status: 404 })
 
-      const profissionais = await db.$queryRaw<any[]>`
+      const profissionais = await db.$queryRaw`
         SELECT id, nome, especialidade, cargo, telefone, ativo
         FROM ProfissionalSaude
         WHERE unidadeId = ${id} AND municipioId = ${mid}
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ unidade: rows2[0], profissionais })
     }
 
-    const unidades = await db.$queryRaw<any[]>`
+    const unidades = await db.$queryRaw`
       SELECT u.id, u.nome, u.tipo, u.cnes, u.bairro, u.telefone, u.responsavel, u.ativo,
         (SELECT COUNT(*) FROM ProfissionalSaude ps WHERE ps.unidadeId = u.id AND ps.ativo = 1) AS totalProfissionais
       FROM UnidadeSaude u

@@ -12,13 +12,13 @@ export async function GET(req: NextRequest) {
 
   try {
     if (bemId) {
-      const bem = await db.$queryRaw<any[]>`
+      const bem = await db.$queryRaw`
         SELECT id, descricao, tombamento, valorAquisicao, dataAquisicao
         FROM BemPatrimonial WHERE id = ${bemId} AND municipioId = ${municipioId} LIMIT 1`
       return NextResponse.json({ bem: bem[0] ?? null })
     }
     // Resumo de bens com valor atual para o exercício
-    const rows = await db.$queryRaw<any[]>`
+    const rows = await db.$queryRaw`
       SELECT id, descricao, tombamento, categoria, valorAquisicao, valorAtual, dataAquisicao
       FROM BemPatrimonial
       WHERE municipioId = ${municipioId} AND ativo = 1 AND valorAquisicao IS NOT NULL

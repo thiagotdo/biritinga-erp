@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       ...d,
       dataConcessao:  d.dataConcessao  ? new Date(d.dataConcessao)  : new Date(),
       dataVencimento: d.dataVencimento ? new Date(d.dataVencimento) : undefined,
-      usuarioId: usuario.id,
+      usuarioId: usuario.usuarioId,
     },
   })
 
@@ -111,9 +111,9 @@ export async function POST(req: NextRequest) {
   }
 
   await auditLog({
-    municipioId: usuario.municipioId, usuarioId: usuario.id,
-    acao: 'CONCEDER_BENEFICIO', entidade: 'BeneficioFamilia', entidadeId: beneficio.id,
-    detalhes: { familia: familia.responsavelNome, tipo: d.tipo, valor: d.valor },
+    municipioId: usuario.municipioId, usuarioId: usuario.usuarioId,
+    acao: 'CREATE', modulo: 'misc', recurso: 'BeneficioFamilia', registroId: beneficio.id,
+    dadosNovos: { familia: familia.responsavelNome, tipo: d.tipo, valor: d.valor },
   })
 
   return NextResponse.json({ beneficio }, { status: 201 })

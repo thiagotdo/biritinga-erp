@@ -14,19 +14,19 @@ export async function GET(req: NextRequest) {
   try {
     let rows: any[]
     if (servidorId) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT l.*, s.nome AS servidorNome, s.matricula
         FROM Lotacao l JOIN Servidor s ON s.id = l.servidorId
         WHERE l.municipioId = ${municipioId} AND l.servidorId = ${servidorId}
         ORDER BY l.dataInicio DESC`
     } else if (secretaria) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT l.*, s.nome AS servidorNome, s.matricula
         FROM Lotacao l JOIN Servidor s ON s.id = l.servidorId
         WHERE l.municipioId = ${municipioId} AND l.secretaria = ${secretaria} AND l.ativo = 1
         ORDER BY s.nome`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT l.secretaria, COUNT(*) AS totalServidores
         FROM Lotacao l
         WHERE l.municipioId = ${municipioId} AND l.ativo = 1

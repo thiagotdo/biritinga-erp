@@ -8,7 +8,7 @@ function mid(req: NextRequest) { return req.headers.get('x-erp-municipio-id') ??
 export async function GET(req: NextRequest) {
   const municipioId = mid(req)
   try {
-    const cargos = await db.$queryRaw<any[]>`
+    const cargos = await db.$queryRaw`
       SELECT c.*,
         (SELECT COUNT(*) FROM Servidor s WHERE s.cargoId = c.id AND s.ativo = 1) AS totalServidores
       FROM Cargo c
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!nome?.trim()) return NextResponse.json({ erro: 'Nome obrigatório' }, { status: 400 })
 
   try {
-    const dup = await db.$queryRaw<any[]>`
+    const dup = await db.$queryRaw`
       SELECT id FROM Cargo WHERE municipioId = ${municipioId} AND nome = ${nome.trim()} AND ativo = 1 LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Cargo já cadastrado' }, { status: 409 })
 

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   try {
     let dispensacoes: any[]
     if (pacienteId) {
-      dispensacoes = await db.$queryRaw<any[]>`
+      dispensacoes = await db.$queryRaw`
         SELECT d.*, m.nome AS medicamentoNome, m.apresentacao,
                p.nome AS pacienteNome, ps.nome AS profissionalNome
         FROM MedicamentoDispensacao d
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         ORDER BY d.dataDispensacao DESC
         LIMIT ${limit} OFFSET ${offset}`
     } else {
-      dispensacoes = await db.$queryRaw<any[]>`
+      dispensacoes = await db.$queryRaw`
         SELECT d.id, d.dataDispensacao, d.quantidade, d.receita,
                m.nome AS medicamentoNome, m.apresentacao,
                p.nome AS pacienteNome
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Verificar saldo
-    const saldo = await db.$queryRaw<any[]>`
+    const saldo = await db.$queryRaw`
       SELECT quantidadeTotal FROM MedicamentoEstoque
       WHERE id = ${estoqueId} AND municipioId = ${mid} LIMIT 1`
     if (!saldo.length) return NextResponse.json({ erro: 'Medicamento não encontrado' }, { status: 404 })

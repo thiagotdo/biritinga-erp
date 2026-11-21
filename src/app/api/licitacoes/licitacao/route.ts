@@ -16,27 +16,27 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const rows = await db.$queryRaw<any[]>`SELECT * FROM Licitacao WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+      const rows = await db.$queryRaw`SELECT * FROM Licitacao WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Não encontrado' }, { status: 404 })
-      const contratos = await db.$queryRaw<any[]>`SELECT * FROM ContratoLicitacao WHERE licitacaoId = ${id} AND municipioId = ${municipioId}`
+      const contratos = await db.$queryRaw`SELECT * FROM ContratoLicitacao WHERE licitacaoId = ${id} AND municipioId = ${municipioId}`
       return NextResponse.json({ licitacao: rows[0], contratos })
     }
 
     let rows: any[]
     if (status) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Licitacao WHERE municipioId = ${municipioId} AND status = ${status}
         ORDER BY dataAbertura DESC LIMIT ${limit} OFFSET ${offset}`
     } else if (modalidade) {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Licitacao WHERE municipioId = ${municipioId} AND modalidade = ${modalidade}
         ORDER BY dataAbertura DESC LIMIT ${limit} OFFSET ${offset}`
     } else {
-      rows = await db.$queryRaw<any[]>`
+      rows = await db.$queryRaw`
         SELECT * FROM Licitacao WHERE municipioId = ${municipioId}
         ORDER BY dataAbertura DESC LIMIT ${limit} OFFSET ${offset}`
     }
-    const [total] = await db.$queryRaw<any[]>`SELECT COUNT(*) AS n FROM Licitacao WHERE municipioId = ${municipioId}`
+    const [total] = await db.$queryRaw`SELECT COUNT(*) AS n FROM Licitacao WHERE municipioId = ${municipioId}`
     return NextResponse.json({ licitacoes: rows, total: Number(total.n), page, limit })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'Número, modalidade e objeto obrigatórios' }, { status: 400 })
 
   try {
-    const dup = await db.$queryRaw<any[]>`SELECT id FROM Licitacao WHERE municipioId = ${municipioId} AND numero = ${numero} LIMIT 1`
+    const dup = await db.$queryRaw`SELECT id FROM Licitacao WHERE municipioId = ${municipioId} AND numero = ${numero} LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Número já existe' }, { status: 409 })
     const id = crypto.randomUUID()
     await db.$queryRaw`
