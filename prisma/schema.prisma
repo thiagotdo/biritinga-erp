@@ -16,9 +16,9 @@ model Municipio {
   cnpj      String?  @unique
   slug      String   @unique            // "biritinga" → biritinga.ba.gov.br
   dominio   String?                     // domínio personalizado
-  logoUrl      String?
-  brasaoUrl    String?
-  favicon      String?
+  logoUrl      String?  @db.LongText
+  brasaoUrl    String?  @db.LongText
+  favicon      String?  @db.LongText
   corPrimaria  String? @db.Char(7)       // "#1B5E20"
   corSecundaria String? @db.Char(7)      // "#2E7D32"
   corAcento    String? @db.Char(7)       // "#F9A825"
