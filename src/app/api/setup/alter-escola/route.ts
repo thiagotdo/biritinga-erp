@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
     { name: 'cep',            definition: 'VARCHAR(191) NULL' },
     { name: 'logradouro',     definition: 'VARCHAR(191) NULL' },
     { name: 'bairro',         definition: 'VARCHAR(191) NULL' },
+    { name: 'criadoEm',       definition: 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)' },
+    { name: 'atualizadoEm',   definition: 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)' },
   ]
 
   const dbName = parseDbUrl(process.env.DATABASE_URL ?? '').database
