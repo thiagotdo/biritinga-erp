@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { Users, Plus, Search, ChevronLeft, ChevronRight, X, Heart, BookOpen } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Users, Plus, Search, ChevronLeft, ChevronRight, X, Heart, Upload, Download, FileText, CheckCircle, AlertCircle } from 'lucide-react'
 
 type Aluno = {
   id: string; nome: string; cpf: string
@@ -8,6 +8,11 @@ type Aluno = {
   nee: boolean | number; ativo: boolean | number
   responsavel: string; telefoneResponsavel: string
   bairro: string
+}
+
+type ImportResult = {
+  ok: boolean; importados: number; ignorados: number; total: number
+  erros: { linha: number; nome: string; status: string; erro?: string }[]
 }
 
 function idade(dn: string) {
@@ -18,6 +23,7 @@ function idade(dn: string) {
   return `${anos} anos`
 }
 
+// ─── Modal Novo Aluno ─────────────────────────────────────────────────────────
 function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose: () => void }) {
   const [form, setForm] = useState({
     nome: '', nomeMae: '', nomePai: '', cpf: '',
@@ -49,18 +55,6 @@ function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">NIS (Bolsa Família)</label>
-              <input value={form.nis} onChange={e => set('nis', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-gray-600">Data de Nascimento</label>
-              <input type="date" value={form.dataNascimento} onChange={e => set('dataNascimento', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
-            </div>
-            <div>
               <label className="text-xs font-medium text-gray-600">Sexo</label>
               <select value={form.sexo} onChange={e => set('sexo', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none">
@@ -69,6 +63,11 @@ function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose
                 <option value="F">Feminino</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Data de Nascimento</label>
+            <input type="date" value={form.dataNascimento} onChange={e => set('dataNascimento', e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -85,12 +84,12 @@ function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-600">Responsável</label>
-              <input value={form.responsavelNome} onChange={e => set('responsavelNome', e.target.value)}
+              <input value={form.responsavel} onChange={e => set('responsavel', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600">Telefone Responsável</label>
-              <input value={form.responsavelTelefone} onChange={e => set('responsavelTelefone', e.target.value)}
+              <input value={form.telefoneResponsavel} onChange={e => set('telefoneResponsavel', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
           </div>
@@ -101,9 +100,12 @@ function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600">CEP</label>
-              <input value={form.cep} onChange={e => set('cep', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
+              <label className="text-xs font-medium text-gray-600">Zona</label>
+              <select value={form.zona} onChange={e => set('zona', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none">
+                <option value="URBANA">Urbana</option>
+                <option value="RURAL">Rural</option>
+              </select>
             </div>
           </div>
           <div className="flex gap-4 pt-1">
@@ -137,12 +139,193 @@ function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose
   )
 }
 
+// ─── Modal Importar CSV ───────────────────────────────────────────────────────
+function ModalImportar({ onClose, onConcluido }: { onClose: () => void; onConcluido: () => void }) {
+  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [resultado, setResultado] = useState<ImportResult | null>(null)
+  const [erroEnvio, setErroEnvio] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function downloadModelo() {
+    const csv = [
+      'nome;cpf;dataNascimento;sexo;nomeMae;nomePai;responsavel;telefoneResponsavel;bairro;zona;nee;laudoNEE',
+      'João da Silva Santos;123.456.789-00;15/03/2015;M;Maria da Silva;José Santos;Maria da Silva;(75) 99999-0001;Centro;URBANA;N;',
+      'Ana Souza Lima;234.567.890-11;22/07/2016;F;Fernanda Lima;Carlos Souza;Fernanda Lima;(75) 99999-0002;Vila Nova;URBANA;N;',
+      'Pedro Carvalho;345.678.901-22;10/01/2014;M;Rosa Carvalho;;Rosa Carvalho;(75) 99999-0003;Zona Rural;RURAL;S;CID F84.0',
+    ].join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'modelo_importacao_alunos.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function enviar() {
+    if (!arquivo) return
+    setEnviando(true); setErroEnvio('')
+    try {
+      const form = new FormData()
+      form.append('arquivo', arquivo)
+      const r = await fetch('/api/educacao/aluno/importar', { method: 'POST', body: form })
+      const d = await r.json()
+      if (!r.ok && d.erro) throw new Error(d.erro)
+      setResultado(d)
+    } catch (e: any) {
+      setErroEnvio(e.message)
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Upload size={18} style={{ color: 'var(--cor-primaria)' }} />
+            <h3 className="font-semibold text-gray-900">Importar Alunos via CSV</h3>
+          </div>
+          <button onClick={onClose}><X size={18} className="text-gray-400" /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {!resultado ? (
+            <>
+              {/* Instruções */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800 space-y-1">
+                <p className="font-medium">Como importar:</p>
+                <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                  <li>Baixe o modelo CSV abaixo</li>
+                  <li>Preencha com os dados dos alunos</li>
+                  <li>Salve como CSV (separador ponto-e-vírgula)</li>
+                  <li>Envie o arquivo aqui</li>
+                </ol>
+              </div>
+
+              {/* Colunas aceitas */}
+              <div className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
+                <span className="font-medium text-gray-700">Colunas aceitas: </span>
+                nome* · cpf · dataNascimento (DD/MM/AAAA) · sexo (M/F) · nomeMae · nomePai ·
+                responsavel · telefoneResponsavel · bairro · zona (URBANA/RURAL) · nee (S/N) · laudoNEE
+              </div>
+
+              {/* Download modelo */}
+              <button
+                onClick={downloadModelo}
+                className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 w-full justify-center"
+              >
+                <Download size={15} className="text-gray-500" />
+                Baixar modelo CSV
+              </button>
+
+              {/* Upload */}
+              <div
+                onClick={() => inputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                  arquivo ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  ref={inputRef} type="file" accept=".csv,.txt" className="hidden"
+                  onChange={e => { setArquivo(e.target.files?.[0] ?? null); setErroEnvio('') }}
+                />
+                {arquivo ? (
+                  <div className="flex items-center justify-center gap-2 text-green-700">
+                    <FileText size={18} />
+                    <span className="font-medium text-sm">{arquivo.name}</span>
+                    <span className="text-xs text-green-500">({(arquivo.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                ) : (
+                  <div className="text-gray-400">
+                    <Upload size={24} className="mx-auto mb-2" strokeWidth={1.5} />
+                    <p className="text-sm">Clique para selecionar o arquivo CSV</p>
+                    <p className="text-xs mt-1">ou arraste e solte aqui</p>
+                  </div>
+                )}
+              </div>
+
+              {erroEnvio && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{erroEnvio}</div>
+              )}
+            </>
+          ) : (
+            /* Resultado */
+            <div className="space-y-4">
+              <div className={`flex items-center gap-3 p-4 rounded-xl ${resultado.importados > 0 ? 'bg-green-50' : 'bg-gray-50'}`}>
+                {resultado.importados > 0
+                  ? <CheckCircle size={24} className="text-green-600 flex-shrink-0" />
+                  : <AlertCircle size={24} className="text-amber-500 flex-shrink-0" />
+                }
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {resultado.importados} aluno{resultado.importados !== 1 ? 's' : ''} importado{resultado.importados !== 1 ? 's' : ''}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {resultado.total} linha{resultado.total !== 1 ? 's' : ''} processada{resultado.total !== 1 ? 's' : ''} ·{' '}
+                    {resultado.ignorados} ignorado{resultado.ignorados !== 1 ? 's' : ''} ·{' '}
+                    {resultado.erros.length} erro{resultado.erros.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+
+              {resultado.erros.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-2">Problemas encontrados:</p>
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {resultado.erros.map((e, i) => (
+                      <div key={i} className="text-xs bg-red-50 border border-red-100 rounded px-3 py-1.5">
+                        <span className="font-medium text-red-700">Linha {e.linha} — {e.nome}:</span>{' '}
+                        <span className="text-red-600">{e.erro}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="p-5 border-t border-gray-100 flex gap-3 justify-end">
+          {!resultado ? (
+            <>
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancelar</button>
+              <button
+                onClick={enviar}
+                disabled={!arquivo || enviando}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
+                style={{ background: 'var(--cor-primaria)' }}
+              >
+                {enviando ? (
+                  <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Importando...</>
+                ) : (
+                  <><Upload size={14} /> Importar</>
+                )}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => { onConcluido(); onClose() }}
+              className="px-5 py-2 text-sm font-medium text-white rounded-lg"
+              style={{ background: 'var(--cor-primaria)' }}
+            >
+              Concluir
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Página Principal ─────────────────────────────────────────────────────────
 export default function AlunosPage() {
   const [alunos, setAlunos] = useState<Aluno[]>([])
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [q, setQ] = useState('')
   const [modal, setModal] = useState(false)
+  const [modalImportar, setModalImportar] = useState(false)
   const [page, setPage] = useState(1)
   const [buscado, setBuscado] = useState(false)
   const PER = 20
@@ -179,8 +362,14 @@ export default function AlunosPage() {
   return (
     <div className="p-6 space-y-5 max-w-5xl">
       {modal && <ModalAluno onSalvar={salvar} onClose={() => setModal(false)} />}
+      {modalImportar && (
+        <ModalImportar
+          onClose={() => setModalImportar(false)}
+          onConcluido={() => { if (q) buscar(q) }}
+        />
+      )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
             <a href="/gestao/educacao" className="hover:underline">Educação</a>
@@ -191,13 +380,21 @@ export default function AlunosPage() {
             {buscado ? `${alunos.length} resultado(s)` : 'Busque por nome ou CPF'}
           </p>
         </div>
-        <button
-          onClick={() => setModal(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm"
-          style={{ background: 'var(--cor-primaria)' }}
-        >
-          <Plus size={16} /> Novo Aluno
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setModalImportar(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700"
+          >
+            <Upload size={15} /> Importar CSV
+          </button>
+          <button
+            onClick={() => setModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm"
+            style={{ background: 'var(--cor-primaria)' }}
+          >
+            <Plus size={16} /> Novo Aluno
+          </button>
+        </div>
       </div>
 
       {/* Busca */}
@@ -232,6 +429,7 @@ export default function AlunosPage() {
           <div className="py-16 text-center">
             <Users size={32} className="mx-auto text-gray-300 mb-2" strokeWidth={1.5} />
             <p className="text-gray-400 text-sm">Digite pelo menos 3 caracteres e pressione Buscar</p>
+            <p className="text-gray-300 text-xs mt-1">Ou importe um arquivo CSV com os dados dos alunos</p>
           </div>
         ) : !paged.length ? (
           <div className="py-16 text-center">
