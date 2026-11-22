@@ -323,10 +323,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                         padding: sidebarOpen ? '9px 16px' : '10px 18px',
                         color: ativo ? 'var(--cor-acento)' : 'var(--cor-sidebar-txt)',
                         background: ativo ? 'var(--cor-ativo-bg)' : 'transparent',
-                        textDecoration:'none', fontSize:13, fontWeight: ativo ? 600 : 400,
+                        textDecoration:'none', fontSize:12, fontWeight: ativo ? 600 : 400,
                         borderLeft: ativo ? '2px solid var(--cor-acento)' : '2px solid transparent',
                         transition:'background 0.12s',
-                        whiteSpace:'nowrap', overflow:'hidden',
+                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                       }}
                       onMouseOver={e => { if (!ativo) e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
                       onMouseOut={e => { if (!ativo) e.currentTarget.style.background = 'transparent' }}>
