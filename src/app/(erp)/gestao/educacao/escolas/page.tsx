@@ -1,24 +1,27 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { School, Plus, Search, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { School, Plus, Search, ChevronLeft, ChevronRight, X, MapPin } from 'lucide-react'
 
 type Escola = {
-  id: string; nome: string; tipo: string; inep: string; situacao: string
+  id: string; nome: string; zona: string; inep: string; situacao: string
   diretor: string; telefone: string; email: string; bairro: string
-  totalTurmas: number; ativo: number
+  salas: number; capacidadeTotal: number; totalTurmas: number
 }
 
-const TIPO_LABEL: Record<string, string> = {
-  CRECHE: 'Creche', PRE_ESCOLA: 'Pré-Escola',
-  ENSINO_FUNDAMENTAL_I: 'Fund. I', ENSINO_FUNDAMENTAL_II: 'Fund. II',
-  EJA: 'EJA', INTEGRAL: 'Integral',
+const ZONA_LABEL: Record<string, string> = {
+  URBANA: 'Urbana', RURAL: 'Rural',
+}
+
+const ZONA_COR: Record<string, string> = {
+  URBANA: 'bg-blue-50 text-blue-700',
+  RURAL:  'bg-amber-50 text-amber-700',
 }
 
 function ModalEscola({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose: () => void }) {
   const [form, setForm] = useState({
-    nome: '', tipo: 'ENSINO_FUNDAMENTAL_I', inep: '', diretor: '',
-    logradouro: '', numero: '', bairro: '', cep: '', telefone: '', email: '',
-    totalSalas: 0, capacidade: 0,
+    nome: '', zona: 'URBANA', inep: '', diretor: '', secretario: '',
+    logradouro: '', bairro: '', cep: '', telefone: '', email: '',
+    salas: 0, capacidadeTotal: 0,
   })
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }))
 
@@ -33,14 +36,16 @@ function ModalEscola({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClos
           <div>
             <label className="text-xs font-medium text-gray-600">Nome *</label>
             <input value={form.nome} onChange={e => set('nome', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-green-500" />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2"
+              style={{ '--tw-ring-color': 'var(--cor-primaria)' } as any} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600">Tipo</label>
-              <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
+              <label className="text-xs font-medium text-gray-600">Zona</label>
+              <select value={form.zona} onChange={e => set('zona', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none">
-                {Object.entries(TIPO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                <option value="URBANA">Urbana</option>
+                <option value="RURAL">Rural</option>
               </select>
             </div>
             <div>
@@ -49,10 +54,17 @@ function ModalEscola({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClos
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600">Diretor(a)</label>
-            <input value={form.diretor} onChange={e => set('diretor', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600">Diretor(a)</label>
+              <input value={form.diretor} onChange={e => set('diretor', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600">Secretário(a)</label>
+              <input value={form.secretario} onChange={e => set('secretario', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -69,30 +81,23 @@ function ModalEscola({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClos
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-600">Salas</label>
-              <input type="number" min={0} value={form.totalSalas} onChange={e => set('totalSalas', +e.target.value)}
+              <input type="number" min={0} value={form.salas} onChange={e => set('salas', +e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600">Capacidade (alunos)</label>
-              <input type="number" min={0} value={form.capacidade} onChange={e => set('capacidade', +e.target.value)}
+              <input type="number" min={0} value={form.capacidadeTotal} onChange={e => set('capacidadeTotal', +e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-gray-600">Logradouro</label>
-              <input value={form.logradouro} onChange={e => set('logradouro', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600">Número</label>
-              <input value={form.numero} onChange={e => set('numero', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Logradouro</label>
+            <input value={form.logradouro} onChange={e => set('logradouro', e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600">Bairro</label>
+              <label className="text-xs font-medium text-gray-600">Bairro / Localidade</label>
               <input value={form.bairro} onChange={e => set('bairro', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
@@ -125,6 +130,7 @@ export default function EscolasPage() {
   const [erro, setErro] = useState('')
   const [q, setQ] = useState('')
   const [modal, setModal] = useState(false)
+  const [filtroZona, setFiltroZona] = useState('')
   const [page, setPage] = useState(1)
   const PER = 20
 
@@ -141,12 +147,18 @@ export default function EscolasPage() {
 
   useEffect(() => { carregar() }, [carregar])
 
-  const filtradas = escolas.filter(e =>
-    !q || e.nome.toLowerCase().includes(q.toLowerCase()) ||
-    (e.bairro ?? '').toLowerCase().includes(q.toLowerCase())
-  )
+  const filtradas = escolas.filter(e => {
+    const matchQ = !q || e.nome.toLowerCase().includes(q.toLowerCase()) ||
+      (e.bairro ?? '').toLowerCase().includes(q.toLowerCase()) ||
+      (e.inep ?? '').includes(q)
+    const matchZona = !filtroZona || e.zona === filtroZona
+    return matchQ && matchZona
+  })
   const paged = filtradas.slice((page - 1) * PER, page * PER)
   const pages = Math.ceil(filtradas.length / PER)
+
+  const urbanas = escolas.filter(e => e.zona === 'URBANA').length
+  const rurais  = escolas.filter(e => e.zona === 'RURAL').length
 
   async function salvar(dados: any) {
     try {
@@ -170,8 +182,8 @@ export default function EscolasPage() {
             <a href="/gestao/educacao" className="hover:underline">Educação</a>
             <span>›</span><span>Escolas</span>
           </div>
-          <h1 className="text-xl font-bold text-gray-900">Escolas</h1>
-          <p className="text-sm text-gray-500">{filtradas.length} cadastradas</p>
+          <h1 className="text-xl font-bold text-gray-900">Unidades Escolares</h1>
+          <p className="text-sm text-gray-500">{escolas.length} cadastradas · {urbanas} urbanas · {rurais} rurais</p>
         </div>
         <button
           onClick={() => setModal(true)}
@@ -182,14 +194,23 @@ export default function EscolasPage() {
         </button>
       </div>
 
-      {/* Filtro */}
-      <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={q} onChange={e => { setQ(e.target.value); setPage(1) }}
-          placeholder="Buscar por nome ou bairro..."
-          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
+      {/* Filtros */}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={q} onChange={e => { setQ(e.target.value); setPage(1) }}
+            placeholder="Buscar por nome, bairro ou INEP..."
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
+            style={{ '--tw-ring-color': 'var(--cor-primaria)' } as any}
+          />
+        </div>
+        <select value={filtroZona} onChange={e => { setFiltroZona(e.target.value); setPage(1) }}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none">
+          <option value="">Todas as zonas</option>
+          <option value="URBANA">Urbana</option>
+          <option value="RURAL">Rural</option>
+        </select>
       </div>
 
       {erro && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{erro}</div>}
@@ -200,7 +221,7 @@ export default function EscolasPage() {
           <div className="py-16 text-center text-gray-400 text-sm">Carregando...</div>
         ) : !paged.length ? (
           <div className="py-16 text-center">
-            <School size={32} className="mx-auto text-gray-300 mb-2" strokeWidth={1.5} />
+            <School size={32} className="mx-auto mb-2" style={{ color: 'var(--cor-primaria)' }} strokeWidth={1.5} />
             <p className="text-gray-400 text-sm">Nenhuma escola encontrada</p>
           </div>
         ) : (
@@ -208,8 +229,8 @@ export default function EscolasPage() {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Nome</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Tipo</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide hidden md:table-cell">Diretor</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Zona</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide hidden md:table-cell">Diretor(a)</th>
                 <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Turmas</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide hidden md:table-cell">INEP</th>
               </tr>
@@ -219,16 +240,20 @@ export default function EscolasPage() {
                 <tr key={e.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-800">{e.nome}</p>
-                    {e.bairro && <p className="text-xs text-gray-400">{e.bairro}</p>}
+                    {e.bairro && (
+                      <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <MapPin size={10} /> {e.bairro}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
-                      {TIPO_LABEL[e.tipo] ?? e.tipo ?? '—'}
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${ZONA_COR[e.zona] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {ZONA_LABEL[e.zona] ?? e.zona ?? '-'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{e.diretor ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{e.diretor ?? '-'}</td>
                   <td className="px-4 py-3 text-center font-medium text-gray-700">{e.totalTurmas ?? 0}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">{e.inep ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs hidden md:table-cell font-mono">{e.inep ?? '-'}</td>
                 </tr>
               ))}
             </tbody>
