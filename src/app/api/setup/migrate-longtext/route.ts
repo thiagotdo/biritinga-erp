@@ -2,14 +2,14 @@
  * Migração pontual: altera logoUrl, brasaoUrl e favicon para LONGTEXT
  * para suportar imagens em base64.
  * Executar UMA VEZ: POST /api/setup/migrate-longtext
- * com header Authorization: Bearer biritinga-setup-2024-secure
+ * com header Authorization: Bearer <SETUP_SECRET>
  */
 import { NextRequest, NextResponse } from 'next/server'
 import mysql from 'mysql2/promise'
 
 export const runtime = 'nodejs'
 
-const SETUP_TOKEN = process.env.SETUP_SECRET ?? 'biritinga-setup-2024-secure'
+const SETUP_TOKEN = process.env.SETUP_SECRET ?? ''
 
 function parseDbUrl(url: string) {
   const m = url.match(/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/)
