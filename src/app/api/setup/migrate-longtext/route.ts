@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     `)
     return NextResponse.json({ ok: true, msg: 'Colunas alteradas para LONGTEXT com sucesso.' })
   } catch (e: any) {
-    return NextResponse.json({ erro: e.message }, { status: 500 })
+    console.error('[migrate-longtext] erro:', e)
+    return NextResponse.json({ erro: e.message, stack: e.stack?.split('\n').slice(0,5) }, { status: 500 })
   } finally {
     await conn.end()
   }

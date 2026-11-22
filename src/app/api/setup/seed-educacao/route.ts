@@ -365,6 +365,7 @@ export async function POST(req: NextRequest) {
       anoLetivo,
     })
   } catch (e: any) {
-    return NextResponse.json({ erro: e.message }, { status: 500 })
+    console.error('[seed-educacao] erro:', e)
+    return NextResponse.json({ erro: e.message, stack: e.stack?.split('\n').slice(0,5) }, { status: 500 })
   }
 }
