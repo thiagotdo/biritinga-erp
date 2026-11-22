@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
                (SELECT COUNT(*) FROM Matricula m JOIN Turma t ON t.id = m.turmaId
                 WHERE t.escolaId = e.id AND m.anoLetivo = ${anoLetivo} AND m.situacao = 'ATIVA') as totalAlunos
         FROM Escola e
-        WHERE e.municipioId = ${municipioId} AND e.ativo = 1
+        WHERE e.municipioId = ${municipioId} AND e.situacao = 'ATIVA'
         ORDER BY e.nome`,
     ])
 
