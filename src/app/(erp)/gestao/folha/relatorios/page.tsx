@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 
 // ─── Relatórios de Folha ──────────────────────────────────────────────────────
-// LC 101/2000 Art. 19 — Limite 60% RCL · Art. 55 RGF
+// LC 101/2000 Art. 19 - Limite 60% RCL · Art. 55 RGF
 // Alerta prudencial: 51,3% · Limite: 54%
 
 const fmtMoeda  = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -46,7 +46,7 @@ export default function RelatoriosFolhaPage() {
   const abas = [
     { k: 'dashboard', l: '📊 Painel Anual'   },
     { k: 'lotacao',   l: '🏢 Por Secretaria' },
-    { k: 'lrf',       l: '⚖️ LRF — Pessoal'  },
+    { k: 'lrf',       l: '⚖️ LRF - Pessoal'  },
     { k: 'rubricas',  l: '💼 Por Rubrica'    },
   ] as const
 
@@ -55,8 +55,8 @@ export default function RelatoriosFolhaPage() {
   return (
     <div style={{ padding: 24, maxWidth: 1300, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📈 Relatórios — Folha de Pagamento</h1>
-        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LC 101/2000 Art. 19 e Art. 55 — RGF Demonstrativo de Pessoal</p>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📈 Relatórios - Folha de Pagamento</h1>
+        <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LC 101/2000 Art. 19 e Art. 55 - RGF Demonstrativo de Pessoal</p>
       </div>
 
       {/* Abas */}
@@ -110,7 +110,7 @@ export default function RelatoriosFolhaPage() {
                 ].map(k => (
                   <div key={k.l} style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 2px 6px rgba(0,0,0,.04)', borderLeft: `4px solid ${k.c}`, textAlign: 'center' }}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: k.c }}>{fmtMoeda(k.v)}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{k.l} — {anoSel}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{k.l} - {anoSel}</div>
                   </div>
                 ))}
               </div>
@@ -139,7 +139,7 @@ export default function RelatoriosFolhaPage() {
           {aba === 'lotacao' && lotacao && (
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 14, color: '#1e293b' }}>
-                Folha por Secretaria — {MESES[mesSel - 1]}/{anoSel}
+                Folha por Secretaria - {MESES[mesSel - 1]}/{anoSel}
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -181,17 +181,17 @@ export default function RelatoriosFolhaPage() {
               {/* Alerta LRF */}
               {lrf.alertaLRF === 'LIMITE_EXCEDIDO' && (
                 <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: 12, padding: '14px 18px', color: '#dc2626', fontWeight: 700, fontSize: 14 }}>
-                  🚨 LIMITE EXCEDIDO — Despesa com pessoal acima de 54% da RCL! LC 101/2000 Art. 23 — redução obrigatória em 2 quadrimestres.
+                  🚨 LIMITE EXCEDIDO - Despesa com pessoal acima de 54% da RCL! LC 101/2000 Art. 23 - redução obrigatória em 2 quadrimestres.
                 </div>
               )}
               {lrf.alertaLRF === 'ALERTA_PRUDENCIAL' && (
                 <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 12, padding: '14px 18px', color: '#d97706', fontWeight: 700, fontSize: 14 }}>
-                  ⚠️ ALERTA PRUDENCIAL — Acima de 51,3% da RCL. LC 101/2000 Art. 22 — vedação de novas contratações.
+                  ⚠️ ALERTA PRUDENCIAL - Acima de 51,3% da RCL. LC 101/2000 Art. 22 - vedação de novas contratações.
                 </div>
               )}
               {lrf.alertaLRF === null && lrf.percentualRCL !== null && (
                 <div style={{ background: '#f0fdf4', border: '2px solid #22c55e', borderRadius: 12, padding: '14px 18px', color: '#16a34a', fontWeight: 700, fontSize: 14 }}>
-                  ✅ Dentro do limite — {fmtPct(lrf.percentualRCL)} da RCL (limite: 54%)
+                  ✅ Dentro do limite - {fmtPct(lrf.percentualRCL)} da RCL (limite: 54%)
                 </div>
               )}
 
@@ -199,7 +199,7 @@ export default function RelatoriosFolhaPage() {
               {lrf.percentualRCL !== null && (
                 <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 24 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Despesa c/ Pessoal — % da RCL</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Despesa c/ Pessoal - % da RCL</span>
                     <span style={{ fontSize: 20, fontWeight: 800, color: lrf.percentualRCL > 54 ? '#dc2626' : lrf.percentualRCL > 51.3 ? '#d97706' : '#16a34a' }}>
                       {fmtPct(lrf.percentualRCL)}
                     </span>
@@ -253,7 +253,7 @@ export default function RelatoriosFolhaPage() {
           {aba === 'rubricas' && rubRel && (
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 14, color: '#1e293b' }}>
-                Totais por Rubrica — {MESES[mesSel - 1]}/{anoSel}
+                Totais por Rubrica - {MESES[mesSel - 1]}/{anoSel}
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr style={{ background: '#f8fafc' }}>

@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
   })
 
   const hoje = new Date()
-  // Auto-marcar atrasados (silent — não muda situação, apenas retorna flag)
+  // Auto-marcar atrasados (silent - não muda situação, apenas retorna flag)
   const enriched = pedidos.map(p => ({
     ...p,
     atrasado: ['RECEBIDO','EM_TRAMITACAO','AGUARDANDO_SETOR','PRORROGADO'].includes(p.situacao)
@@ -239,7 +239,7 @@ export async function POST(req: NextRequest) {
 
     const protocolo           = await gerarProtocolo(usuario.municipioId)
     const dataProtocolo       = new Date()
-    // Art. 11 — 20 dias úteis
+    // Art. 11 - 20 dias úteis
     const dataLimiteResposta  = adicionarDiasUteis(dataProtocolo, 20)
 
     const pedido = await prisma.pedidoAcesso.create({
@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
       data: {
         municipioId:  usuario.municipioId,
         pedidoId:     pedido.id,
-        despacho:     `Pedido protocolado. Prazo legal: ${dataLimiteResposta.toLocaleDateString('pt-BR')} (20 dias úteis — Art. 11 Lei 12.527/2011).`,
+        despacho:     `Pedido protocolado. Prazo legal: ${dataLimiteResposta.toLocaleDateString('pt-BR')} (20 dias úteis - Art. 11 Lei 12.527/2011).`,
         setorDestino: d.setorDestinatario ?? 'SIC',
         usuarioId:    usuario.usuarioId,
       },
@@ -386,7 +386,7 @@ export async function POST(req: NextRequest) {
 
 const ACOES_PEDIDO = [
   'ENCAMINHAR_SETOR',
-  'PRORROGAR',       // Art. 11 §2 — +10 dias úteis com justificativa
+  'PRORROGAR',       // Art. 11 §2 - +10 dias úteis com justificativa
   'RESPONDER',
   'INDEFERIR',
   'ATENDER_PARCIALMENTE',

@@ -87,7 +87,7 @@ function ModalAlvara({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClos
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="p-5 border-b">
           <h2 className="text-lg font-bold text-gray-800">Solicitar Alvará</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Lei 10.257/2001 — Estatuto da Cidade</p>
+          <p className="text-xs text-gray-400 mt-0.5">Lei 10.257/2001 - Estatuto da Cidade</p>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -311,7 +311,7 @@ export default function AlvarasPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Alvarás e Fiscalização</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Lei 10.257/2001 — Estatuto da Cidade · Lei 14.133/2021</p>
+            <p className="text-sm text-gray-500 mt-0.5">Lei 10.257/2001 - Estatuto da Cidade · Lei 14.133/2021</p>
           </div>
           <button onClick={() => setModalAlvara(true)}
             className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
@@ -573,7 +573,7 @@ export default function AlvarasPage() {
                         </div>
                         {f.descricaoInfracao && (
                           <div className="mt-1.5 text-xs text-orange-800 font-medium">
-                            Auto {f.numeroAuto} — {f.descricaoInfracao}
+                            Auto {f.numeroAuto} - {f.descricaoInfracao}
                             {f.valorMulta ? ` · Multa: R$ ${Number(f.valorMulta).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
                           </div>
                         )}

@@ -72,7 +72,7 @@ export default function AdminDashboard() {
             {saudacao()}, {usuario?.nome.split(' ')[0]}!
           </h1>
           <p style={{ margin:'4px 0 0', color:'#9E9E9E', fontSize:13 }}>
-            Prefeitura Municipal de Biritinga — Painel de Gestão
+            Prefeitura Municipal de Biritinga - Painel de Gestão
           </p>
         </div>
         <div style={{ textAlign:'right' }}>

@@ -258,7 +258,7 @@ export default function ManifestacaoPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); return }
-    setMsg(`Manifestação registrada — Protocolo: ${d.protocolo}`)
+    setMsg(`Manifestação registrada - Protocolo: ${d.protocolo}`)
     setModalNova(false)
     carregar()
     abrirDetalhe(d.manifestacao.id)

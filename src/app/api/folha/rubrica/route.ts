@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const tipo = searchParams.get('tipo') // PROVENTO | DESCONTO
 
   try {
-    // Rubricas fixas do sistema — sem tabela própria, retornar lista estática
+    // Rubricas fixas do sistema - sem tabela própria, retornar lista estática
     const rubricas = [
       { codigo: '001', descricao: 'Vencimento Base', tipo: 'PROVENTO', percentual: null },
       { codigo: '010', descricao: 'Adicional de Tempo de Serviço', tipo: 'PROVENTO', percentual: 1 },

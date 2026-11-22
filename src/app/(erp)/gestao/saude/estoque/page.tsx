@@ -103,7 +103,7 @@ export default function EstoquePage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Estoque de Medicamentos</h1>
-            <p className="text-xs text-gray-500">Farmácia Municipal — Gestão de estoque</p>
+            <p className="text-xs text-gray-500">Farmácia Municipal - Gestão de estoque</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -142,7 +142,7 @@ export default function EstoquePage() {
             {estoque.filter(m => m.status === 'VENCIDO' || m.diasValidade <= 15).map(m => (
               <div key={m.id} className="flex items-center gap-2 text-xs">
                 <span className={`w-2 h-2 rounded-full ${m.status === 'VENCIDO' ? 'bg-red-500' : 'bg-orange-400'}`} />
-                <span className="text-gray-800">{m.nome} {m.concentracao} — {m.unidade}</span>
+                <span className="text-gray-800">{m.nome} {m.concentracao} - {m.unidade}</span>
                 {m.status === 'VENCIDO' ? (
                   <span className="text-red-600 font-medium">VENCIDO</span>
                 ) : (

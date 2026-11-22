@@ -75,9 +75,9 @@ function ModalTurma({ escolas, onSalvar, onClose }: {
               <label className="block text-sm font-medium text-gray-700 mb-1">Segmento</label>
               <select value={form.segmento} onChange={e => f('segmento', e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
-                <option value="EI">EI — Educação Infantil</option>
-                <option value="EF1">EF1 — 1º ao 5º Ano</option>
-                <option value="EF2">EF2 — 6º ao 9º Ano</option>
+                <option value="EI">EI - Educação Infantil</option>
+                <option value="EF1">EF1 - 1º ao 5º Ano</option>
+                <option value="EF2">EF2 - 6º ao 9º Ano</option>
                 <option value="EJA">EJA</option>
               </select>
             </div>
@@ -198,7 +198,7 @@ export default function TurmasPage() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Educação — Turmas</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Educação - Turmas</h1>
             <p className="text-sm text-gray-500 mt-0.5">Gestão de matrículas da rede municipal · LDB 9.394/1996</p>
           </div>
           <button onClick={() => setModalTurma(true)}
@@ -262,7 +262,7 @@ export default function TurmasPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-semibold text-gray-900 text-sm">
-                    {t.serie}º Ano {t.turma} — {TURNO_LABEL[t.turno]}
+                    {t.serie}º Ano {t.turma} - {TURNO_LABEL[t.turno]}
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">{t.escola.nome}</div>
                   {t.professorNome && (
@@ -296,7 +296,7 @@ export default function TurmasPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">
-                      {turmaDetalhe.serie}º Ano {turmaDetalhe.turma} — {TURNO_LABEL[turmaDetalhe.turno]}
+                      {turmaDetalhe.serie}º Ano {turmaDetalhe.turma} - {TURNO_LABEL[turmaDetalhe.turno]}
                     </h2>
                     <div className="text-sm text-gray-500 mt-0.5">{turmaDetalhe.escola.nome}</div>
                     {turmaDetalhe.professorNome && (

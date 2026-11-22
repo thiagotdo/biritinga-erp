@@ -106,7 +106,7 @@ export default function BalancetePage() {
   const ABAS: Array<{ id: Aba; label: string; relatorio: string }> = [
     { id: 'execucao',    label: 'Execução Orçamentária', relatorio: 'EXECUCAO'    },
     { id: 'receita',     label: 'Receitas',              relatorio: 'RECEITA'     },
-    { id: 'lrf_pessoal', label: 'LRF — Despesa Pessoal', relatorio: 'LRF_PESSOAL' },
+    { id: 'lrf_pessoal', label: 'LRF - Despesa Pessoal', relatorio: 'LRF_PESSOAL' },
     { id: 'fluxo',       label: 'Fluxo de Caixa',        relatorio: 'FLUXO'       },
   ]
 
@@ -316,8 +316,8 @@ export default function BalancetePage() {
                   </div>
                   <BarraLRF percentual={Number(lrf.percentual)} limite={lrf.limiteLegal} alerta={lrf.limiteAlerta}/>
                   <div className="flex justify-between text-xs mt-2 text-slate-500">
-                    <span>Art. 20, III, b LRF — Municípios: {lrf.limiteLegal}%</span>
-                    <span>Art. 22 — Alerta: {lrf.limiteAlerta}%</span>
+                    <span>Art. 20, III, b LRF - Municípios: {lrf.limiteLegal}%</span>
+                    <span>Art. 22 - Alerta: {lrf.limiteAlerta}%</span>
                   </div>
                 </div>
               </div>
@@ -329,7 +329,7 @@ export default function BalancetePage() {
             <div className="space-y-4">
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                 <div className="p-4 border-b border-slate-100">
-                  <h3 className="font-semibold text-slate-700">Fluxo Mensal — {exercicio}</h3>
+                  <h3 className="font-semibold text-slate-700">Fluxo Mensal - {exercicio}</h3>
                 </div>
                 <GraficoFluxo fluxo={dados.fluxo}/>
               </div>

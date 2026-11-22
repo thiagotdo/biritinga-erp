@@ -7,7 +7,7 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Transporte Escolar ───────────────────────────────────────────────────────
-// Art. 136 CTB — aptidão para transporte escolar
+// Art. 136 CTB - aptidão para transporte escolar
 // Resolução CONTRAN 912/2022
 
 export async function GET(req: NextRequest) {

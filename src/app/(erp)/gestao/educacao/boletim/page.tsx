@@ -50,7 +50,7 @@ export default function BoletimPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📋 Boletim Online</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LDB 9.394/96 Art. 24 — avaliação contínua e cumulativa</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LDB 9.394/96 Art. 24 - avaliação contínua e cumulativa</p>
         </div>
         <select value={anoLetivo} onChange={e => setAnoLetivo(Number(e.target.value))}
           style={{ fontSize: 14, border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px' }}>
@@ -138,10 +138,10 @@ export default function BoletimPage() {
                     <span>Justificadas: <strong>{freq.faltasJustificadas}</strong></span>
                   </div>
                   {freq.reprovadoFreq && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠ Reprovado por frequência — mínimo LDB: 75%</div>
+                    <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠ Reprovado por frequência - mínimo LDB: 75%</div>
                   )}
                   {freq.emRisco && !freq.reprovadoFreq && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: '#d97706', fontWeight: 600 }}>⚠ Em risco — frequência abaixo de 75%</div>
+                    <div style={{ marginTop: 8, fontSize: 12, color: '#d97706', fontWeight: 600 }}>⚠ Em risco - frequência abaixo de 75%</div>
                   )}
                 </div>
               )}

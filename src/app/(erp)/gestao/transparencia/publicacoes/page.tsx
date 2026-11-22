@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 
-// ─── Portal da Transparência — Painel de Publicações ─────────────────────────
-// LC 131/2009 — transparência fiscal em tempo real
-// Lei 12.527/2011 — acesso à informação
+// ─── Portal da Transparência - Painel de Publicações ─────────────────────────
+// LC 131/2009 - transparência fiscal em tempo real
+// Lei 12.527/2011 - acesso à informação
 
 interface Publicacao {
   id: string
@@ -107,7 +107,7 @@ export default function PublicacoesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🏛️ Portal da Transparência</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LC 131/2009 · Lei 12.527/2011 — Publicações de transparência fiscal</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LC 131/2009 · Lei 12.527/2011 - Publicações de transparência fiscal</p>
         </div>
         <button onClick={() => setModal(true)}
           style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
@@ -325,7 +325,7 @@ export default function PublicacoesPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={lblS}>Título *</label>
-              <input value={form.titulo ?? ''} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} style={inpS} placeholder="ex: Balancete Financeiro — Outubro/2026" />
+              <input value={form.titulo ?? ''} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} style={inpS} placeholder="ex: Balancete Financeiro - Outubro/2026" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>

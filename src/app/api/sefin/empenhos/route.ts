@@ -1,6 +1,6 @@
 /**
- * GET  /api/sefin/empenhos   — lista com filtros e paginação
- * POST /api/sefin/empenhos   — cria novo empenho
+ * GET  /api/sefin/empenhos   - lista com filtros e paginação
+ * POST /api/sefin/empenhos   - cria novo empenho
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

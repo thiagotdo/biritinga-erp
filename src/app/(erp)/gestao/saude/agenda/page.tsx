@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 
-// ─── Agenda de Consultas — SUS ────────────────────────────────────────────────
-// Portaria GM/MS 1.820/2009 — Carta de Direitos dos Usuários do SUS
-// PNAB Portaria 2.436/2017 — Atenção Básica
+// ─── Agenda de Consultas - SUS ────────────────────────────────────────────────
+// Portaria GM/MS 1.820/2009 - Carta de Direitos dos Usuários do SUS
+// PNAB Portaria 2.436/2017 - Atenção Básica
 
 const TIPO_LABEL: Record<string, string> = {
   CONSULTA_MEDICA: '👨‍⚕️ Consulta Médica', CONSULTA_ENFERMAGEM: '🩺 Enfermagem',
@@ -80,7 +80,7 @@ export default function AgendaPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📅 Agenda de Saúde</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>SUS — Portaria GM/MS 1.820/2009</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>SUS - Portaria GM/MS 1.820/2009</p>
         </div>
         <button onClick={() => setModal(true)}
           style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
@@ -131,7 +131,7 @@ export default function AgendaPage() {
       {/* Lista do dia selecionado */}
       <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,.04)' }}>
         <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#374151' }}>
-          Agendamentos — {new Date(dataSel + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+          Agendamentos - {new Date(dataSel + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
         </h3>
         {agends.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>Nenhum agendamento para este dia.</div>}
         {agends.map(a => (

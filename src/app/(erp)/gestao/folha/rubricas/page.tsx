@@ -60,7 +60,7 @@ export default function RubricasPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>💼 Rubricas</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Tipos de verba — proventos e descontos</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Tipos de verba - proventos e descontos</p>
         </div>
         <button onClick={() => { setModal(true); setMsg('') }}
           style={{ background: '#1e293b', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>

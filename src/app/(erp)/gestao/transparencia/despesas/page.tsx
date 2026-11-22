@@ -2,9 +2,9 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ─── Despesas Orçamentárias ───────────────────────────────────────────────────
-// Lei 4.320/1964 — estágios: empenho → liquidação → pagamento
-// LC 101/2000 LRF — controle de gastos com pessoal
-// Portaria SOF 42/1999 — classificação funcional programática
+// Lei 4.320/1964 - estágios: empenho → liquidação → pagamento
+// LC 101/2000 LRF - controle de gastos com pessoal
+// Portaria SOF 42/1999 - classificação funcional programática
 
 interface Despesa {
   id: string
@@ -104,7 +104,7 @@ export default function DespesasPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>💸 Despesas Orçamentárias</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 4.320/1964 — Empenho · Liquidação · Pagamento</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 4.320/1964 - Empenho · Liquidação · Pagamento</p>
         </div>
         <button onClick={() => setModal(true)}
           style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
@@ -116,7 +116,7 @@ export default function DespesasPage() {
 
       {dash && (
         <>
-          {/* KPIs — estágios */}
+          {/* KPIs - estágios */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
             {[
               { label: 'Orçado', valor: fmtMoeda(dash.kpis.orcado), cor: '#8b5cf6', icon: '📋' },
@@ -283,7 +283,7 @@ export default function DespesasPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
               <div>
                 <label style={lblS}>Órgão *</label>
-                <input value={form.orgao ?? ''} onChange={e => setForm(f => ({ ...f, orgao: e.target.value }))} style={inpS} placeholder="ex: 02 — Sec. de Educação" />
+                <input value={form.orgao ?? ''} onChange={e => setForm(f => ({ ...f, orgao: e.target.value }))} style={inpS} placeholder="ex: 02 - Sec. de Educação" />
               </div>
               <div>
                 <label style={lblS}>Elemento de Despesa</label>

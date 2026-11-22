@@ -7,11 +7,11 @@ import { obterUsuario } from '@/lib/auth'
 export const runtime = 'nodejs'
 
 // ─── Despesas Orçamentárias ───────────────────────────────────────────────────
-// Lei 4.320/1964 — estágios da despesa: empenho, liquidação, pagamento
-// LC 101/2000 LRF — controle de gastos com pessoal (limite 60% RCL)
-// Portaria SOF 42/1999 — classificação funcional programática
-// Portaria Interministerial STN/SOF 163/2001 — classificação da despesa
-// Decreto 93.872/1986 — execução orçamentária e financeira
+// Lei 4.320/1964 - estágios da despesa: empenho, liquidação, pagamento
+// LC 101/2000 LRF - controle de gastos com pessoal (limite 60% RCL)
+// Portaria SOF 42/1999 - classificação funcional programática
+// Portaria Interministerial STN/SOF 163/2001 - classificação da despesa
+// Decreto 93.872/1986 - execução orçamentária e financeira
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)

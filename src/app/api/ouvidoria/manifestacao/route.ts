@@ -8,8 +8,8 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Manifestações da Ouvidoria ───────────────────────────────────────────────
-// Lei 13.460/2017 — Código de Defesa do Usuário do Serviço Público
-// LAI 12.527/2011 — Acesso à Informação — PRAZO: 20 dias úteis (prorrogável +10)
+// Lei 13.460/2017 - Código de Defesa do Usuário do Serviço Público
+// LAI 12.527/2011 - Acesso à Informação - PRAZO: 20 dias úteis (prorrogável +10)
 // Reclamação, Denúncia, Sugestão, Elogio, Solicitação de Info/Serviço
 
 // Prazo de resposta em dias corridos (aproximação das regras da LAI para municípios)

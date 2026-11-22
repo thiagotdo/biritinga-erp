@@ -436,7 +436,7 @@ export default function ContratoPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Contratos</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Gestão e fiscalização — Art. 117 Lei 14.133/2021</p>
+          <p className="text-slate-500 text-sm mt-0.5">Gestão e fiscalização - Art. 117 Lei 14.133/2021</p>
         </div>
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm">

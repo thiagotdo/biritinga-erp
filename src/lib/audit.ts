@@ -1,4 +1,4 @@
-// ─── Audit Log — registro imutável de operações ───────────────────────────────
+// ─── Audit Log - registro imutável de operações ───────────────────────────────
 // auditLog() é fire-and-forget: nunca lança exceção (silent fail)
 // Chame após toda operação CREATE/UPDATE/DELETE em dados sensíveis
 
@@ -50,7 +50,7 @@ export { extrairContextoRequest } from '@/lib/rbac'
 
 export async function auditBatch(entries: AuditParams[]): Promise<void> {
   try {
-    // db não tem createMany — executar em série (fire-and-forget)
+    // db não tem createMany - executar em série (fire-and-forget)
     await Promise.all(entries.map(p =>
       db.AuditLog.create({
         data: {

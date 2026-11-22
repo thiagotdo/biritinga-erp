@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ─── Contratos de Obras Públicas ─────────────────────────────────────────────
-// Lei 14.133/2021 — Arts. 92–165 (contratos vinculados a obras)
-// Art. 117 — fiscalização obrigatória pelo gestor/fiscal designado
+// Lei 14.133/2021 - Arts. 92–165 (contratos vinculados a obras)
+// Art. 117 - fiscalização obrigatória pelo gestor/fiscal designado
 
 interface ContratoObra {
   id: string
@@ -97,7 +97,7 @@ export default function ContratosObrasPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Contratos de Obras</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Gestão de contratos vinculados a obras públicas — Lei 14.133/2021
+            Gestão de contratos vinculados a obras públicas - Lei 14.133/2021
           </p>
         </div>
       </div>

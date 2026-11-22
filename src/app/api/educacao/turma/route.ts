@@ -1,8 +1,8 @@
 /**
- * GET  /api/educacao/turma           — lista turmas
- * GET  /api/educacao/turma?id=X      — detalhe com alunos matriculados
- * POST /api/educacao/turma           — cria turma
- * PATCH /api/educacao/turma          — atualiza turma
+ * GET  /api/educacao/turma           - lista turmas
+ * GET  /api/educacao/turma?id=X      - detalhe com alunos matriculados
+ * POST /api/educacao/turma           - cria turma
+ * PATCH /api/educacao/turma          - atualiza turma
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

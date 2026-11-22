@@ -1,7 +1,7 @@
 /**
- * GET  /api/educacao/matricula                     — lista / dashboard
- * POST /api/educacao/matricula                     — matricula aluno
- * PATCH /api/educacao/matricula                    — ação (transferir/cancelar/fecharAno)
+ * GET  /api/educacao/matricula                     - lista / dashboard
+ * POST /api/educacao/matricula                     - matricula aluno
+ * PATCH /api/educacao/matricula                    - ação (transferir/cancelar/fecharAno)
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

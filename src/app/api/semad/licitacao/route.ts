@@ -1,8 +1,8 @@
 // @ts-nocheck
-// Gestão de Licitações — Lei 14.133/2021 (Nova Lei de Licitações)
-// GET    — listar / detalhar com lotes e participantes
-// POST   — criar licitação / adicionar lote / registrar participante / registrar proposta
-// PATCH  — transições de situação / homologar / adjudicar / habilitar participante
+// Gestão de Licitações - Lei 14.133/2021 (Nova Lei de Licitações)
+// GET    - listar / detalhar com lotes e participantes
+// POST   - criar licitação / adicionar lote / registrar participante / registrar proposta
+// PATCH  - transições de situação / homologar / adjudicar / habilitar participante
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── PATCH — transições, homologação, classificação ──────────────────────────
+// ─── PATCH - transições, homologação, classificação ──────────────────────────
 
 export async function PATCH(request: NextRequest) {
   try {

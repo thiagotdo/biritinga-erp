@@ -12,7 +12,7 @@ function gerarSlug(texto: string): string {
     .trim().replace(/\s+/g, '-').slice(0, 200)
 }
 
-// GET — listar notícias com paginação e filtros
+// GET - listar notícias com paginação e filtros
 export async function GET(req: NextRequest) {
   try {
     const ctx = await obterUsuario(req)
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST — criar notícia
+// POST - criar notícia
 export async function POST(req: NextRequest) {
   try {
     const ctx = await obterUsuario(req)
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT — atualizar notícia
+// PUT - atualizar notícia
 export async function PUT(req: NextRequest) {
   try {
     const ctx = await obterUsuario(req)
@@ -126,7 +126,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE — excluir notícia
+// DELETE - excluir notícia
 export async function DELETE(req: NextRequest) {
   try {
     const ctx = await obterUsuario(req)

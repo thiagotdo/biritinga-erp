@@ -7,9 +7,9 @@ import { auditLog } from '@/lib/audit'
 
 export const runtime = 'nodejs'
 
-// ─── Família Referenciada — Prontuário SUAS ───────────────────────────────────
-// LOAS Art. 2º — proteção à família, maternidade, infância, adolescência e velhice
-// NOB-SUAS 2012 — prontuário único por família no SUAS municipal
+// ─── Família Referenciada - Prontuário SUAS ───────────────────────────────────
+// LOAS Art. 2º - proteção à família, maternidade, infância, adolescência e velhice
+// NOB-SUAS 2012 - prontuário único por família no SUAS municipal
 
 async function gerarNumeroProntuario(municipioId: string): Promise<string> {
   const ano   = new Date().getFullYear()

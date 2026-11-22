@@ -7,7 +7,7 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Holerites / Contracheques ────────────────────────────────────────────────
-// LC 101/2000 Art. 19 — Limite de gastos com pessoal
+// LC 101/2000 Art. 19 - Limite de gastos com pessoal
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     // Calcular valores básicos
     const vencimentoBase = Number(srv.salarioBase ?? srv.vencimentoBase ?? 0)
-    const totalProventos = vencimentoBase // simplificado — sistema real teria lógica de cálculo
+    const totalProventos = vencimentoBase // simplificado - sistema real teria lógica de cálculo
     const percInss = 0.14
     const descInss = totalProventos * percInss
     const totalDescontos = descInss

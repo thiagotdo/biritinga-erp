@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
- * GET  /api/educacao/nota?turmaId=X&bimestre=N  — notas de uma turma por bimestre
- * POST /api/educacao/nota                        — registra / atualiza nota
+ * GET  /api/educacao/nota?turmaId=X&bimestre=N  - notas de uma turma por bimestre
+ * POST /api/educacao/nota                        - registra / atualiza nota
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

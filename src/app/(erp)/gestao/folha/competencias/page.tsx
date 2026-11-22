@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ─── Competências de Folha ────────────────────────────────────────────────────
-// LC 101/2000 Art. 19 — Limite gasto pessoal 60% RCL · municípios
+// LC 101/2000 Art. 19 - Limite gasto pessoal 60% RCL · municípios
 
 const fmtMoeda = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -63,7 +63,7 @@ export default function CompetenciasPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📅 Competências de Folha</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LC 101/2000 Art. 19 — Limite 60% RCL</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>LC 101/2000 Art. 19 - Limite 60% RCL</p>
         </div>
         <button onClick={() => { setModal(true); setMsg('') }}
           style={{ background: '#1e293b', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>

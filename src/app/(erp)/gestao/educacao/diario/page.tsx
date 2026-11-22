@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 
-// ─── Diário de Classe — Frequência + Notas ────────────────────────────────────
+// ─── Diário de Classe - Frequência + Notas ────────────────────────────────────
 // Lançamento de chamada diária e notas por bimestre.
 // LDB Art. 24 V-a: 75% mínimo de frequência.
 
@@ -437,7 +437,7 @@ export default function DiarioPage() {
             <option value="">Selecione a turma…</option>
             {turmas.map(t => (
               <option key={t.id} value={t.id}>
-                {t.serie}º Ano {t.turma} — {TURNO_LABEL[t.turno]}
+                {t.serie}º Ano {t.turma} - {TURNO_LABEL[t.turno]}
               </option>
             ))}
           </select>

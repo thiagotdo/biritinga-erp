@@ -219,10 +219,10 @@ export default function ConsultasPage() {
                   <TextareaField label="Histórico da Doença Atual (HDA)" value={form.historicoDoenca} onChange={v => setForm(f => ({ ...f, historicoDoenca: v }))} rows={3} />
 
                   <div className="grid grid-cols-2 gap-3">
-                    <TextareaField label="S — Subjetivo" value={form.subjetivo} onChange={v => setForm(f => ({ ...f, subjetivo: v }))} placeholder="O que o paciente relata..." rows={3} />
-                    <TextareaField label="O — Objetivo" value={form.objetivo} onChange={v => setForm(f => ({ ...f, objetivo: v }))} placeholder="Achados do exame físico..." rows={3} />
-                    <TextareaField label="A — Avaliação" value={form.avaliacao} onChange={v => setForm(f => ({ ...f, avaliacao: v }))} placeholder="Hipótese diagnóstica..." rows={3} />
-                    <TextareaField label="P — Plano" value={form.plano} onChange={v => setForm(f => ({ ...f, plano: v }))} placeholder="Conduta terapêutica..." rows={3} />
+                    <TextareaField label="S - Subjetivo" value={form.subjetivo} onChange={v => setForm(f => ({ ...f, subjetivo: v }))} placeholder="O que o paciente relata..." rows={3} />
+                    <TextareaField label="O - Objetivo" value={form.objetivo} onChange={v => setForm(f => ({ ...f, objetivo: v }))} placeholder="Achados do exame físico..." rows={3} />
+                    <TextareaField label="A - Avaliação" value={form.avaliacao} onChange={v => setForm(f => ({ ...f, avaliacao: v }))} placeholder="Hipótese diagnóstica..." rows={3} />
+                    <TextareaField label="P - Plano" value={form.plano} onChange={v => setForm(f => ({ ...f, plano: v }))} placeholder="Conduta terapêutica..." rows={3} />
                   </div>
                 </div>
               </SecaoCard>
@@ -264,7 +264,7 @@ export default function ConsultasPage() {
                     {form.prescricoes.map((p, i) => (
                       <div key={i} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
                         <Pill className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                        <span className="flex-1 text-xs text-gray-800"><strong>{p.medicamento}</strong> {p.dose} — {p.freq}{p.duracao ? ` por ${p.duracao}` : ''}</span>
+                        <span className="flex-1 text-xs text-gray-800"><strong>{p.medicamento}</strong> {p.dose} - {p.freq}{p.duracao ? ` por ${p.duracao}` : ''}</span>
                         {p.continuo && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 rounded-full">Contínuo</span>}
                         <button onClick={() => setForm(f => ({ ...f, prescricoes: f.prescricoes.filter((_, j) => j !== i) }))} className="text-gray-400 hover:text-red-500">
                           <X className="w-3.5 h-3.5" />

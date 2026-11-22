@@ -123,7 +123,7 @@ export default function RelatoriosPage() {
       {/* Header */}
       <div style={{ background: '#fff', padding: '20px 24px', borderBottom: '1px solid #E0E0E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1B5E20' }}>📊 Relatórios — SECOM</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1B5E20' }}>📊 Relatórios - SECOM</h1>
           <p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>Secretaria de Comunicação · Visão Gerencial</p>
         </div>
         <div style={{ display: 'flex', border: '1px solid #DDD', borderRadius: 8, overflow: 'hidden' }}>
@@ -160,7 +160,7 @@ export default function RelatoriosPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
               {/* Publicações 12 meses */}
               <div style={{ background: '#fff', borderRadius: 12, padding: 20 }}>
-                <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 700, color: '#333' }}>📈 Publicações — Últimos 12 Meses</h3>
+                <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 700, color: '#333' }}>📈 Publicações - Últimos 12 Meses</h3>
                 <LineChart data={dash.publicacoesMes} />
               </div>
 

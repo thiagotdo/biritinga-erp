@@ -105,7 +105,7 @@ function ModalEmpenho({ onClose, onSalvar }: { onClose: () => void; onSalvar: ()
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Selecionar dotação…</option>
               {dotacoes.map((d: any) => (
-                <option key={d.id} value={d.id}>{d.codigo} — {d.descricao} ({moeda(d.valorAtual - d.valorEmpenhado)} disponível)</option>
+                <option key={d.id} value={d.id}>{d.codigo} - {d.descricao} ({moeda(d.valorAtual - d.valorEmpenhado)} disponível)</option>
               ))}
             </select>
           </div>
@@ -450,7 +450,7 @@ export default function EmpenhoPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Empenhos</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Gestão da despesa — três estágios (Art. 58-64 Lei 4.320/64)</p>
+          <p className="text-slate-500 text-sm mt-0.5">Gestão da despesa - três estágios (Art. 58-64 Lei 4.320/64)</p>
         </div>
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm">

@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 
-// ─── Licitações — Gestão ─────────────────────────────────────────────────────
-// Lei 14.133/2021 — Nova Lei de Licitações
-// Art. 17 — publicidade obrigatória no PNCP
+// ─── Licitações - Gestão ─────────────────────────────────────────────────────
+// Lei 14.133/2021 - Nova Lei de Licitações
+// Art. 17 - publicidade obrigatória no PNCP
 
 interface Licitacao {
   id: string
@@ -100,7 +100,7 @@ export default function LicitacoesPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🏷️ Licitações</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 14.133/2021 — Nova Lei de Licitações e Contratos Administrativos</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 14.133/2021 - Nova Lei de Licitações e Contratos Administrativos</p>
         </div>
         <button onClick={() => setModal(true)}
           style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>

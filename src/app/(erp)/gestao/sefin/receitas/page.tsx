@@ -61,7 +61,7 @@ export default function ReceitasPage() {
           </Link>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111827' }}>Receitas</h1>
-            <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Arrecadação e previsão — exercício {exercicio}</p>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Arrecadação e previsão - exercício {exercicio}</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

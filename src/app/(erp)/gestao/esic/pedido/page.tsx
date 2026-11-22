@@ -116,10 +116,10 @@ const INSTANCIAS_LABEL: Record<string, string> = {
 }
 
 const MOTIVOS_INDEFERIMENTO = [
-  { value: 'INFORMACAO_SIGILOSA_GRAU_1', label: 'Informação Sigilosa — Reservada (Art. 23 LAI)' },
-  { value: 'INFORMACAO_SIGILOSA_GRAU_2', label: 'Informação Sigilosa — Secreta (Art. 23 LAI)' },
-  { value: 'INFORMACAO_SIGILOSA_GRAU_3', label: 'Informação Sigilosa — Ultrassecreta (Art. 23 LAI)' },
-  { value: 'DADO_PESSOAL',               label: 'Dado Pessoal — Privacidade (Art. 31 LAI)' },
+  { value: 'INFORMACAO_SIGILOSA_GRAU_1', label: 'Informação Sigilosa - Reservada (Art. 23 LAI)' },
+  { value: 'INFORMACAO_SIGILOSA_GRAU_2', label: 'Informação Sigilosa - Secreta (Art. 23 LAI)' },
+  { value: 'INFORMACAO_SIGILOSA_GRAU_3', label: 'Informação Sigilosa - Ultrassecreta (Art. 23 LAI)' },
+  { value: 'DADO_PESSOAL',               label: 'Dado Pessoal - Privacidade (Art. 31 LAI)' },
   { value: 'SEGREDO_INDUSTRIA',          label: 'Segredo Industrial/Comercial' },
   { value: 'PEDIDO_GENERICO',            label: 'Pedido Genérico (Art. 13 Decreto 7.724)' },
   { value: 'TRABALHO_PRODUCAO',          label: 'Exige análise/produção de dados inexistentes' },
@@ -260,7 +260,7 @@ function PainelPedido({
             {pedido.textoResposta && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-xs text-green-700 font-semibold mb-1">
-                  RESPOSTA — {pedido.dataResposta ? new Date(pedido.dataResposta).toLocaleDateString('pt-BR') : ''}
+                  RESPOSTA - {pedido.dataResposta ? new Date(pedido.dataResposta).toLocaleDateString('pt-BR') : ''}
                   {pedido.dentroDoPrazo === false && <span className="ml-2 text-orange-600">(Fora do prazo)</span>}
                 </p>
                 <p className="text-sm text-slate-700">{pedido.textoResposta}</p>
@@ -476,7 +476,7 @@ function PainelPedido({
                 <p className="text-sm text-slate-700">{r.motivoRecurso}</p>
                 {r.textoDecisao && (
                   <div className="mt-2 pt-2 border-t border-slate-200">
-                    <p className="text-xs font-semibold text-slate-500 mb-1">DECISÃO — {r.dataDecisao ? new Date(r.dataDecisao).toLocaleDateString('pt-BR') : ''}</p>
+                    <p className="text-xs font-semibold text-slate-500 mb-1">DECISÃO - {r.dataDecisao ? new Date(r.dataDecisao).toLocaleDateString('pt-BR') : ''}</p>
                     <p className="text-sm text-slate-700">{r.textoDecisao}</p>
                   </div>
                 )}
@@ -513,7 +513,7 @@ function RecursoForm({
 
   return (
     <div className="border border-indigo-200 rounded-lg bg-indigo-50 p-4 space-y-3">
-      <p className="text-xs font-semibold text-indigo-700">NOVO RECURSO — prazo: 10 dias após o indeferimento (Art. 15 LAI)</p>
+      <p className="text-xs font-semibold text-indigo-700">NOVO RECURSO - prazo: 10 dias após o indeferimento (Art. 15 LAI)</p>
       <div>
         <label className="text-xs font-medium text-slate-600">Instância Recursal *</label>
         <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-300 focus:outline-none bg-white"
@@ -645,7 +645,7 @@ function ModalNovoPedido({ onFechar, onSalvar }: { onFechar: () => void; onSalva
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
-            <strong>Lei 12.527/2011 (LAI) — Art. 11:</strong> Prazo para resposta: <strong>20 dias úteis</strong>, prorrogável por mais 10 dias mediante justificativa.
+            <strong>Lei 12.527/2011 (LAI) - Art. 11:</strong> Prazo para resposta: <strong>20 dias úteis</strong>, prorrogável por mais 10 dias mediante justificativa.
             Em caso de indeferimento, cabe recurso em 10 dias (Art. 15).
           </div>
         </div>
@@ -737,8 +737,8 @@ export default function PedidosSICPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">e-SIC — Pedidos de Acesso</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Lei 12.527/2011 — Lei de Acesso à Informação</p>
+            <h1 className="text-2xl font-bold text-slate-800">e-SIC - Pedidos de Acesso</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Lei 12.527/2011 - Lei de Acesso à Informação</p>
           </div>
           <button onClick={() => setModalNovo(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 shadow-sm">

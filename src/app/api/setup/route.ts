@@ -1,5 +1,5 @@
 /**
- * Rota de setup inicial — cria o município de Biritinga e o primeiro SUPER_ADMIN.
+ * Rota de setup inicial - cria o município de Biritinga e o primeiro SUPER_ADMIN.
  * Usa mysql2 diretamente (em vez do Prisma engine) para compatibilidade com
  * MySQL 8.0 no cPanel que usa sha256_password/caching_sha2_password.
  * Só funciona se NÃO existir nenhum usuário no banco ainda.
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET — verifica se o setup já foi feito
+// GET - verifica se o setup já foi feito
 export async function GET() {
   let conn: mysql.Connection | null = null
   try {

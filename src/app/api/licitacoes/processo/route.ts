@@ -7,7 +7,7 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Processos Licitatórios ───────────────────────────────────────────────────
-// Lei 14.133/2021 — Nova Lei de Licitações e Contratos
+// Lei 14.133/2021 - Nova Lei de Licitações e Contratos
 
 async function gerarNumero(municipioId: string, modalidade: string): Promise<string> {
   const ano   = new Date().getFullYear()

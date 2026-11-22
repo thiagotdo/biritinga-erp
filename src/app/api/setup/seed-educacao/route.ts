@@ -1,5 +1,5 @@
 /**
- * Seed das escolas municipais de Biritinga — dados do Censo Escolar/INEP 2024.
+ * Seed das escolas municipais de Biritinga - dados do Censo Escolar/INEP 2024.
  * Executar UMA VEZ: POST /api/setup/seed-educacao
  * com header Authorization: Bearer <SETUP_SECRET>
  *
@@ -12,7 +12,7 @@ export const runtime = 'nodejs'
 
 const SETUP_TOKEN = process.env.SETUP_SECRET ?? ''
 
-// ─── Escolas reais de Biritinga — Fonte: INEP/Censo Escolar 2024 ──────────────
+// ─── Escolas reais de Biritinga - Fonte: INEP/Censo Escolar 2024 ──────────────
 const ESCOLAS_BIRITINGA = [
   {
     nome: 'Colégio Municipal de Biritinga',
@@ -284,8 +284,8 @@ const TURMAS_POR_ETAPA: Record<string, Array<{ serie: string; codigo: string; tu
     { serie: '9º Ano', codigo: '9A', turno: 'VESPERTINO', capacidade: 30 },
   ],
   EJA_FUNDAMENTAL: [
-    { serie: 'EJA — Fase I', codigo: 'EJA1', turno: 'NOTURNO', capacidade: 25 },
-    { serie: 'EJA — Fase II', codigo: 'EJA2', turno: 'NOTURNO', capacidade: 25 },
+    { serie: 'EJA - Fase I', codigo: 'EJA1', turno: 'NOTURNO', capacidade: 25 },
+    { serie: 'EJA - Fase II', codigo: 'EJA2', turno: 'NOTURNO', capacidade: 25 },
   ],
 }
 

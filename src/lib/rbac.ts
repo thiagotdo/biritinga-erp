@@ -1,4 +1,4 @@
-// ─── RBAC — Role-Based Access Control ────────────────────────────────────────
+// ─── RBAC - Role-Based Access Control ────────────────────────────────────────
 // Hierarquia: SUPER_ADMIN > ADMIN_MUNICIPIO > GESTOR > OPERADOR > VISUALIZADOR
 //
 // Formato de permissão: "módulo:recurso:ação"

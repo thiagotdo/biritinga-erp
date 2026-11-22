@@ -338,7 +338,7 @@ export default function ContribuintePage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Cadastro de Contribuintes</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Gestão de contribuintes municipais — IPTU, ISS e Dívida Ativa</p>
+            <p className="text-sm text-slate-500 mt-0.5">Gestão de contribuintes municipais - IPTU, ISS e Dívida Ativa</p>
           </div>
           <button onClick={() => setModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 shadow-sm">

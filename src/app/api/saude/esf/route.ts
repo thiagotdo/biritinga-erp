@@ -6,8 +6,8 @@ import { auditLog } from '@/lib/audit'
 
 export const runtime = 'nodejs'
 
-// ─── ESF — Estratégia Saúde da Família ───────────────────────────────────────
-// PNAB — Portaria GM/MS 2.436/2017
+// ─── ESF - Estratégia Saúde da Família ───────────────────────────────────────
+// PNAB - Portaria GM/MS 2.436/2017
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     // POST distingue: registro de visita ACS (_recurso = 'visita') vs cadastro de equipe
     if (d._recurso === 'visita') {
-      // VisitaACS — upsert por equipe/acsNome/mes
+      // VisitaACS - upsert por equipe/acsNome/mes
       const existing = await db.$queryRaw`
         SELECT id FROM VisitaACS WHERE equipeId = ${d.equipeId} AND acsNome = ${d.acsNome} AND mes = ${d.mes} LIMIT 1` as any[]
 

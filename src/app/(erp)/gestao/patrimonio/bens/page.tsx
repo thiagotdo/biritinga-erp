@@ -280,7 +280,7 @@ export default function BensPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); return }
-    setMsg(`Bem tombado — Plaqueta: ${d.plaqueta}`)
+    setMsg(`Bem tombado - Plaqueta: ${d.plaqueta}`)
     setModalBem(false)
     carregar()
     setTimeout(() => setMsg(''), 5000)
@@ -355,7 +355,7 @@ export default function BensPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="p-5 border-b">
-              <h2 className="font-bold text-gray-800">Prévia — Depreciação Mensal (NBC T 16.9)</h2>
+              <h2 className="font-bold text-gray-800">Prévia - Depreciação Mensal (NBC T 16.9)</h2>
               <p className="text-xs text-gray-400 mt-0.5">{depPreview.length} bens a depreciar nesta competência</p>
             </div>
             <div className="flex-1 overflow-y-auto p-5">

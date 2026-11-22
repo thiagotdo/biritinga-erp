@@ -1,8 +1,8 @@
 // @ts-nocheck
-// Gestão de Receitas — ReceitaPrevista + LancamentoReceita
-// GET    — listar receitas previstas / lançamentos
-// POST   — criar receita prevista / registrar arrecadação
-// PATCH  — atualizar receita prevista / cancelar lançamento
+// Gestão de Receitas - ReceitaPrevista + LancamentoReceita
+// GET    - listar receitas previstas / lançamentos
+// POST   - criar receita prevista / registrar arrecadação
+// PATCH  - atualizar receita prevista / cancelar lançamento
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── PATCH — cancelar / confirmar lançamento ──────────────────────────────────
+// ─── PATCH - cancelar / confirmar lançamento ──────────────────────────────────
 
 export async function PATCH(request: NextRequest) {
   try {

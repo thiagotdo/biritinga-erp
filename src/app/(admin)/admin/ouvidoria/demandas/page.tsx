@@ -63,7 +63,7 @@ export default function OuvidoriaDemandasPage() {
 <>
       <div className="p-6 space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Demandas — Ouvidoria</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Demandas - Ouvidoria</h1>
           <p className="text-sm text-gray-500 mt-1">Gestão das manifestações dos cidadãos</p>
         </div>
 

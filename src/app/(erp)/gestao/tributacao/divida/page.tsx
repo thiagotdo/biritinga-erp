@@ -206,7 +206,7 @@ function PainelDivida({ divida, onAcao, onParcelar }: { divida: any; onAcao: (a:
             )}
             {acao === 'AJUIZAR' && (
               <div className="text-xs text-orange-700 bg-orange-50 rounded-lg px-3 py-2">
-                Encaminhará para execução fiscal — Lei 6.830/1980
+                Encaminhará para execução fiscal - Lei 6.830/1980
               </div>
             )}
             <div className="flex gap-2">
@@ -312,7 +312,7 @@ export default function DividaAtivaPage() {
     })
     const json = await res.json()
     if (res.ok) {
-      showToast(`✅ Parcelamento criado — ${json.parcelamento.numero}`)
+      showToast(`✅ Parcelamento criado - ${json.parcelamento.numero}`)
       selecionado && carregarDetalhe(selecionado.id)
       carregar()
     }

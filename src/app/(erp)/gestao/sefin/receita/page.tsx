@@ -110,7 +110,7 @@ function ModalLancamento({ receitas, onClose, onSalvar }: { receitas: ReceitaPre
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Selecionar receita…</option>
               {receitas.map(r => (
-                <option key={r.id} value={r.id}>{r.codigo} — {r.descricao}</option>
+                <option key={r.id} value={r.id}>{r.codigo} - {r.descricao}</option>
               ))}
             </select>
           </div>

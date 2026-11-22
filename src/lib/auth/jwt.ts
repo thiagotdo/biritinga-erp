@@ -1,4 +1,4 @@
-// ─── JWT — geração e verificação de tokens ───────────────────────────────────
+// ─── JWT - geração e verificação de tokens ───────────────────────────────────
 // Usa a biblioteca `jose` (nativa Edge Runtime, sem dependências nativas)
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'

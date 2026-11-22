@@ -498,7 +498,7 @@ export default function ObrasPage() {
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <div className="text-xs font-semibold text-gray-700">
-                              {m.numero}ª Medição — {m.periodo}
+                              {m.numero}ª Medição - {m.periodo}
                             </div>
                             <div className="text-xs text-gray-400">
                               {new Date(m.dataMedicao).toLocaleDateString('pt-BR')}

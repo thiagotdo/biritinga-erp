@@ -58,7 +58,7 @@ export default function LoginPage() {
       minHeight: '100vh', display: 'flex', fontFamily: "'Inter', 'Segoe UI', sans-serif",
       background: 'linear-gradient(135deg, #1B5E20 0%, #2E7D32 40%, #1565C0 100%)',
     }}>
-      {/* Painel esquerdo — identidade */}
+      {/* Painel esquerdo - identidade */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '40px 60px', color: '#fff',
@@ -75,13 +75,13 @@ export default function LoginPage() {
           Prefeitura Municipal
         </h1>
         <h2 style={{ margin: '0 0 32px', fontSize: 20, fontWeight: 400, opacity: 0.85, textAlign: 'center' }}>
-          de Biritinga — Bahia
+          de Biritinga - Bahia
         </h2>
 
         <div style={{ width: 60, height: 3, background: '#F9A825', borderRadius: 2, marginBottom: 32 }} />
 
         <p style={{ fontSize: 15, opacity: 0.8, textAlign: 'center', maxWidth: 320, lineHeight: 1.6, margin: 0 }}>
-          Painel de Gestão Municipal — acesso exclusivo para servidores e gestores autorizados.
+          Painel de Gestão Municipal - acesso exclusivo para servidores e gestores autorizados.
         </p>
 
         {/* Perfis disponíveis */}
@@ -104,7 +104,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Painel direito — formulário */}
+      {/* Painel direito - formulário */}
       <div style={{
         width: 480, background: '#fff', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', padding: '48px 56px',
@@ -209,7 +209,7 @@ export default function LoginPage() {
           position: 'absolute', bottom: 24,
           fontSize: 11, color: '#BBB', textAlign: 'center', maxWidth: 360,
         }}>
-          🔒 Conexão segura — LGPD compliant · Prefeitura Municipal de Biritinga/BA
+          🔒 Conexão segura - LGPD compliant · Prefeitura Municipal de Biritinga/BA
         </div>
       </div>
     </div>

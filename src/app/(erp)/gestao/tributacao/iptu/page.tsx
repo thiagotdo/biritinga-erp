@@ -162,7 +162,7 @@ export default function IptuPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); setTimeout(() => setMsg(''), 5000); return }
-    setMsg(`IPTU ${formLancar.exercicio} lançado — ${d.imoveisSocializados} imóveis · ${d.lancamentosCriados} lançamentos · R$${Number(d.valorTotal).toFixed(2)} total`)
+    setMsg(`IPTU ${formLancar.exercicio} lançado - ${d.imoveisSocializados} imóveis · ${d.lancamentosCriados} lançamentos · R$${Number(d.valorTotal).toFixed(2)} total`)
     setModalLancar(false)
     carregar()
     setTimeout(() => setMsg(''), 8000)
@@ -182,7 +182,7 @@ export default function IptuPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); setTimeout(() => setMsg(''), 5000); return }
-    setMsg(d.quitado ? '✅ IPTU QUITADO!' : `💰 Pagamento registrado — Saldo: ${fmtMoeda(d.novoSaldo)}`)
+    setMsg(d.quitado ? '✅ IPTU QUITADO!' : `💰 Pagamento registrado - Saldo: ${fmtMoeda(d.novoSaldo)}`)
     setModalPagar(null)
     setFormPag({ valorPago: '', formaPagamento: 'PIX', autenticacao: '' })
     if (selecionado) abrirImovel(selecionado)
@@ -202,7 +202,7 @@ export default function IptuPage() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">IPTU — Imposto Predial e Territorial Urbano</h1>
+            <h1 className="text-2xl font-bold text-gray-900">IPTU - Imposto Predial e Territorial Urbano</h1>
             <p className="text-sm text-gray-500 mt-0.5">CTN Art.32-34 · Lei 10.257/2001 (IPTU Progressivo) · Estágio da Cidade</p>
           </div>
           <div className="flex gap-2">
@@ -311,7 +311,7 @@ export default function IptuPage() {
                 {im.iptuCalculado && <span className="text-xs text-indigo-600 font-bold">{fmtMoeda(im.iptuCalculado)}/ano</span>}
               </div>
               <div className="text-sm text-gray-700 mt-1">
-                {im.logradouro}{im.numero ? `, ${im.numero}` : ''}{im.bairro ? ` — ${im.bairro}` : ''}
+                {im.logradouro}{im.numero ? `, ${im.numero}` : ''}{im.bairro ? ` - ${im.bairro}` : ''}
               </div>
               <div className="flex justify-between items-center mt-1 text-xs text-gray-400">
                 <span>{nomeContrib(im.contribuinte)}</span>
@@ -345,7 +345,7 @@ export default function IptuPage() {
                         <div className="font-bold text-gray-900">{selecionado.inscricaoImobiliaria}</div>
                         <div className="text-sm text-gray-500">
                           {selecionado.logradouro}{selecionado.numero ? `, ${selecionado.numero}` : ''}
-                          {selecionado.complemento ? ` — ${selecionado.complemento}` : ''}
+                          {selecionado.complemento ? ` - ${selecionado.complemento}` : ''}
                           {selecionado.bairro ? ` · ${selecionado.bairro}` : ''}
                         </div>
                       </div>
@@ -652,7 +652,7 @@ export default function IptuPage() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
             <div className="p-5 border-b flex justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Lançar IPTU — Exercício</h2>
+              <h2 className="text-lg font-bold text-gray-900">Lançar IPTU - Exercício</h2>
               <button onClick={() => setModalLancar(false)} className="text-gray-400">✕</button>
             </div>
             <div className="p-5 space-y-4">
@@ -670,12 +670,12 @@ export default function IptuPage() {
                 <select value={formLancar.parcelas} onChange={e => setFormLancar(f => ({ ...f, parcelas: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                   {[1,2,3,4,5,6,7,8,9,10,12].map(n => (
-                    <option key={n} value={n}>{n}x — Venc. dia 10 de cada mês</option>
+                    <option key={n} value={n}>{n}x - Venc. dia 10 de cada mês</option>
                   ))}
                 </select>
               </div>
               <div className="bg-blue-50 rounded-lg p-3 text-xs text-blue-700">
-                Imóveis com IPTU progressivo terão alíquota majorada automaticamente conforme anos de notificação (máx. 15% — Art.182 §4° CF)
+                Imóveis com IPTU progressivo terão alíquota majorada automaticamente conforme anos de notificação (máx. 15% - Art.182 §4° CF)
               </div>
             </div>
             <div className="p-5 border-t flex justify-end gap-3">

@@ -157,9 +157,9 @@ export default function ContribuintesPage() {
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); setTimeout(() => setMsg(''), 5000); return }
     if (formISS.tipo === 'DES') {
-      setMsg(`DES registrada — ISS: R$${Number(d.valorISS).toFixed(2)} · A recolher: R$${Number(d.issDever).toFixed(2)}`)
+      setMsg(`DES registrada - ISS: R$${Number(d.valorISS).toFixed(2)} · A recolher: R$${Number(d.issDever).toFixed(2)}`)
     } else {
-      setMsg(`ISS Fixo lançado — ${d.totalParcelas} parcelas de R$${Number(d.valorParcela).toFixed(2)}`)
+      setMsg(`ISS Fixo lançado - ${d.totalParcelas} parcelas de R$${Number(d.valorParcela).toFixed(2)}`)
     }
     setModalISS(false)
     abrirContribuinte(selecionado)
@@ -180,7 +180,7 @@ export default function ContribuintesPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); setTimeout(() => setMsg(''), 5000); return }
-    setMsg(d.quitado ? '✅ Pagamento registrado — débito QUITADO!' : `💰 Pagamento registrado — Saldo restante: R$${Number(d.novoSaldo).toFixed(2)}`)
+    setMsg(d.quitado ? '✅ Pagamento registrado - débito QUITADO!' : `💰 Pagamento registrado - Saldo restante: R$${Number(d.novoSaldo).toFixed(2)}`)
     setModalPagar(null)
     setFormPag({ valorPago: '', formaPagamento: 'PIX', autenticacao: '' })
     if (selecionado) abrirContribuinte(selecionado)
@@ -208,7 +208,7 @@ export default function ContribuintesPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); setTimeout(() => setMsg(''), 5000); return }
-    setMsg(`CDA ${d.numeroCda} gerada — Dívida ativa inscrita!`)
+    setMsg(`CDA ${d.numeroCda} gerada - Dívida ativa inscrita!`)
     if (selecionado) abrirContribuinte(selecionado)
     setTimeout(() => setMsg(''), 4000)
   }
@@ -225,7 +225,7 @@ export default function ContribuintesPage() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Contribuintes — ISS Municipal</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Contribuintes - ISS Municipal</h1>
             <p className="text-sm text-gray-500 mt-0.5">LC 116/2003 · LC 157/2016 (alíquota mín. 2%) · CTN Art.121</p>
           </div>
           <button onClick={() => setModalNovo(true)}
@@ -555,7 +555,7 @@ export default function ContribuintesPage() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-8 overflow-y-auto pb-10">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
             <div className="p-5 border-b flex justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Declarar ISS — {selecionado.nomeFantasia ?? selecionado.razaoSocial ?? selecionado.nomeCompleto}</h2>
+              <h2 className="text-lg font-bold text-gray-900">Declarar ISS - {selecionado.nomeFantasia ?? selecionado.razaoSocial ?? selecionado.nomeCompleto}</h2>
               <button onClick={() => setModalISS(false)} className="text-gray-400">✕</button>
             </div>
             <div className="p-5 space-y-3">

@@ -7,10 +7,10 @@ import { auditLog } from '@/lib/audit'
 
 export const runtime = 'nodejs'
 
-// ─── Portal da Transparência — Publicações ────────────────────────────────────
-// LC 131/2009 — transparência fiscal em tempo real
-// Lei 12.527/2011 — acesso à informação
-// Decreto 7.185/2010 — prazo máximo de divulgação: até o 1º dia útil seguinte
+// ─── Portal da Transparência - Publicações ────────────────────────────────────
+// LC 131/2009 - transparência fiscal em tempo real
+// Lei 12.527/2011 - acesso à informação
+// Decreto 7.185/2010 - prazo máximo de divulgação: até o 1º dia útil seguinte
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)

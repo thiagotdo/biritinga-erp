@@ -7,8 +7,8 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Conselho Tutelar / Frequência em Risco ───────────────────────────────────
-// ECA Art. 56 — comunicação obrigatória ao CT quando freq < 50%
-// LDB Art. 24 — frequência mínima 75%
+// ECA Art. 56 - comunicação obrigatória ao CT quando freq < 50%
+// LDB Art. 24 - frequência mínima 75%
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ alunos: alunosRisco, total: (alunosRisco as any[]).length })
   } catch (e: any) {
-    // NotificacaoCT pode não existir ainda — retornar dados parciais
+    // NotificacaoCT pode não existir ainda - retornar dados parciais
     if (e.message?.includes('NotificacaoCT')) {
       return NextResponse.json({ kpis: { emRisco: 0, criticos: 0, encaminhados: 0 }, alunos: [] })
     }

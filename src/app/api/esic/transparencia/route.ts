@@ -9,8 +9,8 @@ export const runtime = 'nodejs'
 
 // ─── Tipos obrigatórios Art. 8 LAI com periodicidade ─────────────────────────
 const OBRIGATORIOS_LAI: Record<string, { periodicidade: string; prazo: string }> = {
-  RECEITAS_DESPESAS:            { periodicidade: 'Diária',    prazo: 'Art. 48, LC 101/2000 — execução diária' },
-  LICITACOES_CONTRATOS:         { periodicidade: 'Imediata',  prazo: 'Art. 8 §1 III LAI — publicação ao publicar' },
+  RECEITAS_DESPESAS:            { periodicidade: 'Diária',    prazo: 'Art. 48, LC 101/2000 - execução diária' },
+  LICITACOES_CONTRATOS:         { periodicidade: 'Imediata',  prazo: 'Art. 8 §1 III LAI - publicação ao publicar' },
   ESTRUTURA_ORGANIZACIONAL:     { periodicidade: 'Anual',     prazo: 'Art. 8 §1 I LAI' },
   ACOES_PROGRAMAS:              { periodicidade: 'Semestral', prazo: 'Art. 8 §1 II LAI' },
   REPASSES_TRANSFERENCIAS:      { periodicidade: 'Mensal',    prazo: 'Art. 8 §1 III LAI' },

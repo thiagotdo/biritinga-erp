@@ -1,5 +1,5 @@
 /**
- * GET /api/sefin/dashboard — KPIs e gráficos para o painel SEFIN
+ * GET /api/sefin/dashboard - KPIs e gráficos para o painel SEFIN
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

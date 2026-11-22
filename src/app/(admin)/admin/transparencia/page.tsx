@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { BarChart2, FileText, DollarSign, TrendingUp, Eye, AlertTriangle } from 'lucide-react'
 
-// ─── Painel Admin — Transparência (LAI 12.527/2011) ──────────────────────────
+// ─── Painel Admin - Transparência (LAI 12.527/2011) ──────────────────────────
 
 type DashTransparencia = {
   publicacoes: { total: number; publicadas: number; pendentes: number; vencidas: number }
@@ -166,7 +166,7 @@ export default function TransparenciaAdminPage() {
                     <li>• Receitas e despesas devem ser publicadas em tempo real (LC 131/2009)</li>
                     <li>• Portal de Transparência deve estar acessível 24h/dia</li>
                     <li>• Dados de servidores, contratos e licitações são de publicação obrigatória</li>
-                    <li>• Relatório de gestão fiscal (RREO/RGF) — prazo bimestral/quadrimestral</li>
+                    <li>• Relatório de gestão fiscal (RREO/RGF) - prazo bimestral/quadrimestral</li>
                   </ul>
                 </div>
               </div>

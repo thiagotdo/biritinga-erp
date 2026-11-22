@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
     const payload = await verificarAccessToken(accessToken)
 
     if (payload) {
-      // Token válido — injetar payload nos headers para os handlers de API
+      // Token válido - injetar payload nos headers para os handlers de API
       const headers = new Headers(request.headers)
       headers.set('x-erp-usuario-id',   payload.sub)
       headers.set('x-erp-municipio-id', payload.mid)
@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── 2. Access expirado — tentar renovar via refresh ────────────────────────
+  // ── 2. Access expirado - tentar renovar via refresh ────────────────────────
   if (refreshToken) {
     const refreshPayload = await verificarRefreshToken(refreshToken)
 
@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── 3. Sem token válido — redirecionar para login ──────────────────────────
+  // ── 3. Sem token válido - redirecionar para login ──────────────────────────
   if (pathname.startsWith('/api/')) {
     return NextResponse.json(
       { erro: 'Não autenticado', codigo: 'UNAUTHENTICATED' },

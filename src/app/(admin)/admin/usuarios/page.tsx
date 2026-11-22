@@ -176,7 +176,7 @@ export default function UsuariosPage() {
             {senhaTemp && (
               <div style={{ background: '#F0FFF0', border: '2px solid #A5D6A7', borderRadius: 10, padding: 16, marginBottom: 20 }}>
                 <div style={{ fontWeight: 700, color: '#1B5E20', marginBottom: 6 }}>✅ Usuário criado com sucesso!</div>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Senha temporária (anote — só será exibida uma vez):</div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Senha temporária (anote - só será exibida uma vez):</div>
                 <div style={{ background: '#fff', border: '1px solid #C8E6C9', borderRadius: 6, padding: '10px 14px', fontFamily: 'monospace', fontSize: 15, fontWeight: 700, letterSpacing: '2px', color: '#1B5E20' }}>
                   {senhaTemp}
                 </div>

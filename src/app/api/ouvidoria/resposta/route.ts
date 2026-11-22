@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   if (!manifestacao) return NextResponse.json({ erro: 'Manifestação não encontrada' }, { status: 404 })
 
   if (['ENCERRADA', 'ARQUIVADA'].includes(manifestacao.situacao)) {
-    return NextResponse.json({ erro: 'Manifestação já encerrada — não aceita mais respostas' }, { status: 409 })
+    return NextResponse.json({ erro: 'Manifestação já encerrada - não aceita mais respostas' }, { status: 409 })
   }
 
   const resposta = await prisma.respostaManifestacao.create({

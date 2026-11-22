@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         await conn.execute(stmt)
         created++
       } catch (e: any) {
-        // ER_TABLE_EXISTS_ERROR, ER_DUP_KEYNAME, ER_DUP_INDEX — safe to skip
+        // ER_TABLE_EXISTS_ERROR, ER_DUP_KEYNAME, ER_DUP_INDEX - safe to skip
         if (['ER_TABLE_EXISTS_ERROR', 'ER_DUP_KEYNAME', 'ER_DUP_INDEX', 'ER_CANT_DROP_FIELD_OR_KEY', 'ER_FK_DUP_NAME', 'ER_TOO_LONG_KEY'].includes(e.code)) {
           skipped++
         } else {

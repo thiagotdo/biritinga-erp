@@ -1,7 +1,7 @@
 /**
  * src/lib/db.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Camada de acesso a dados via mysql2 — substitui Prisma onde o engine nativo
+ * Camada de acesso a dados via mysql2 - substitui Prisma onde o engine nativo
  * do Prisma falha com MySQL 8.0 / sha256_password do cPanel.
  *
  * Uso idêntico ao Prisma:

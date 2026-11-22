@@ -1,6 +1,6 @@
 // @ts-nocheck
-// Balancete e relatórios financeiros — LRF e transparência
-// GET — balancete de despesas / receitas / execução orçamentária / LRF
+// Balancete e relatórios financeiros - LRF e transparência
+// GET - balancete de despesas / receitas / execução orçamentária / LRF
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ relatorio: 'RECEITA', exercicio, linhas, total })
     }
 
-    // ── Demonstrativo LRF — Despesa com Pessoal ───────────────────────────────
+    // ── Demonstrativo LRF - Despesa com Pessoal ───────────────────────────────
     if (relatorio === 'LRF_PESSOAL') {
       // Período: 12 meses anteriores ao mês atual (LRF Art. 18/19)
       const hoje      = new Date()
@@ -144,8 +144,8 @@ export async function GET(request: NextRequest) {
       const rcl = Number(receitaArrecadada._sum.valor ?? 0)
 
       const percentual    = rcl > 0 ? (despesaPessoal / rcl) * 100 : 0
-      const limiteAlerta  = 51.30   // Art. 22 LRF — limite de alerta (90% do limite)
-      const limiteLegal   = 54.00   // Art. 20, III, b LRF — municípios: 54%
+      const limiteAlerta  = 51.30   // Art. 22 LRF - limite de alerta (90% do limite)
+      const limiteLegal   = 54.00   // Art. 20, III, b LRF - municípios: 54%
 
       return NextResponse.json({
         relatorio:       'LRF_PESSOAL',

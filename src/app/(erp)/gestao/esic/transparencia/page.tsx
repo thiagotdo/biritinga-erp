@@ -93,7 +93,7 @@ function PainelConformidade({
       <div className="px-5 py-4 border-b border-slate-100">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-slate-800">Conformidade Art. 8 — Lei 12.527/2011</h2>
+            <h2 className="font-semibold text-slate-800">Conformidade Art. 8 - Lei 12.527/2011</h2>
             <p className="text-xs text-slate-500 mt-0.5">Obrigações de transparência ativa</p>
           </div>
           <div className="text-right">
@@ -177,7 +177,7 @@ function ModalNovaPublicacao({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">Nova Publicação — Transparência Ativa</h2>
+          <h2 className="text-lg font-bold text-slate-800">Nova Publicação - Transparência Ativa</h2>
           <button onClick={onFechar} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
         </div>
         <div className="p-6 space-y-4">
@@ -417,7 +417,7 @@ export default function TransparenciaPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Transparência Ativa</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Art. 8 Lei 12.527/2011 — Publicações obrigatórias e complementares</p>
+            <p className="text-sm text-slate-500 mt-0.5">Art. 8 Lei 12.527/2011 - Publicações obrigatórias e complementares</p>
           </div>
           <button
             onClick={() => { setTipoInicial(undefined); setModalNovo(true) }}
@@ -432,7 +432,7 @@ export default function TransparenciaPage() {
             <AlertTriangle size={18} className="text-orange-500"/>
             <span className="text-sm text-orange-700">
               <strong>{desatualizados}</strong> item{desatualizados > 1 ? 's' : ''} pendente{desatualizados > 1 ? 's' : ''} de publicação ou atualização conforme Art. 8 LAI.
-              {conformidade.percentual < 60 && <span className="ml-2 text-red-700 font-medium">⚠ Risco de irregularidade — ação imediata necessária.</span>}
+              {conformidade.percentual < 60 && <span className="ml-2 text-red-700 font-medium">⚠ Risco de irregularidade - ação imediata necessária.</span>}
             </span>
           </div>
         )}

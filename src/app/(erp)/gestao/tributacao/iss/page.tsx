@@ -30,7 +30,7 @@ function GraficoMensal({ dados }: { dados: { mes: string; valor: number }[] }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Arrecadação ISS — 12 meses</p>
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Arrecadação ISS - 12 meses</p>
       <div className="flex items-end gap-1 h-20">
         {dados.map((d, i) => {
           const h = Math.round((d.valor / max) * 100)

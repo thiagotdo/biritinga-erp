@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ contrato })
     }
 
-    // Listagem — filtrar contratos vinculados a obras (via processo que tem obra)
+    // Listagem - filtrar contratos vinculados a obras (via processo que tem obra)
     let whereClause = db.$queryRaw`WHERE c.municipioId = ${municipioId}`
     if (situacao) whereClause = db.$queryRaw`WHERE c.municipioId = ${municipioId} AND c.situacao = ${situacao}`
 

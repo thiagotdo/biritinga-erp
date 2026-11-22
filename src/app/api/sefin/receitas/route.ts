@@ -1,6 +1,6 @@
 /**
- * GET  /api/sefin/receitas   — lista lançamentos de receita
- * POST /api/sefin/receitas   — cria lançamento
+ * GET  /api/sefin/receitas   - lista lançamentos de receita
+ * POST /api/sefin/receitas   - cria lançamento
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

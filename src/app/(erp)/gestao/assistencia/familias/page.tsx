@@ -64,7 +64,7 @@ function ModalFamilia({ unidades, onSalvar, onClose }: {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="p-6 border-b flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">Nova Família — Prontuário SUAS</h2>
+          <h2 className="text-lg font-bold text-gray-800">Nova Família - Prontuário SUAS</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
         </div>
 
@@ -153,7 +153,7 @@ function ModalFamilia({ unidades, onSalvar, onClose }: {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   ['bolsaFamilia', 'Bolsa Família / Auxílio Brasil'],
-                  ['bpc', 'BPC (LOAS — Art. 20)'],
+                  ['bpc', 'BPC (LOAS - Art. 20)'],
                   ['cadunico', 'Cadastrado no CadÚnico'],
                 ].map(([k, label]) => (
                   <label key={k} className="flex items-center gap-2 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -180,7 +180,7 @@ function ModalFamilia({ unidades, onSalvar, onClose }: {
 
           {aba === 'vulnerabilidades' && (
             <div className="space-y-3">
-              <p className="text-xs text-gray-500">Marque as vulnerabilidades identificadas na família (LGPD — dados tratados com sigilo):</p>
+              <p className="text-xs text-gray-500">Marque as vulnerabilidades identificadas na família (LGPD - dados tratados com sigilo):</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   ['criancas', '👶 Crianças (ECA)'],
@@ -472,7 +472,7 @@ export default function FamiliasPage() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Assistência Social — Famílias</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Assistência Social - Famílias</h1>
             <p className="text-sm text-gray-500 mt-0.5">Prontuário SUAS · LOAS 8.742/1993 · NOB-SUAS 2012</p>
           </div>
           <button onClick={() => setModalFamilia(true)}

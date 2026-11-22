@@ -17,7 +17,7 @@ const FornecedorSchema = z.object({
   conta:     z.string().optional(),
 })
 
-// POST /api/sefin/despesas — cadastro de fornecedores
+// POST /api/sefin/despesas - cadastro de fornecedores
 export async function POST(request: NextRequest) {
   const ctx = extrairContextoRequest(request.headers)
 
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/sefin/despesas — lista fornecedores com totais de empenho
+// GET /api/sefin/despesas - lista fornecedores com totais de empenho
 export async function GET(request: NextRequest) {
   const ctx = extrairContextoRequest(request.headers)
 

@@ -51,7 +51,7 @@ function ModalAgendamento({
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
                 <option value="">Selecionar…</option>
                 {disponiveis.map(v => (
-                  <option key={v.id} value={v.id}>{TIPO_ICON[v.tipo]} {v.placa} — {v.modelo}</option>
+                  <option key={v.id} value={v.id}>{TIPO_ICON[v.tipo]} {v.placa} - {v.modelo}</option>
                 ))}
               </select>
               {disponiveis.length === 0 && <p className="text-xs text-red-500 mt-0.5">Nenhum veículo disponível</p>}
@@ -128,7 +128,7 @@ function ModalRetorno({ agendamento, onSalvar, onClose }: { agendamento: Agendam
         <div className="p-5 border-b"><h2 className="font-bold text-gray-800">Registrar Retorno</h2></div>
         <div className="p-5 space-y-3">
           <div className="bg-gray-50 rounded-lg p-3 text-sm">
-            <div className="font-medium">{agendamento.veiculo.placa} — {agendamento.veiculo.modelo}</div>
+            <div className="font-medium">{agendamento.veiculo.placa} - {agendamento.veiculo.modelo}</div>
             <div className="text-gray-500 text-xs">{agendamento.destino}</div>
             {agendamento.hodometroSaida && (
               <div className="text-xs text-gray-400 mt-0.5">Hodômetro na saída: {agendamento.hodometroSaida.toLocaleString('pt-BR')} km</div>

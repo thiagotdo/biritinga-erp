@@ -76,17 +76,17 @@ const NAV_ADMIN = [
     { href: '/admin/transparencia',  label: 'Transparência',    Icon: BarChart2       },
   ]},
   { grupo: 'Secretarias', items: [
-    { href: '/gestao/sefin',        label: 'Sec. de Finanças — SEFIN',            Icon: Wallet          },
-    { href: '/gestao/semad',        label: 'Sec. de Administração — SEMAD',       Icon: FolderOpen      },
-    { href: '/gestao/folha',        label: 'Folha de Pagamento — RH',             Icon: DollarSign      },
-    { href: '/gestao/saude',        label: 'Sec. Municipal de Saúde — SEMSA',     Icon: Stethoscope     },
-    { href: '/gestao/educacao',     label: 'Sec. de Educação — SEDUC',            Icon: GraduationCap   },
-    { href: '/gestao/tributacao',   label: 'Sec. de Tributação — SETRIB',         Icon: CircleDollarSign},
-    { href: '/gestao/licitacoes',   label: 'Licitações e Contratos — CPL',        Icon: Landmark        },
-    { href: '/gestao/patrimonio',   label: 'Patrimônio Público — SEPAT',          Icon: Package         },
-    { href: '/gestao/frota',        label: 'Gestão de Frota — SEFROTA',           Icon: Car             },
-    { href: '/gestao/obras',        label: 'Sec. de Obras e Serviços — SEMOSP',   Icon: HardHat         },
-    { href: '/gestao/comunicacao/noticias', label: 'Sec. de Comunicação — SECOM', Icon: Newspaper       },
+    { href: '/gestao/sefin',        label: 'Sec. de Finanças - SEFIN',            Icon: Wallet          },
+    { href: '/gestao/semad',        label: 'Sec. de Administração - SEMAD',       Icon: FolderOpen      },
+    { href: '/gestao/folha',        label: 'Folha de Pagamento - RH',             Icon: DollarSign      },
+    { href: '/gestao/saude',        label: 'Sec. Municipal de Saúde - SEMSA',     Icon: Stethoscope     },
+    { href: '/gestao/educacao',     label: 'Sec. de Educação - SEDUC',            Icon: GraduationCap   },
+    { href: '/gestao/tributacao',   label: 'Sec. de Tributação - SETRIB',         Icon: CircleDollarSign},
+    { href: '/gestao/licitacoes',   label: 'Licitações e Contratos - CPL',        Icon: Landmark        },
+    { href: '/gestao/patrimonio',   label: 'Patrimônio Público - SEPAT',          Icon: Package         },
+    { href: '/gestao/frota',        label: 'Gestão de Frota - SEFROTA',           Icon: Car             },
+    { href: '/gestao/obras',        label: 'Sec. de Obras e Serviços - SEMOSP',   Icon: HardHat         },
+    { href: '/gestao/comunicacao/noticias', label: 'Sec. de Comunicação - SECOM', Icon: Newspaper       },
   ]},
 ]
 
@@ -109,7 +109,7 @@ const NAV_OUVIDORIA = [
 ]
 
 const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
-  SEMSA: [{ grupo: 'Sec. Municipal de Saúde — SEMSA', items: [
+  SEMSA: [{ grupo: 'Sec. Municipal de Saúde - SEMSA', items: [
     { href: '/gestao/saude',              label: 'Painel SEMSA',   Icon: Stethoscope  },
     { href: '/gestao/saude/pacientes',    label: 'Pacientes',      Icon: Users        },
     { href: '/gestao/saude/agendamentos', label: 'Agendamentos',   Icon: CalendarDays },
@@ -121,7 +121,7 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/saude/esf',          label: 'ESF / UBS',      Icon: Building2    },
     { href: '/gestao/saude/regulacao',    label: 'Regulação',      Icon: UserCheck    },
   ]}],
-  SEDUC: [{ grupo: 'Sec. de Educação — SEDUC', items: [
+  SEDUC: [{ grupo: 'Sec. de Educação - SEDUC', items: [
     { href: '/gestao/educacao',          label: 'Painel SEDUC',  Icon: GraduationCap     },
     { href: '/gestao/educacao/escolas',  label: 'Escolas',       Icon: School            },
     { href: '/gestao/educacao/alunos',   label: 'Alunos',        Icon: Users             },
@@ -129,7 +129,7 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/educacao/diario',   label: 'Diário',        Icon: FileText          },
     { href: '/gestao/educacao/merenda',  label: 'Merenda',       Icon: UtensilsCrossed   },
   ]}],
-  SEFIN: [{ grupo: 'Sec. de Finanças — SEFIN', items: [
+  SEFIN: [{ grupo: 'Sec. de Finanças - SEFIN', items: [
     { href: '/gestao/sefin',              label: 'Painel SEFIN',  Icon: Wallet           },
     { href: '/gestao/sefin/empenhos',     label: 'Empenhos',      Icon: FileText         },
     { href: '/gestao/sefin/receitas',     label: 'Receitas',      Icon: TrendingUp       },
@@ -137,7 +137,7 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/sefin/orcamento',    label: 'Orçamento',     Icon: BarChart2        },
     { href: '/gestao/sefin/fornecedores', label: 'Fornecedores',  Icon: Users            },
   ]}],
-  SEMAD: [{ grupo: 'Sec. de Administração — SEMAD', items: [
+  SEMAD: [{ grupo: 'Sec. de Administração - SEMAD', items: [
     { href: '/gestao/semad',              label: 'Painel SEMAD',   Icon: FolderOpen    },
     { href: '/gestao/semad/servidores',   label: 'Servidores',     Icon: Users         },
     { href: '/gestao/semad/cargos',       label: 'Cargos',         Icon: Briefcase     },
@@ -146,7 +146,7 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/semad/contrato',     label: 'Contratos RH',   Icon: FileText      },
     { href: '/gestao/folha',             label: 'Folha Pagamento', Icon: DollarSign    },
   ]}],
-  TRIBUTACAO: [{ grupo: 'Sec. de Tributação — SETRIB', items: [
+  TRIBUTACAO: [{ grupo: 'Sec. de Tributação - SETRIB', items: [
     { href: '/gestao/tributacao',                 label: 'Painel Tributação', Icon: DollarSign  },
     { href: '/gestao/tributacao/contribuinte',    label: 'Contribuintes',     Icon: Users       },
     { href: '/gestao/tributacao/iptu',            label: 'IPTU',              Icon: FileText    },
@@ -154,30 +154,30 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/tributacao/divida',          label: 'Dívida Ativa',      Icon: AlertCircle },
     { href: '/gestao/tributacao/contribuintes',   label: 'Gestão Débitos',    Icon: TrendingUp  },
   ]}],
-  LICITACOES: [{ grupo: 'Licitações e Contratos — CPL', items: [
+  LICITACOES: [{ grupo: 'Licitações e Contratos - CPL', items: [
     { href: '/gestao/licitacoes',              label: 'Painel Licitações', Icon: Landmark   },
     { href: '/gestao/licitacoes/licitacoes',   label: 'Licitações',        Icon: FileText   },
     { href: '/gestao/licitacoes/contratos',    label: 'Contratos',         Icon: CircleCheck},
     { href: '/gestao/licitacoes/processos',    label: 'Processos',         Icon: Inbox      },
   ]}],
-  PATRIMONIO: [{ grupo: 'Patrimônio Público — SEPAT', items: [
+  PATRIMONIO: [{ grupo: 'Patrimônio Público - SEPAT', items: [
     { href: '/gestao/patrimonio',           label: 'Painel Patrimônio', Icon: Package      },
     { href: '/gestao/patrimonio/bens',      label: 'Bens',              Icon: Package      },
     { href: '/gestao/patrimonio/inventario',label: 'Inventário',        Icon: ClipboardList},
   ]}],
-  FROTA: [{ grupo: 'Gestão de Frota — SEFROTA', items: [
+  FROTA: [{ grupo: 'Gestão de Frota - SEFROTA', items: [
     { href: '/gestao/frota',           label: 'Painel Frota', Icon: Car       },
     { href: '/gestao/frota/veiculos',  label: 'Veículos',     Icon: Car       },
     { href: '/gestao/frota/operacoes', label: 'Operações',    Icon: Fuel      },
   ]}],
-  OBRAS: [{ grupo: 'Sec. de Obras e Serviços — SEMOSP', items: [
+  OBRAS: [{ grupo: 'Sec. de Obras e Serviços - SEMOSP', items: [
     { href: '/gestao/obras',           label: 'Painel Obras', Icon: HardHat   },
     { href: '/gestao/obras/obras',     label: 'Obras',        Icon: HardHat   },
     { href: '/gestao/obras/alvaras',   label: 'Alvarás',      Icon: FileText  },
     { href: '/gestao/obras/contratos', label: 'Contratos',    Icon: Briefcase },
   ]}],
-  SEMMA: [{ grupo: 'Sec. de Meio Ambiente — SEMMA', items: [{ href: '/gestao/semma', label: 'Painel SEMMA', Icon: Leaf    }] }],
-  SEMOB: [{ grupo: 'Sec. de Mobilidade Urbana — SEMOB', items: [{ href: '/gestao/semob', label: 'Painel SEMOB', Icon: HardHat }] }],
+  SEMMA: [{ grupo: 'Sec. de Meio Ambiente - SEMMA', items: [{ href: '/gestao/semma', label: 'Painel SEMMA', Icon: Leaf    }] }],
+  SEMOB: [{ grupo: 'Sec. de Mobilidade Urbana - SEMOB', items: [{ href: '/gestao/semob', label: 'Painel SEMOB', Icon: HardHat }] }],
 }
 
 function navPorPerfil(perfil: string, secretaria?: string) {

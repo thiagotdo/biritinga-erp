@@ -148,7 +148,7 @@ export default function MerendaPage() {
             <span>›</span><span>Merenda</span>
           </div>
           <h1 className="text-xl font-bold text-gray-900">Cardápio da Merenda</h1>
-          <p className="text-sm text-gray-500">Programação semanal — {semanaLabel}</p>
+          <p className="text-sm text-gray-500">Programação semanal - {semanaLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 border border-gray-200 rounded-lg">

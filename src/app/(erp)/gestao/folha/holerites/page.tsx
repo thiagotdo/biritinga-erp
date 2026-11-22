@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ─── Holerites ────────────────────────────────────────────────────────────────
-// INSS: Portaria MF — faixas progressivas · IRPF: Lei 11.482/2007 atualizada
+// INSS: Portaria MF - faixas progressivas · IRPF: Lei 11.482/2007 atualizada
 
 const fmtMoeda = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -95,7 +95,7 @@ export default function HoleritesPage() {
         <div style={{ display: 'flex', gap: 10 }}>
           <select value={compSel} onChange={e => setCompSel(e.target.value)}
             style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', fontSize: 14, background: '#fff' }}>
-            {comps.map(c => <option key={c.id} value={c.id}>{MESES[c.mes - 1]}/{c.ano} — {c.status}</option>)}
+            {comps.map(c => <option key={c.id} value={c.id}>{MESES[c.mes - 1]}/{c.ano} - {c.status}</option>)}
           </select>
           <button onClick={() => { setModal(true); setMsg(''); setForm({ regimeJuridico: 'ESTATUTARIO', diasTrabalhados: 30, diasFaltas: 0, numDependentes: 0, itens: [] }) }}
             disabled={!compSel || compAtual?.status === 'FECHADA'}

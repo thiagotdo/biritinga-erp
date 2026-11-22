@@ -89,7 +89,7 @@ export default function EducacaoDashboard() {
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">SEDUC — Secretaria de Educação</h1>
+          <h1 className="text-xl font-bold text-gray-900">SEDUC - Secretaria de Educação</h1>
           <p className="text-sm text-gray-500">Gestão escolar e acompanhamento pedagógico</p>
         </div>
         <div className="flex items-center gap-2">

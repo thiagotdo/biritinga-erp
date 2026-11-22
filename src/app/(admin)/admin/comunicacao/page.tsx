@@ -39,7 +39,7 @@ export default function ComunicacaoDashboard() {
       <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         {/* Cabeçalho */}
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1B5E20' }}>📢 SECOM — Comunicação Institucional</h1>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1B5E20' }}>📢 SECOM - Comunicação Institucional</h1>
           <p style={{ margin: '6px 0 0', fontSize: 13, color: '#666' }}>
             Gerenciamento de notícias, agenda de eventos e galeria de mídia da Prefeitura de Biritinga
           </p>

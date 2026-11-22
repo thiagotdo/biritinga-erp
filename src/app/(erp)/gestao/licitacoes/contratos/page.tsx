@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ─── Contratos Administrativos ───────────────────────────────────────────────
-// Lei 14.133/2021 — Arts. 92–165
-// Art. 117 — fiscalização obrigatória
+// Lei 14.133/2021 - Arts. 92–165
+// Art. 117 - fiscalização obrigatória
 
 interface Contrato {
   id: string
@@ -100,7 +100,7 @@ export default function ContratosPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📄 Contratos Administrativos</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 14.133/2021 — Fiscalização e gestão de contratos</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 14.133/2021 - Fiscalização e gestão de contratos</p>
         </div>
         <button onClick={() => setModal('novo')}
           style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>

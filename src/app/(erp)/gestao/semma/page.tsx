@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Leaf, Droplets, TreePine, AlertTriangle, FileCheck, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-// ─── Painel SEMMA — Secretaria de Meio Ambiente ───────────────────────────────
+// ─── Painel SEMMA - Secretaria de Meio Ambiente ───────────────────────────────
 // Gestão ambiental municipal: licenças, fiscalização, arborização urbana,
 // recursos hídricos e educação ambiental
 
@@ -20,7 +20,7 @@ export default function SemmaPage() {
   })
 
   useEffect(() => {
-    // SEMMA ainda não tem API dedicada — exibir painel informativo
+    // SEMMA ainda não tem API dedicada - exibir painel informativo
     // com atalhos para os módulos disponíveis
     setTimeout(() => setLoading(false), 300)
   }, [])
@@ -57,7 +57,7 @@ export default function SemmaPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Painel SEMMA</h1>
           <p className="text-gray-500 mt-1">
-            Secretaria de Meio Ambiente — licenças, fiscalização e educação ambiental
+            Secretaria de Meio Ambiente - licenças, fiscalização e educação ambiental
           </p>
         </div>
       </div>
@@ -106,12 +106,12 @@ export default function SemmaPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-800 mb-3">Bases Legais</h2>
         <ul className="text-sm text-gray-600 space-y-1.5">
-          <li>• <strong>Lei 6.938/81</strong> — Política Nacional do Meio Ambiente</li>
-          <li>• <strong>Res. CONAMA 237/97</strong> — Licenciamento ambiental</li>
-          <li>• <strong>Lei 12.651/12</strong> — Código Florestal Brasileiro</li>
-          <li>• <strong>Lei 9.433/97</strong> — Política Nacional de Recursos Hídricos</li>
-          <li>• <strong>Lei 9.605/98</strong> — Lei de Crimes Ambientais</li>
-          <li>• <strong>Lei 12.305/10</strong> — Política Nacional de Resíduos Sólidos</li>
+          <li>• <strong>Lei 6.938/81</strong> - Política Nacional do Meio Ambiente</li>
+          <li>• <strong>Res. CONAMA 237/97</strong> - Licenciamento ambiental</li>
+          <li>• <strong>Lei 12.651/12</strong> - Código Florestal Brasileiro</li>
+          <li>• <strong>Lei 9.433/97</strong> - Política Nacional de Recursos Hídricos</li>
+          <li>• <strong>Lei 9.605/98</strong> - Lei de Crimes Ambientais</li>
+          <li>• <strong>Lei 12.305/10</strong> - Política Nacional de Resíduos Sólidos</li>
         </ul>
       </div>
     </div>

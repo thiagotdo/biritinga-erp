@@ -1,8 +1,8 @@
 // @ts-nocheck
-// Gestão de Empenhos — três estágios da despesa (Lei 4.320/64)
-// GET    — listar empenhos com filtros / buscar individual
-// POST   — emitir novo empenho
-// PATCH  — liquidar / pagar / anular (parcial ou total)
+// Gestão de Empenhos - três estágios da despesa (Lei 4.320/64)
+// GET    - listar empenhos com filtros / buscar individual
+// POST   - emitir novo empenho
+// PATCH  - liquidar / pagar / anular (parcial ou total)
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─── POST — Emitir empenho ────────────────────────────────────────────────────
+// ─── POST - Emitir empenho ────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── PATCH — Liquidar / Pagar / Anular ───────────────────────────────────────
+// ─── PATCH - Liquidar / Pagar / Anular ───────────────────────────────────────
 
 export async function PATCH(request: NextRequest) {
   try {

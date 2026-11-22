@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 
-// ─── ESF — Estratégia Saúde da Família ───────────────────────────────────────
-// Portaria GM/MS 2.436/2017 — PNAB
+// ─── ESF - Estratégia Saúde da Família ───────────────────────────────────────
+// Portaria GM/MS 2.436/2017 - PNAB
 // Meta: 100% das famílias visitadas mensalmente pelos ACS
 // Parâmetro: 1 ACS → máx. 750 famílias
 
@@ -56,7 +56,7 @@ export default function ESFPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🏥 Estratégia Saúde da Família</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>PNAB — Portaria GM/MS 2.436/2017 · Cobertura e visitas ACS</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>PNAB - Portaria GM/MS 2.436/2017 · Cobertura e visitas ACS</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="month" value={mesSel} onChange={e => setMesSel(e.target.value)}
@@ -90,7 +90,7 @@ export default function ESFPage() {
           {/* Cobertura visual */}
           <div style={{ background: '#fff', borderRadius: 12, padding: 20, marginBottom: 20, border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>Meta de Cobertura — {mesSel}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>Meta de Cobertura - {mesSel}</span>
               <span style={{ fontSize: 14, fontWeight: 800, color: corPct }}>{pct}%</span>
             </div>
             <div style={{ background: '#f1f5f9', borderRadius: 8, height: 24, overflow: 'hidden' }}>
@@ -130,7 +130,7 @@ export default function ESFPage() {
           {/* Visitas do mês */}
           {dash.visitasMes.length > 0 && (
             <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#374151' }}>Visitas ACS — {mesSel}</h3>
+              <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#374151' }}>Visitas ACS - {mesSel}</h3>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>

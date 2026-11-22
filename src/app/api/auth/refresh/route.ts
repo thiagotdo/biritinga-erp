@@ -4,7 +4,7 @@ import { handleRefresh } from '@/lib/auth/api-login'
 
 export const runtime = 'nodejs'
 
-// GET — chamado pelo middleware para renovação silenciosa em redirecionamento
+// GET - chamado pelo middleware para renovação silenciosa em redirecionamento
 export async function GET(request: NextRequest) {
   const result = await handleRefresh(request)
 
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   return result
 }
 
-// POST — chamado pelo cliente JS para renovação silenciosa sem redirect
+// POST - chamado pelo cliente JS para renovação silenciosa sem redirect
 export async function POST(request: NextRequest) {
   return handleRefresh(request)
 }

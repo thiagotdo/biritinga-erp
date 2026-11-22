@@ -1,5 +1,5 @@
 /**
- * Login — usa mysql2 diretamente (sem Prisma) para compatibilidade com
+ * Login - usa mysql2 diretamente (sem Prisma) para compatibilidade com
  * MySQL 8.0 no cPanel (sha256_password/caching_sha2_password).
  */
 import { NextRequest, NextResponse } from 'next/server'
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         [sessionId, usuario.municipioId, usuario.id, hashToken(refreshToken), userAgent ?? null, ip ?? null, expiresAt]
       )
     } catch {
-      // Tabela Sessao ainda não existe — login ainda funciona, apenas sem persistência de sessão
+      // Tabela Sessao ainda não existe - login ainda funciona, apenas sem persistência de sessão
     }
 
     // Atualizar ultimoLogin

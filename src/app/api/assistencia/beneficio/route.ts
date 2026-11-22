@@ -8,9 +8,9 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Benefícios ───────────────────────────────────────────────────────────────
-// LOAS Art. 20 — BPC (1 salário mínimo): idoso ≥65 anos OU PcD com renda per capita ≤ 1/4 SM
-// LOAS Art. 22 — Benefícios Eventuais: natalidade, morte, calamidade
-// Lei 10.836/2004 — Bolsa Família
+// LOAS Art. 20 - BPC (1 salário mínimo): idoso ≥65 anos OU PcD com renda per capita ≤ 1/4 SM
+// LOAS Art. 22 - Benefícios Eventuais: natalidade, morte, calamidade
+// Lei 10.836/2004 - Bolsa Família
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)

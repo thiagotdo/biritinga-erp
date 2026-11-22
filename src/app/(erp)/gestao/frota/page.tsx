@@ -85,7 +85,7 @@ export default function FrotaDashboard() {
             {data.veiculos.map((v: any) => (
               <div key={v.id} className="py-2 flex items-center justify-between text-sm">
                 <div>
-                  <div className="font-medium text-gray-800">{v.placa} — {v.descricao}</div>
+                  <div className="font-medium text-gray-800">{v.placa} - {v.descricao}</div>
                   <div className="text-gray-500 text-xs">{v.marca} {v.modelo} · {v.secretaria ?? 'Sem secretaria'}</div>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(v.status ?? 'ATIVO')}`}>
@@ -106,7 +106,7 @@ export default function FrotaDashboard() {
           <div className="divide-y divide-gray-100">
             {data.manutencoes.map((m: any) => (
               <div key={m.id} className="py-2 text-sm">
-                <div className="font-medium text-gray-800">{m.placa} — {m.descricao}</div>
+                <div className="font-medium text-gray-800">{m.placa} - {m.descricao}</div>
                 <div className="text-gray-500 text-xs">{m.tipo} · {m.officina ?? 'Sem oficina'}</div>
               </div>
             ))}

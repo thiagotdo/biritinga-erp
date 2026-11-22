@@ -2,9 +2,9 @@
 import { useState, useEffect, useCallback } from 'react'
 
 // ─── Receitas Orçamentárias ───────────────────────────────────────────────────
-// Lei 4.320/1964 — Normas de Direito Financeiro
-// LC 101/2000 — Lei de Responsabilidade Fiscal
-// MCASP — Manual de Contabilidade do Setor Público (STN/SOF)
+// Lei 4.320/1964 - Normas de Direito Financeiro
+// LC 101/2000 - Lei de Responsabilidade Fiscal
+// MCASP - Manual de Contabilidade do Setor Público (STN/SOF)
 
 interface Receita {
   id: string
@@ -92,7 +92,7 @@ export default function ReceitasPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>💹 Receitas Orçamentárias</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 4.320/1964 · LC 101/2000 — Execução orçamentária de receitas</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Lei 4.320/1964 · LC 101/2000 - Execução orçamentária de receitas</p>
         </div>
         <button onClick={() => setModal(true)}
           style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>

@@ -1,6 +1,6 @@
 /**
- * GET  /api/educacao/merenda?semana=YYYY-MM-DD  — cardápio da semana
- * POST /api/educacao/merenda                     — registra item de cardápio
+ * GET  /api/educacao/merenda?semana=YYYY-MM-DD  - cardápio da semana
+ * POST /api/educacao/merenda                     - registra item de cardápio
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

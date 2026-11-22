@@ -195,7 +195,7 @@ export default function VigilanciaPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Vigilância Sanitária</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Fiscalização, licenças e autos de infração — Lei 9.782/1999</p>
+          <p className="text-sm text-gray-500 mt-0.5">Fiscalização, licenças e autos de infração - Lei 9.782/1999</p>
         </div>
         <button onClick={() => { setForm({}); setModalNovo(true) }}
           className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">

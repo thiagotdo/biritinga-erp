@@ -7,10 +7,10 @@ import { obterUsuario } from '@/lib/auth'
 export const runtime = 'nodejs'
 
 // ─── Receitas Orçamentárias ───────────────────────────────────────────────────
-// Lei 4.320/1964 — Normas de Direito Financeiro
-// LC 101/2000 (LRF) — responsabilidade fiscal
-// Portaria STN 877/2014 — Manual de Contabilidade do Setor Público (MCASP)
-// Instrução Normativa STN 02/2021 — SICONFI
+// Lei 4.320/1964 - Normas de Direito Financeiro
+// LC 101/2000 (LRF) - responsabilidade fiscal
+// Portaria STN 877/2014 - Manual de Contabilidade do Setor Público (MCASP)
+// Instrução Normativa STN 02/2021 - SICONFI
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)

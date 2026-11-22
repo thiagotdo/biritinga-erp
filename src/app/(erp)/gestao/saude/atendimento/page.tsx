@@ -109,7 +109,7 @@ function ModalProntuario({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[95vh] overflow-y-auto">
         <div className="p-6 border-b">
           <h2 className="font-semibold text-lg">Registrar Atendimento</h2>
-          <p className="text-xs text-gray-500">Prontuário Eletrônico — SOAP</p>
+          <p className="text-xs text-gray-500">Prontuário Eletrônico - SOAP</p>
         </div>
         <div className="p-6 space-y-4">
 
@@ -172,10 +172,10 @@ function ModalProntuario({
               {aba === 'soap' && (
                 <div className="space-y-3">
                   {[
-                    { key: 'subjetivo', label: 'S — Subjetivo (queixa, HDA)', placeholder: 'O paciente refere...' },
-                    { key: 'objetivo', label: 'O — Objetivo (exame físico)', placeholder: 'Ao exame...' },
-                    { key: 'avaliacao', label: 'A — Avaliação (diagnóstico / CID)', placeholder: 'Hipótese diagnóstica...' },
-                    { key: 'plano', label: 'P — Plano (conduta)', placeholder: 'Prescrito... Encaminhado...' },
+                    { key: 'subjetivo', label: 'S - Subjetivo (queixa, HDA)', placeholder: 'O paciente refere...' },
+                    { key: 'objetivo', label: 'O - Objetivo (exame físico)', placeholder: 'Ao exame...' },
+                    { key: 'avaliacao', label: 'A - Avaliação (diagnóstico / CID)', placeholder: 'Hipótese diagnóstica...' },
+                    { key: 'plano', label: 'P - Plano (conduta)', placeholder: 'Prescrito... Encaminhado...' },
                   ].map(campo => (
                     <div key={campo.key}>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">{campo.label}</label>
@@ -314,10 +314,10 @@ function PainelAtendimento({ at }: { at: Atendimento }) {
 
       {/* SOAP */}
       {[
-        { key: 'subjetivo', label: 'S — Subjetivo', cor: 'bg-blue-50 border-blue-200' },
-        { key: 'objetivo',  label: 'O — Objetivo',  cor: 'bg-green-50 border-green-200' },
-        { key: 'avaliacao', label: 'A — Avaliação',  cor: 'bg-yellow-50 border-yellow-200' },
-        { key: 'plano',     label: 'P — Plano',      cor: 'bg-purple-50 border-purple-200' },
+        { key: 'subjetivo', label: 'S - Subjetivo', cor: 'bg-blue-50 border-blue-200' },
+        { key: 'objetivo',  label: 'O - Objetivo',  cor: 'bg-green-50 border-green-200' },
+        { key: 'avaliacao', label: 'A - Avaliação',  cor: 'bg-yellow-50 border-yellow-200' },
+        { key: 'plano',     label: 'P - Plano',      cor: 'bg-purple-50 border-purple-200' },
       ].filter(c => (at as any)[c.key]).map(c => (
         <div key={c.key} className={`p-4 border-b border ${c.cor}`}>
           <p className="text-xs font-semibold text-gray-500 mb-1">{c.label}</p>
@@ -427,7 +427,7 @@ export default function AtendimentoPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Prontuários / Atendimentos</h1>
-          <p className="text-sm text-gray-500 mt-0.5">LGPD Art. 11 — Dados sensíveis de saúde</p>
+          <p className="text-sm text-gray-500 mt-0.5">LGPD Art. 11 - Dados sensíveis de saúde</p>
         </div>
         <button onClick={() => setModalNovo(true)}
           className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">

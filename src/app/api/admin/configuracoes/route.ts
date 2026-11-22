@@ -1,6 +1,6 @@
 /**
- * GET  /api/admin/configuracoes — lê configurações do município
- * PATCH /api/admin/configuracoes — salva configurações (SUPER_ADMIN/ADMIN_MUNICIPIO)
+ * GET  /api/admin/configuracoes - lê configurações do município
+ * PATCH /api/admin/configuracoes - salva configurações (SUPER_ADMIN/ADMIN_MUNICIPIO)
  */
 import { NextRequest, NextResponse } from 'next/server'
 import mysql from 'mysql2/promise'
@@ -30,7 +30,7 @@ async function garantirColunas(conn: mysql.Connection) {
     try {
       await conn.execute(`ALTER TABLE Municipio ADD COLUMN ${col}`)
     } catch (e: any) {
-      // 1060 = coluna já existe — ignorar
+      // 1060 = coluna já existe - ignorar
       if (e.errno !== 1060) console.warn('[config] ALTER COLUMN', nome, e.message)
     }
   }

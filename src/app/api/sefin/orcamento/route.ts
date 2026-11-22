@@ -1,6 +1,6 @@
 /**
- * GET /api/sefin/orcamento   — resumo orçamentário do exercício
- * POST /api/sefin/orcamento  — cria LOA / dotação
+ * GET /api/sefin/orcamento   - resumo orçamentário do exercício
+ * POST /api/sefin/orcamento  - cria LOA / dotação
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

@@ -168,7 +168,7 @@ export default function AtendimentosPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Assistência Social — Atendimentos</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Assistência Social - Atendimentos</h1>
           <p className="text-sm text-gray-500 mt-0.5">Agenda CRAS/CREAS · SUAS · Lei 12.435/2011</p>
         </div>
       </div>

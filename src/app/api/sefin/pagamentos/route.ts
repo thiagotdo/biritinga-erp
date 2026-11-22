@@ -1,6 +1,6 @@
 /**
- * GET  /api/sefin/pagamentos   — lista pagamentos
- * POST /api/sefin/pagamentos   — registra pagamento
+ * GET  /api/sefin/pagamentos   - lista pagamentos
+ * POST /api/sefin/pagamentos   - registra pagamento
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

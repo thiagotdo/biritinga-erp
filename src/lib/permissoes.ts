@@ -40,7 +40,7 @@ export const PERMISSOES_SISTEMA = {
     ],
   },
   semad: {
-    label: 'SEMAD — Administração',
+    label: 'SEMAD - Administração',
     permissoes: [
       { id: 'semad:*',              label: 'Acesso total SEMAD' },
       { id: 'semad:contrato:read',  label: 'Visualizar contratos' },
@@ -53,7 +53,7 @@ export const PERMISSOES_SISTEMA = {
     ],
   },
   sefin: {
-    label: 'SEFIN — Finanças',
+    label: 'SEFIN - Finanças',
     permissoes: [
       { id: 'sefin:*',               label: 'Acesso total SEFIN' },
       { id: 'sefin:orcamento:read',  label: 'Visualizar orçamento' },
@@ -65,7 +65,7 @@ export const PERMISSOES_SISTEMA = {
     ],
   },
   semob: {
-    label: 'SEMOB — Obras',
+    label: 'SEMOB - Obras',
     permissoes: [
       { id: 'semob:*',           label: 'Acesso total SEMOB' },
       { id: 'semob:obra:read',   label: 'Visualizar obras' },

@@ -237,7 +237,7 @@ export default function ServidoresPage() {
                 <div>
                   <div className="text-gray-500 mb-1">Lotação Atual</div>
                   {(detalhe as any).lotacoes.filter((l: any) => l.ativo).map((l: any, i: number) => (
-                    <div key={i} className="text-sm font-medium text-gray-800">{l.secretaria}{l.setor ? ` / ${l.setor}` : ''}{l.funcao ? ` — ${l.funcao}` : ''}</div>
+                    <div key={i} className="text-sm font-medium text-gray-800">{l.secretaria}{l.setor ? ` / ${l.setor}` : ''}{l.funcao ? ` - ${l.funcao}` : ''}</div>
                   ))}
                 </div>
               )}

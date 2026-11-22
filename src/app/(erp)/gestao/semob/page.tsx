@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { HardHat, Car, TrafficCone, MapPin, Wrench, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-// ─── Painel SEMOB — Secretaria de Obras e Mobilidade Urbana ──────────────────
+// ─── Painel SEMOB - Secretaria de Obras e Mobilidade Urbana ──────────────────
 // Gestão de obras públicas, mobilidade, trânsito e pavimentação
 
 export default function SemobPage() {
@@ -69,7 +69,7 @@ export default function SemobPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Painel SEMOB</h1>
           <p className="text-gray-500 mt-1">
-            Secretaria de Obras e Mobilidade — obras públicas, pavimentação e trânsito urbano
+            Secretaria de Obras e Mobilidade - obras públicas, pavimentação e trânsito urbano
           </p>
         </div>
       </div>
@@ -118,11 +118,11 @@ export default function SemobPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-800 mb-3">Bases Legais</h2>
         <ul className="text-sm text-gray-600 space-y-1.5">
-          <li>• <strong>Lei 14.133/2021</strong> — Licitações e Contratos Administrativos</li>
-          <li>• <strong>Lei 9.503/97</strong> — Código de Trânsito Brasileiro (CTB)</li>
-          <li>• <strong>Res. CONTRAN 996/2023</strong> — Sinalização viária</li>
-          <li>• <strong>NBR 9050</strong> — Acessibilidade em obras públicas</li>
-          <li>• <strong>Lei 10.098/2000</strong> — Acessibilidade para pessoas com deficiência</li>
+          <li>• <strong>Lei 14.133/2021</strong> - Licitações e Contratos Administrativos</li>
+          <li>• <strong>Lei 9.503/97</strong> - Código de Trânsito Brasileiro (CTB)</li>
+          <li>• <strong>Res. CONTRAN 996/2023</strong> - Sinalização viária</li>
+          <li>• <strong>NBR 9050</strong> - Acessibilidade em obras públicas</li>
+          <li>• <strong>Lei 10.098/2000</strong> - Acessibilidade para pessoas com deficiência</li>
         </ul>
       </div>
     </div>

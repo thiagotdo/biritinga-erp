@@ -177,7 +177,7 @@ function FormDecisao({
             </div>
             {recurso.pedido && (
               <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                <ChevronRight size={11}/> Pedido: <span className="font-medium">{recurso.pedido.protocolo}</span> — {recurso.pedido.assunto}
+                <ChevronRight size={11}/> Pedido: <span className="font-medium">{recurso.pedido.protocolo}</span> - {recurso.pedido.assunto}
               </p>
             )}
           </div>
@@ -212,7 +212,7 @@ function FormDecisao({
             recurso.situacao === 'PROVIDO' ? 'border-green-200 bg-green-50' : 'border-red-100 bg-red-50'
           }`}>
             <p className="text-xs font-semibold mb-1 text-slate-600">
-              DECISÃO — {recurso.autoridade ?? ''} · {recurso.dataDecisao ? new Date(recurso.dataDecisao).toLocaleDateString('pt-BR') : ''}
+              DECISÃO - {recurso.autoridade ?? ''} · {recurso.dataDecisao ? new Date(recurso.dataDecisao).toLocaleDateString('pt-BR') : ''}
               {recurso.dentroDoPrazo === false && <span className="text-orange-600 ml-2">(Fora do prazo)</span>}
             </p>
             <p className="text-sm text-slate-700">{recurso.textoDecisao}</p>
@@ -392,8 +392,8 @@ export default function RecursosPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">e-SIC — Recursos e Estatísticas</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Art. 15 Lei 12.527/2011 — Recursos em 3 instâncias</p>
+          <h1 className="text-2xl font-bold text-slate-800">e-SIC - Recursos e Estatísticas</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Art. 15 Lei 12.527/2011 - Recursos em 3 instâncias</p>
         </div>
 
         {atrasados > 0 && (
@@ -470,12 +470,12 @@ export default function RecursosPage() {
                       </div>
                       {r.pedido && (
                         <p className="text-xs text-slate-400 mb-1 flex items-center gap-1">
-                          <ChevronRight size={10}/>{r.pedido.protocolo} — {r.pedido.assunto}
+                          <ChevronRight size={10}/>{r.pedido.protocolo} - {r.pedido.assunto}
                         </p>
                       )}
                       <p className="text-sm text-slate-700 leading-snug line-clamp-2">{r.motivoRecurso}</p>
                       <p className={`text-xs mt-1.5 ${atrasado ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
-                        {atrasado ? '⚠ Prazo expirado — ' : 'Prazo: '}
+                        {atrasado ? '⚠ Prazo expirado - ' : 'Prazo: '}
                         {new Date(r.dataLimiteDecisao).toLocaleDateString('pt-BR')}
                       </p>
                     </button>
@@ -512,7 +512,7 @@ export default function RecursosPage() {
             <div className="mt-5 bg-blue-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <BarChart2 size={16} className="text-blue-600"/>
-                <p className="text-sm font-semibold text-blue-800">Relatório Anual SIC — Art. 45 LAI</p>
+                <p className="text-sm font-semibold text-blue-800">Relatório Anual SIC - Art. 45 LAI</p>
               </div>
               <p className="text-xs text-blue-700">
                 O órgão deve publicar anualmente estatísticas do e-SIC: total de pedidos, respostas, indeferimentos,

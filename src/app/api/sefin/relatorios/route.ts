@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (tipo === 'transparencia') {
-    // Portal da Transparência — empenhos públicos com dados completos
+    // Portal da Transparência - empenhos públicos com dados completos
     const empenhos = await prisma.empenho.findMany({
       where: {
         municipioId: ctx.municipioId,

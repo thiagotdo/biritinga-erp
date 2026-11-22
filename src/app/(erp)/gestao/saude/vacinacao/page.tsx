@@ -74,7 +74,7 @@ function CarteiraVacinal({ carteira }: { carteira: CarteiraItem[] }) {
                 <span className="text-xs text-slate-400 italic">Não aplicada</span>
               ) : (
                 doses.map((d, i) => (
-                  <div key={d.id} title={`${d.dose} — ${new Date(d.dataAplicacao).toLocaleDateString('pt-BR')} — ${d.unidadeSaude}${d.lote ? ` — Lote ${d.lote}` : ''}`}>
+                  <div key={d.id} title={`${d.dose} - ${new Date(d.dataAplicacao).toLocaleDateString('pt-BR')} - ${d.unidadeSaude}${d.lote ? ` - Lote ${d.lote}` : ''}`}>
                     <ChipDose sit={d.situacao} />
                   </div>
                 ))
@@ -313,7 +313,7 @@ export default function VacinacaoPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Vacinação — PNI</h1>
+            <h1 className="text-2xl font-bold text-slate-800">Vacinação - PNI</h1>
             <p className="text-sm text-slate-500 mt-0.5">Carteira vacinal, aplicações e controle de estoque</p>
           </div>
           <button onClick={() => setModalAplicar(true)}
@@ -438,7 +438,7 @@ export default function VacinacaoPage() {
                 <div className="bg-white border border-slate-200 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-semibold text-slate-700">
-                      Carteira Vacinal — {carteira.filter(c => c.doses.length > 0).length}/{carteira.length} vacinas
+                      Carteira Vacinal - {carteira.filter(c => c.doses.length > 0).length}/{carteira.length} vacinas
                     </p>
                     <div className="text-xs text-slate-500">
                       ✓ Aplicada &nbsp; CI Contraindicada &nbsp; R Recusada

@@ -1,6 +1,6 @@
 /**
  * Adiciona colunas faltantes na tabela Escola (criada com schema antigo).
- * POST /api/setup/alter-escola  —  Authorization: Bearer <SETUP_SECRET>
+ * POST /api/setup/alter-escola  -  Authorization: Bearer <SETUP_SECRET>
  */
 import { NextRequest, NextResponse } from 'next/server'
 import mysql from 'mysql2/promise'

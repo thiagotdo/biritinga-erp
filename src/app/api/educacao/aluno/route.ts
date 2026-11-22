@@ -1,8 +1,8 @@
 /**
- * GET  /api/educacao/aluno         — lista alunos com busca
- * GET  /api/educacao/aluno?id=X    — detalhe com matrículas
- * POST /api/educacao/aluno         — cadastra aluno
- * PATCH /api/educacao/aluno        — atualiza aluno
+ * GET  /api/educacao/aluno         - lista alunos com busca
+ * GET  /api/educacao/aluno?id=X    - detalhe com matrículas
+ * POST /api/educacao/aluno         - cadastra aluno
+ * PATCH /api/educacao/aluno        - atualiza aluno
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

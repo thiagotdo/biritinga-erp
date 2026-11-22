@@ -13,7 +13,7 @@ const RELATORIOS = [
   },
   {
     id: 'lai',
-    titulo: 'Relatório LAI — Lei de Acesso à Informação',
+    titulo: 'Relatório LAI - Lei de Acesso à Informação',
     desc: 'Pedidos de informação recebidos, respondidos, prorrogados e indeferidos. Exigido pela CGU.',
     icon: '📋',
   },
@@ -58,7 +58,7 @@ export default function OuvidoriaRelatoriosPage() {
 <>
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatórios — Ouvidoria</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Relatórios - Ouvidoria</h1>
           <p className="text-sm text-gray-500 mt-1">Relatórios obrigatórios e gerenciais da Ouvidoria Municipal</p>
         </div>
 
@@ -121,7 +121,7 @@ export default function OuvidoriaRelatoriosPage() {
 
         {/* Aviso CGU */}
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 text-sm text-purple-800">
-          <p className="font-semibold mb-1">📌 Obrigação — Relatório LAI (Art. 30, Lei 12.527/2011)</p>
+          <p className="font-semibold mb-1">📌 Obrigação - Relatório LAI (Art. 30, Lei 12.527/2011)</p>
           <p>
             O Poder Executivo Municipal deve publicar relatório estatístico anual contendo o número
             de pedidos de acesso, decisões, recursos e reclamações referentes ao acesso à informação.

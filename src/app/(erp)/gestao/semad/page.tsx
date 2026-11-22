@@ -106,7 +106,7 @@ export default function SemadDashboard() {
       {/* Folha do Mês */}
       {kpis.folhaBruto > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Folha de Pagamento — Mês Atual</h2>
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Folha de Pagamento - Mês Atual</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <div className="text-xs text-gray-500">Total Bruto</div>

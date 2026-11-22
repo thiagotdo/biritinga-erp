@@ -12,7 +12,7 @@ function getDatabaseUrl() {
   if (!url) return url
   if (url.includes('ssl=') || url.includes('sslaccept=')) return url
   const sep = url.includes('?') ? '&' : '?'
-  // %7B = { e %7D = } — necessário para o Prisma parsear corretamente
+  // %7B = { e %7D = } - necessário para o Prisma parsear corretamente
   return `${url}${sep}ssl=%7B%22rejectUnauthorized%22%3Afalse%7D`
 }
 

@@ -7,7 +7,7 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── Patrimônio Municipal ─────────────────────────────────────────────────────
-// MCASP — Método Linear de Depreciação · Lei 4.320/64
+// MCASP - Método Linear de Depreciação · Lei 4.320/64
 
 async function gerarPlaqueta(municipioId: string): Promise<string> {
   const count = await db.BemPatrimonial.count({ where: { municipioId } })

@@ -91,7 +91,7 @@ export default function SaudeDashboardPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Secretaria de Saúde</h1>
-            <p className="text-sm text-gray-500">SEMSA — Gestão Municipal de Saúde</p>
+            <p className="text-sm text-gray-500">SEMSA - Gestão Municipal de Saúde</p>
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function SaudeDashboardPage() {
                     <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs text-gray-800">{k!.estoqueCritico} medicamentos com estoque crítico</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Farmácia — Estoque</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Farmácia - Estoque</p>
                     </div>
                   </div>
                 )}
@@ -244,7 +244,7 @@ export default function SaudeDashboardPage() {
         {/* Top unidades */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-800">Unidades — Mês</h2>
+            <h2 className="font-semibold text-gray-800">Unidades - Mês</h2>
             <Link href="/gestao/saude/unidades" className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1">
               Ver todas <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>

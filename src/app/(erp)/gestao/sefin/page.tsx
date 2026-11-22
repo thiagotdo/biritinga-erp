@@ -152,7 +152,7 @@ export default function SefinDashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>
-            SEFIN — Secretaria de Finanças
+            SEFIN - Secretaria de Finanças
           </h1>
           <p style={{ fontSize: 14, color: '#6b7280', margin: '4px 0 0' }}>
             Painel de execução orçamentária e financeira

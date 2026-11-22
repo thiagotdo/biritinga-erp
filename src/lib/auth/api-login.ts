@@ -58,7 +58,7 @@ export async function handleLogin(request: NextRequest) {
       }
     }
 
-    // Buscar usuário (db.ts não suporta include — usar $queryRaw para JOIN)
+    // Buscar usuário (db.ts não suporta include - usar $queryRaw para JOIN)
     const [usuario] = await prisma.$queryRaw`
       SELECT u.*, p.nome AS perfilCustomNome, p.permissoes AS perfilCustomPermissoes, p.id AS perfilCustomId
       FROM Usuario u

@@ -9,8 +9,8 @@ type AlunoRisco = {
 }
 
 function NivelBadge({ pct }: { pct: number }) {
-  if (pct < 50) return <span style={{ background: '#dc2626', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>CRÍTICO — ECA Art. 56</span>
-  if (pct < 75) return <span style={{ background: '#d97706', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>RISCO — LDB 75%</span>
+  if (pct < 50) return <span style={{ background: '#dc2626', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>CRÍTICO - ECA Art. 56</span>
+  if (pct < 75) return <span style={{ background: '#d97706', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>RISCO - LDB 75%</span>
   return null
 }
 
@@ -52,7 +52,7 @@ export default function ConselhTutelarPage() {
       body: JSON.stringify({
         alunoId: aluno.alunoId, alunoNome: aluno.nome,
         pctFreq: aluno.pctFreq, anoLetivo,
-        observacao: `Frequência ${aluno.pctFreq}% — ${aluno.faltas} faltas em ${aluno.totalAulas} aulas`,
+        observacao: `Frequência ${aluno.pctFreq}% - ${aluno.faltas} faltas em ${aluno.totalAulas} aulas`,
       }),
     })
     setEncaminhando(null)
@@ -66,7 +66,7 @@ export default function ConselhTutelarPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🛡️ Conselho Tutelar</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>ECA Art. 56 · LDB Art. 24 — Monitoramento de frequência escolar</p>
+          <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>ECA Art. 56 · LDB Art. 24 - Monitoramento de frequência escolar</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <select value={anoLetivo} onChange={e => setAnoLetivo(Number(e.target.value))}

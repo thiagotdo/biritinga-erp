@@ -1,5 +1,5 @@
 /**
- * RBAC — Role-Based Access Control
+ * RBAC - Role-Based Access Control
  * Verifica se o usuário tem permissão para uma ação.
  *
  * Lógica:
@@ -43,7 +43,7 @@ export function temPermissao(ctx: ContextoUsuario, permissao: string): boolean {
         return
       }
     } catch {
-      // não é JSON — trata como string única
+      // não é JSON - trata como string única
     }
     lista.add(src)
   }

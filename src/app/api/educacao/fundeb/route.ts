@@ -7,7 +7,7 @@ import { auditLog } from '@/lib/audit'
 export const runtime = 'nodejs'
 
 // ─── FUNDEB ───────────────────────────────────────────────────────────────────
-// EC 108/2020 — FUNDEB permanente · Mínimo 70% professores
+// EC 108/2020 - FUNDEB permanente · Mínimo 70% professores
 // Lei 14.113/2020 · Portaria Interministerial 06/2020
 
 export async function GET(req: NextRequest) {

@@ -1,9 +1,9 @@
 // @ts-nocheck
 // CRUD completo de usuários (apenas ADMIN_MUNICIPIO / SUPER_ADMIN)
-// GET    — listar com filtros
-// POST   — criar usuário
-// PATCH  — atualizar perfil/status/secretaria
-// DELETE — soft-delete (ativo=false)
+// GET    - listar com filtros
+// POST   - criar usuário
+// PATCH  - atualizar perfil/status/secretaria
+// DELETE - soft-delete (ativo=false)
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         usuario,
-        senhaTemporaria: senhaTemp,  // exibir uma vez — deve ser trocada no primeiro login
+        senhaTemporaria: senhaTemp,  // exibir uma vez - deve ser trocada no primeiro login
         aviso: 'Senha temporária gerada. O usuário deve trocar no primeiro acesso.',
       },
       { status: 201 }

@@ -469,7 +469,7 @@ export default function PatrimonioPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Patrimônio</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Tombamento, depreciação e inventário — MCASP 10.ª ed.</p>
+          <p className="text-slate-500 text-sm mt-0.5">Tombamento, depreciação e inventário - MCASP 10.ª ed.</p>
         </div>
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm">

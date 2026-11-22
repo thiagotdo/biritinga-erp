@@ -323,7 +323,7 @@ export default function FarmaciaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Farmácia Básica</h1>
-          <p className="text-sm text-gray-500 mt-0.5">RDC ANVISA 44/2009 — Dispensação de Medicamentos</p>
+          <p className="text-sm text-gray-500 mt-0.5">RDC ANVISA 44/2009 - Dispensação de Medicamentos</p>
         </div>
         <button onClick={() => setModal('cadastro')}
           className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">

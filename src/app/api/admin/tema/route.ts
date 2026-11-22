@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/tema — retorna configurações visuais do município
+ * GET /api/admin/tema - retorna configurações visuais do município
  * Rota pública (sem auth) pois é necessária antes do carregamento do shell.
  */
 import { NextResponse } from 'next/server'

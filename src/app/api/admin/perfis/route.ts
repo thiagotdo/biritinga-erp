@@ -1,8 +1,8 @@
 // CRUD de Perfis Customizados de Acesso
-// GET    — listar perfis do município
-// POST   — criar novo perfil com permissões
-// PATCH  — atualizar nome/descrição/permissões
-// DELETE — remover perfil (soft: ativo=false)
+// GET    - listar perfis do município
+// POST   - criar novo perfil com permissões
+// PATCH  - atualizar nome/descrição/permissões
+// DELETE - remover perfil (soft: ativo=false)
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'

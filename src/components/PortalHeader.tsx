@@ -23,7 +23,7 @@ export default function PortalHeader() {
         background: '#1B5E20', color: '#fff', fontSize: 11,
         padding: '4px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Landmark size={12} color="#fff" strokeWidth={1.5} /> Prefeitura Municipal de Biritinga — Estado da Bahia — CNPJ: 13.831.566/0001-10</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Landmark size={12} color="#fff" strokeWidth={1.5} /> Prefeitura Municipal de Biritinga - Estado da Bahia - CNPJ: 13.831.566/0001-10</span>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <a href="/acessibilidade" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Accessibility size={11} /> Acessibilidade</a>
           <a href="/mapa-do-site" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Map size={11} /> Mapa do Site</a>
@@ -61,7 +61,7 @@ export default function PortalHeader() {
             }}><Landmark size={22} color="#fff" strokeWidth={1.5} /></div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: '#1B5E20', lineHeight: 1.2 }}>Prefeitura Municipal</div>
-              <div style={{ fontSize: 12, color: '#888' }}>de Biritinga — Bahia</div>
+              <div style={{ fontSize: 12, color: '#888' }}>de Biritinga - Bahia</div>
             </div>
           </a>
 

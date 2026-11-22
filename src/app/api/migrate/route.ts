@@ -1,7 +1,7 @@
 /**
  * GET /api/migrate?secret=<SETUP_SECRET>
  * Cria (ou atualiza) todas as tabelas do ERP no MySQL.
- * Idempotente — usa CREATE TABLE IF NOT EXISTS.
+ * Idempotente - usa CREATE TABLE IF NOT EXISTS.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import mysql from 'mysql2/promise'
@@ -100,7 +100,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEFIN — Orçamento ────────────────────────────────────────────────────────
+  // ── SEFIN - Orçamento ────────────────────────────────────────────────────────
   {
     nome: 'Unidade',
     sql: `CREATE TABLE IF NOT EXISTS \`Unidade\` (
@@ -162,7 +162,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEFIN — Despesa ──────────────────────────────────────────────────────────
+  // ── SEFIN - Despesa ──────────────────────────────────────────────────────────
   {
     nome: 'Fornecedor',
     sql: `CREATE TABLE IF NOT EXISTS \`Fornecedor\` (
@@ -271,7 +271,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEFIN — Receita ──────────────────────────────────────────────────────────
+  // ── SEFIN - Receita ──────────────────────────────────────────────────────────
   {
     nome: 'ReceitaPrevista',
     sql: `CREATE TABLE IF NOT EXISTS \`ReceitaPrevista\` (
@@ -313,7 +313,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEFIN — PPA / LDO ────────────────────────────────────────────────────────
+  // ── SEFIN - PPA / LDO ────────────────────────────────────────────────────────
   {
     nome: 'PPA',
     sql: `CREATE TABLE IF NOT EXISTS \`PPA\` (
@@ -349,7 +349,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEDUC — Educação ─────────────────────────────────────────────────────────
+  // ── SEDUC - Educação ─────────────────────────────────────────────────────────
   {
     nome: 'Escola',
     sql: `CREATE TABLE IF NOT EXISTS \`Escola\` (
@@ -550,7 +550,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEMSA — Saúde ───────────────────────────────────────────────────────────
+  // ── SEMSA - Saúde ───────────────────────────────────────────────────────────
   {
     nome: 'UnidadeSaude',
     sql: `CREATE TABLE IF NOT EXISTS \`UnidadeSaude\` (
@@ -767,7 +767,7 @@ const DDL: Array<{ nome: string; sql: string }> = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   },
 
-  // ── SEMAD — RH / Administração ──────────────────────────────────────────────
+  // ── SEMAD - RH / Administração ──────────────────────────────────────────────
   {
     nome: 'Cargo',
     sql: `CREATE TABLE IF NOT EXISTS \`Cargo\` (
@@ -1207,7 +1207,7 @@ const COLS_EXTRA = [
   "ALTER TABLE `Municipio` ADD COLUMN favicon       VARCHAR(500) NULL",
   "ALTER TABLE `Municipio` ADD COLUMN corSecundaria CHAR(7)      NULL",
   "ALTER TABLE `Municipio` ADD COLUMN corAcento     CHAR(7)      NULL",
-  // Fornecedor — tabela antiga pode ter 'razaoSocial' em vez de 'nome'
+  // Fornecedor - tabela antiga pode ter 'razaoSocial' em vez de 'nome'
   "ALTER TABLE `Fornecedor` ADD COLUMN nome        VARCHAR(300) NULL",
   "ALTER TABLE `Fornecedor` ADD COLUMN tipo        ENUM('PJ','PF') NOT NULL DEFAULT 'PJ'",
   "ALTER TABLE `Fornecedor` ADD COLUMN cpfCnpj     VARCHAR(18) NULL",
@@ -1250,7 +1250,7 @@ export async function GET(req: NextRequest) {
         await conn.execute(sql)
       } catch (e: any) {
         if (e.errno !== 1060) console.warn('[migrate] col extra:', e.message)
-        // 1060 = Duplicate column name — esperado, ignorar
+        // 1060 = Duplicate column name - esperado, ignorar
       }
     }
 

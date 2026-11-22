@@ -90,7 +90,7 @@ export default function InventarioPage() {
     })
     const d = await r.json()
     if (!r.ok) { setMsg(d.erro ?? 'Erro'); return }
-    setMsg(`Inventário ${formInv.ano} criado — ${d.totalItens} bens incluídos`)
+    setMsg(`Inventário ${formInv.ano} criado - ${d.totalItens} bens incluídos`)
     setModalNovoInv(false)
     carregarInventarios()
     abrirInventario(d.inventario)
@@ -179,7 +179,7 @@ export default function InventarioPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Inventário Patrimonial</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Decreto 93.872/1986 — inventário anual obrigatório</p>
+            <p className="text-sm text-gray-500 mt-0.5">Decreto 93.872/1986 - inventário anual obrigatório</p>
           </div>
           <button onClick={() => setModalNovoInv(true)}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">
@@ -369,7 +369,7 @@ export default function InventarioPage() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
             <div className="p-5 border-b">
               <h2 className="font-bold text-gray-800">Novo Inventário Patrimonial</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Decreto 93.872/1986 — 1 inventário por ano</p>
+              <p className="text-xs text-gray-400 mt-0.5">Decreto 93.872/1986 - 1 inventário por ano</p>
             </div>
             <div className="p-5 space-y-3">
               <div>

@@ -224,7 +224,7 @@ function PainelProcesso({ processo, onAtualizar }: { processo: any; onAtualizar:
 
   async function avancar(acao: string) {
     if (acao === '_CONTRATO') {
-      // Abrir tela de contratos — apenas navegar
+      // Abrir tela de contratos - apenas navegar
       return
     }
     setLoading(true)
@@ -398,7 +398,7 @@ export default function ProcessosPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Gavel size={24} className="text-blue-600" /> Processos Licitatórios
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Lei 14.133/2021 — Nova Lei de Licitações e Contratos</p>
+          <p className="text-sm text-gray-500 mt-0.5">Lei 14.133/2021 - Nova Lei de Licitações e Contratos</p>
         </div>
         <button onClick={() => setModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">

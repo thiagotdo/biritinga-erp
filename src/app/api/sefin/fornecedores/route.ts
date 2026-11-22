@@ -1,6 +1,6 @@
 /**
- * GET  /api/sefin/fornecedores  — lista com busca
- * POST /api/sefin/fornecedores  — cria fornecedor
+ * GET  /api/sefin/fornecedores  - lista com busca
+ * POST /api/sefin/fornecedores  - cria fornecedor
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'

@@ -6,7 +6,7 @@ import { obterUsuario } from '@/lib/auth'
 export const runtime = 'nodejs'
 
 // ─── Censo Escolar ────────────────────────────────────────────────────────────
-// INEP/MEC — EducaCenso · Portaria MEC 264/2007
+// INEP/MEC - EducaCenso · Portaria MEC 264/2007
 // Coleta: matrícula inicial (fev), rematrícula (jul), resultado final (dez)
 
 export async function GET(req: NextRequest) {

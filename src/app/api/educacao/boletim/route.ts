@@ -6,7 +6,7 @@ import { obterUsuario } from '@/lib/auth'
 export const runtime = 'nodejs'
 
 // ─── Boletim Online ───────────────────────────────────────────────────────────
-// LDB 9.394/96 Art. 24 — avaliação contínua e cumulativa
+// LDB 9.394/96 Art. 24 - avaliação contínua e cumulativa
 
 export async function GET(req: NextRequest) {
   const usuario = await obterUsuario(req)
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (alunoId) {
-      // Boletim individual — notas por disciplina + frequência
+      // Boletim individual - notas por disciplina + frequência
       const matricula = await db.$queryRaw`
         SELECT m.id, m.situacao, m.numeroChamada,
                t.nome AS turmaNome, t.serie, t.turno, t.anoLetivo,
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       const totalAulas = Number(f.totalAulas ?? 0)
       const presencas  = Number(f.presencas  ?? 0)
       const pctFreq    = totalAulas > 0 ? Math.round((presencas / totalAulas) * 100 * 10) / 10 : 0
-      const aprovado   = pctFreq >= 75  // LDB Art. 24 — mínimo 75%
+      const aprovado   = pctFreq >= 75  // LDB Art. 24 - mínimo 75%
 
       // Agrupar notas por disciplina
       const disciplinas: Record<string, any> = {}
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Boletim da turma — lista de alunos com médias
+    // Boletim da turma - lista de alunos com médias
     const alunos = await db.$queryRaw`
       SELECT m.id AS matriculaId, m.numeroChamada, m.situacao,
              a.id AS alunoId, a.nome,
