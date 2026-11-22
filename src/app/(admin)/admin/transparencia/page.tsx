@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import AdminShell from '@/components/AdminShell'
 import Link from 'next/link'
 import { BarChart2, FileText, DollarSign, TrendingUp, Eye, AlertTriangle } from 'lucide-react'
 
@@ -70,7 +69,7 @@ export default function TransparenciaAdminPage() {
   }, [])
 
   return (
-    <AdminShell>
+<>
       <div className="p-6 space-y-6">
         {/* Cabeçalho */}
         <div>
@@ -175,6 +174,6 @@ export default function TransparenciaAdminPage() {
           </>
         )}
       </div>
-    </AdminShell>
+</>
   )
 }

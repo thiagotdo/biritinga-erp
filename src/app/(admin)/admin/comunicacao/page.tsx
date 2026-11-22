@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import AdminShell from '@/components/AdminShell'
 
 type Stats = {
   totalNoticias: number; publicadas: number; rascunhos: number; emRevisao: number
@@ -36,7 +35,7 @@ export default function ComunicacaoDashboard() {
   ] : []
 
   return (
-    <AdminShell>
+<>
       <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         {/* Cabeçalho */}
         <div style={{ marginBottom: 28 }}>
@@ -135,6 +134,6 @@ export default function ComunicacaoDashboard() {
           </>
         )}
       </div>
-    </AdminShell>
+</>
   )
 }

@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import AdminShell from '@/components/AdminShell'
 import { BarChart2, Download, FileText } from 'lucide-react'
 
 // ─── Relatórios da Ouvidoria ──────────────────────────────────────────────────
@@ -56,7 +55,7 @@ export default function OuvidoriaRelatoriosPage() {
   }
 
   return (
-    <AdminShell>
+<>
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Relatórios — Ouvidoria</h1>
@@ -130,6 +129,6 @@ export default function OuvidoriaRelatoriosPage() {
           </p>
         </div>
       </div>
-    </AdminShell>
+</>
   )
 }

@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import AdminShell from '@/components/AdminShell'
 import { Clock, AlertTriangle, CheckCircle } from 'lucide-react'
 
 // ─── Demandas da Ouvidoria (Admin) ────────────────────────────────────────────
@@ -61,7 +60,7 @@ export default function OuvidoriaDemandasPage() {
   const fmtData = (d: string) => new Date(d).toLocaleDateString('pt-BR')
 
   return (
-    <AdminShell>
+<>
       <div className="p-6 space-y-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Demandas — Ouvidoria</h1>
@@ -155,6 +154,6 @@ export default function OuvidoriaDemandasPage() {
           </div>
         )}
       </div>
-    </AdminShell>
+</>
   )
 }

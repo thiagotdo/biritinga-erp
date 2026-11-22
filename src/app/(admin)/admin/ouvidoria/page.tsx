@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import AdminShell from '@/components/AdminShell'
 import Link from 'next/link'
 import { Inbox, Clock, CheckCircle, AlertTriangle, TrendingUp, BarChart2 } from 'lucide-react'
 
@@ -42,7 +41,7 @@ export default function OuvidoriaAdminPage() {
   ] : []
 
   return (
-    <AdminShell>
+<>
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -133,6 +132,6 @@ export default function OuvidoriaAdminPage() {
           </>
         )}
       </div>
-    </AdminShell>
+</>
   )
 }

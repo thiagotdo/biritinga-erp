@@ -1,9 +1,51 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import {
   Palette, Building2, Image, Globe, Save, RefreshCw,
   CheckCircle, AlertCircle, Landmark, Upload, Eye, Trash2, Settings,
+  X, ZoomIn,
 } from 'lucide-react'
+
+// ─── Redimensionamento via Canvas (client-side) ───────────────────────────────
+async function redimensionarImagem(
+  file: File,
+  maxW: number,
+  maxH: number,
+  qualidade = 0.88,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement('img')
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width: w, height: h } = img
+      // Manter proporção dentro de maxW x maxH
+      const ratio = Math.min(maxW / w, maxH / h, 1) // nunca amplia
+      w = Math.round(w * ratio)
+      h = Math.round(h * ratio)
+
+      const canvas = document.createElement('canvas')
+      canvas.width  = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, w, h)
+      canvas.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error('Falha ao converter imagem')),
+        file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+        qualidade,
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Falha ao carregar imagem')) }
+    img.src = url
+  })
+}
+
+// Configurações por slot
+const SLOTS = {
+  logoUrl:   { label: 'Logo',    maxW: 400, maxH: 160, q: 0.88, formato: 'PNG/JPG até 400×160px', aspect: '5:2',  bg: '#F9FAFB' },
+  brasaoUrl: { label: 'Brasão',  maxW: 300, maxH: 300, q: 0.90, formato: 'PNG/JPG até 300×300px', aspect: '1:1',  bg: '#F9FAFB' },
+  favicon:   { label: 'Favicon', maxW: 64,  maxH: 64,  q: 0.90, formato: 'PNG/ICO 64×64px',       aspect: '1:1',  bg: '#F9FAFB' },
+}
 
 type Config = {
   id?:           string
@@ -42,8 +84,59 @@ export default function ConfiguracoesPage() {
   const [salvando, setSalvando] = useState(false)
   const [status, setStatus]   = useState<{ tipo: 'ok'|'erro'; msg: string } | null>(null)
   const [carregando, setCarregando] = useState(true)
-  const logoRef   = useRef<HTMLInputElement>(null)
-  const brasaoRef = useRef<HTMLInputElement>(null)
+  const [uploadStatus, setUploadStatus] = useState<Record<string, 'idle'|'loading'|'ok'|'erro'>>({})
+  const [uploadMsg, setUploadMsg] = useState<Record<string, string>>({})
+  const [drag, setDrag]       = useState<Record<string, boolean>>({})
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  async function fazerUpload(key: string, file: File) {
+    const slot = SLOTS[key as keyof typeof SLOTS]
+    if (!slot) return
+
+    setUploadStatus(s => ({ ...s, [key]: 'loading' }))
+    setUploadMsg(s => ({ ...s, [key]: 'Redimensionando…' }))
+
+    try {
+      // Redimensionar no browser antes de enviar
+      let blob: Blob
+      if (file.type === 'image/svg+xml' || file.type === 'image/x-icon') {
+        blob = file
+      } else {
+        blob = await redimensionarImagem(file, slot.maxW, slot.maxH, slot.q)
+      }
+
+      setUploadMsg(s => ({ ...s, [key]: 'Enviando…' }))
+      const form = new FormData()
+      form.append('file', blob, file.name)
+      form.append('tipo', key.replace('Url', '').replace('Url', ''))
+
+      const r = await fetch('/api/admin/upload', { method: 'POST', body: form })
+      const d = await r.json()
+
+      if (!r.ok) throw new Error(d.erro ?? 'Erro no upload')
+
+      setRascunho(prev => ({ ...prev, [key]: d.url }))
+      setUploadStatus(s => ({ ...s, [key]: 'ok' }))
+      setUploadMsg(s => ({ ...s, [key]: `✓ Redimensionado para ${slot.maxW}×${slot.maxH}px` }))
+      setTimeout(() => setUploadStatus(s => ({ ...s, [key]: 'idle' })), 3000)
+    } catch (e: any) {
+      setUploadStatus(s => ({ ...s, [key]: 'erro' }))
+      setUploadMsg(s => ({ ...s, [key]: e.message }))
+    }
+  }
+
+  function onDropFile(key: string, e: React.DragEvent) {
+    e.preventDefault()
+    setDrag(d => ({ ...d, [key]: false }))
+    const file = e.dataTransfer.files[0]
+    if (file) fazerUpload(key, file)
+  }
+
+  function onSelectFile(key: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) fazerUpload(key, file)
+    e.target.value = '' // reset para permitir re-upload do mesmo arquivo
+  }
 
   useEffect(() => {
     fetch('/api/admin/configuracoes')
@@ -324,57 +417,119 @@ export default function ConfiguracoesPage() {
       {/* ── Aba Imagens ────────────────────────────────────────────────────── */}
       {aba === 'imagens' && (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
-          {[
-            { key:'logoUrl',   label:'Logo',   desc:'Exibido no portal público e emails. Recomendado: PNG 200×80px.' },
-            { key:'brasaoUrl', label:'Brasão', desc:'Exibido na sidebar do painel. Recomendado: PNG 200×200px quadrado.' },
-            { key:'favicon',   label:'Favicon', desc:'Ícone da aba do navegador. Recomendado: ICO ou PNG 32×32px.' },
-          ].map(({ key, label, desc }) => {
-            const url = (rascunho as any)[key] as string | undefined
-            return (
-              <div key={key} style={{ gridColumn: key === 'favicon' ? '1 / -1' : undefined, maxWidth: key === 'favicon' ? 360 : undefined }}>
-                <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#424242', marginBottom:4 }}>
-                  {label}
-                </label>
-                <p style={{ margin:'0 0 12px', fontSize:12, color:'#9E9E9E' }}>{desc}</p>
+          {(Object.entries(SLOTS) as [string, typeof SLOTS[keyof typeof SLOTS]][]).map(([key, slot]) => {
+            const url      = (rascunho as any)[key] as string | undefined
+            const st       = uploadStatus[key] ?? 'idle'
+            const msg      = uploadMsg[key] ?? ''
+            const isDrag   = drag[key] ?? false
+            const isSquare = slot.aspect === '1:1'
 
-                {/* Preview */}
-                <div style={{
-                  width:'100%', height: key === 'brasaoUrl' ? 140 : 80,
-                  border:'2px dashed #E0E0E0', borderRadius:10,
-                  background:'#FAFAFA', display:'flex', alignItems:'center', justifyContent:'center',
-                  marginBottom:10, overflow:'hidden',
-                }}>
-                  {url
-                    ? <img src={url} alt={label} style={{ maxWidth:'90%', maxHeight:'90%', objectFit:'contain' }} />
-                    : <div style={{ textAlign:'center', color:'#BDBDBD' }}>
-                        <Image size={28} strokeWidth={1} style={{ display:'block', margin:'0 auto 6px' }} />
-                        <div style={{ fontSize:11 }}>Sem imagem</div>
-                      </div>
-                  }
+            return (
+              <div key={key} style={{ gridColumn: key === 'favicon' ? '1 / -1' : undefined, maxWidth: key === 'favicon' ? 380 : undefined }}>
+                {/* Título */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                  <label style={{ fontSize:13, fontWeight:700, color:'#424242' }}>{slot.label}</label>
+                  <span style={{ fontSize:11, color:'#BDBDBD', background:'#F5F5F5', padding:'2px 8px', borderRadius:20 }}>
+                    {slot.formato}
+                  </span>
                 </div>
 
-                {/* URL input */}
-                <div style={{ display:'flex', gap:8 }}>
+                {/* Área de drag-and-drop */}
+                <div
+                  onDragOver={e => { e.preventDefault(); setDrag(d => ({ ...d, [key]: true })) }}
+                  onDragLeave={() => setDrag(d => ({ ...d, [key]: false }))}
+                  onDrop={e => onDropFile(key, e)}
+                  onClick={() => fileRefs.current[key]?.click()}
+                  style={{
+                    width:'100%', height: isSquare ? 160 : 100,
+                    border:`2px dashed ${isDrag ? 'var(--cor-primaria)' : '#E0E0E0'}`,
+                    borderRadius:12,
+                    background: isDrag ? 'var(--cor-primaria-light)' : slot.bg,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    marginBottom:10, overflow:'hidden',
+                    cursor:'pointer', transition:'all 0.18s', position:'relative',
+                  }}
+                >
+                  {st === 'loading' ? (
+                    <div style={{ textAlign:'center', color:'var(--cor-primaria)' }}>
+                      <RefreshCw size={24} style={{ animation:'spin 0.7s linear infinite', display:'block', margin:'0 auto 6px' }} />
+                      <div style={{ fontSize:12 }}>{msg}</div>
+                    </div>
+                  ) : url ? (
+                    <>
+                      <img src={url} alt={slot.label}
+                        style={{ maxWidth:'92%', maxHeight:'92%', objectFit:'contain', borderRadius:4 }} />
+                      {/* Overlay ao hover */}
+                      <div style={{
+                        position:'absolute', inset:0, background:'rgba(0,0,0,0.45)',
+                        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6,
+                        opacity:0, transition:'opacity 0.18s', borderRadius:10,
+                      }}
+                        onMouseOver={e => (e.currentTarget.style.opacity = '1')}
+                        onMouseOut={e => (e.currentTarget.style.opacity = '0')}
+                      >
+                        <Upload size={22} color='#fff' strokeWidth={1.5} />
+                        <span style={{ color:'#fff', fontSize:12, fontWeight:600 }}>Trocar imagem</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ textAlign:'center', color: isDrag ? 'var(--cor-primaria)' : '#BDBDBD', userSelect:'none' }}>
+                      <Upload size={28} strokeWidth={1} style={{ display:'block', margin:'0 auto 8px' }} />
+                      <div style={{ fontSize:12, fontWeight:600 }}>
+                        {isDrag ? 'Solte para fazer upload' : 'Clique ou arraste a imagem'}
+                      </div>
+                      <div style={{ fontSize:11, marginTop:3 }}>{slot.formato}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input oculto */}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon"
+                  style={{ display:'none' }}
+                  ref={el => { fileRefs.current[key] = el }}
+                  onChange={e => onSelectFile(key, e)}
+                />
+
+                {/* Status de upload */}
+                {st === 'ok' && (
+                  <div style={{ fontSize:12, color:'#2E7D32', display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
+                    <CheckCircle size={13} strokeWidth={2} /> {msg}
+                  </div>
+                )}
+                {st === 'erro' && (
+                  <div style={{ fontSize:12, color:'#C62828', display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
+                    <AlertCircle size={13} strokeWidth={2} /> {msg}
+                  </div>
+                )}
+
+                {/* URL manual + remover */}
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                   <input
-                    value={url ?? ''}
-                    onChange={e => atualizar(key as keyof Config, e.target.value)}
-                    placeholder={`https://.../${key === 'logoUrl' ? 'logo.png' : key === 'brasaoUrl' ? 'brasao.png' : 'favicon.ico'}`}
+                    value={url?.startsWith('data:') ? '(imagem enviada)' : (url ?? '')}
+                    readOnly={url?.startsWith('data:')}
+                    onChange={e => !url?.startsWith('data:') && atualizar(key as keyof Config, e.target.value)}
+                    placeholder="Ou cole uma URL pública…"
                     style={{
-                      flex:1, padding:'8px 12px', border:'1.5px solid #E0E0E0', borderRadius:7,
-                      fontSize:12, background:'#FAFAFA', outline:'none',
+                      flex:1, padding:'7px 11px', border:'1.5px solid #E0E0E0', borderRadius:7,
+                      fontSize:12, background: url?.startsWith('data:') ? '#F5F5F5' : '#FAFAFA',
+                      outline:'none', color: url?.startsWith('data:') ? '#9E9E9E' : '#1A1A1A',
                     }}
-                    onFocus={e => (e.target.style.borderColor = 'var(--cor-primaria)')}
+                    onFocus={e => { if (!url?.startsWith('data:')) e.target.style.borderColor = 'var(--cor-primaria)' }}
                     onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
                   />
                   {url && (
-                    <button onClick={() => atualizar(key as keyof Config, '')}
-                      style={{ padding:'8px 10px', background:'#FFEBEE', border:'1px solid #FFCDD2', borderRadius:7, cursor:'pointer', display:'flex', alignItems:'center' }}>
+                    <button
+                      onClick={() => { atualizar(key as keyof Config, ''); setUploadStatus(s => ({ ...s, [key]: 'idle' })); setUploadMsg(s => ({ ...s, [key]: '' })) }}
+                      title="Remover imagem"
+                      style={{ padding:'7px 10px', background:'#FFEBEE', border:'1px solid #FFCDD2', borderRadius:7, cursor:'pointer', display:'flex', alignItems:'center' }}>
                       <Trash2 size={14} color='#C62828' strokeWidth={1.5} />
                     </button>
                   )}
                 </div>
-                <p style={{ margin:'6px 0 0', fontSize:11, color:'#BDBDBD' }}>
-                  Cole a URL pública da imagem. Para fazer upload, use o gerenciador de arquivos do cPanel e copie o link.
+                <p style={{ margin:'5px 0 0', fontSize:11, color:'#BDBDBD' }}>
+                  A imagem é redimensionada automaticamente para {slot.maxW}×{slot.maxH}px antes de ser salva.
                 </p>
               </div>
             )
