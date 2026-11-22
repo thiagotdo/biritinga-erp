@@ -23,6 +23,7 @@ const ROTAS_PUBLICAS = [
   '/api/admin/tema',    // Tema público (CSS vars, sem auth)
   '/api/cidadao',       // Portal do Cidadão
   '/cidadao',
+  '/api/portal',        // APIs públicas para o portal público (biritinga.ba.gov.br)
   '/_next',
   '/favicon',
   '/logo',
