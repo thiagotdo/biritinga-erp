@@ -70,10 +70,11 @@ const NAV_ADMIN = [
     { href: '/admin/perfis',         label: 'Perfis de Acesso', Icon: ShieldCheck     },
     { href: '/admin/configuracoes',  label: 'Configurações',    Icon: Settings        },
   ]},
-  { grupo: 'Módulos', items: [
-    { href: '/admin/comunicacao',    label: 'Comunicação',      Icon: Megaphone       },
-    { href: '/admin/ouvidoria',      label: 'Ouvidoria',        Icon: Inbox           },
-    { href: '/admin/transparencia',  label: 'Transparência',    Icon: BarChart2       },
+  { grupo: 'Portal Público', items: [
+    { href: '/admin/portal',         label: 'Portal — Visão Geral', Icon: Globe       },
+    { href: '/admin/comunicacao',    label: 'Comunicação',          Icon: Megaphone   },
+    { href: '/admin/ouvidoria',      label: 'Ouvidoria',            Icon: Inbox       },
+    { href: '/admin/transparencia',  label: 'Transparência',        Icon: BarChart2   },
   ]},
   { grupo: 'Secretarias', items: [
     { href: '/gestao/sefin',        label: 'Sec. de Finanças - SEFIN',            Icon: Wallet          },
