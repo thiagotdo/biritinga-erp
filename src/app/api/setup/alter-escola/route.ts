@@ -27,34 +27,40 @@ export async function POST(req: NextRequest) {
   })
 
   // Colunas a garantir na tabela Escola
-  const alterations = [
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `salas` INT NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `capacidadeTotal` INT NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `zona` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `inep` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `telefone` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `email` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `diretor` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `secretario` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `cep` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `logradouro` VARCHAR(191) NULL",
-    "ALTER TABLE `Escola` ADD COLUMN IF NOT EXISTS `bairro` VARCHAR(191) NULL",
+  const columns: Array<{ name: string; definition: string }> = [
+    { name: 'salas',          definition: 'INT NULL' },
+    { name: 'capacidadeTotal',definition: 'INT NULL' },
+    { name: 'zona',           definition: 'VARCHAR(191) NULL' },
+    { name: 'inep',           definition: 'VARCHAR(191) NULL' },
+    { name: 'telefone',       definition: 'VARCHAR(191) NULL' },
+    { name: 'email',          definition: 'VARCHAR(191) NULL' },
+    { name: 'diretor',        definition: 'VARCHAR(191) NULL' },
+    { name: 'secretario',     definition: 'VARCHAR(191) NULL' },
+    { name: 'cep',            definition: 'VARCHAR(191) NULL' },
+    { name: 'logradouro',     definition: 'VARCHAR(191) NULL' },
+    { name: 'bairro',         definition: 'VARCHAR(191) NULL' },
   ]
 
+  const dbName = parseDbUrl(process.env.DATABASE_URL ?? '').database
   const results: string[] = []
 
   try {
-    for (const sql of alterations) {
+    for (const col of columns) {
+      // Check if column exists via INFORMATION_SCHEMA
+      const [rows]: any = await conn.execute(
+        `SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'Escola' AND COLUMN_NAME = ?`,
+        [dbName, col.name]
+      )
+      if (rows[0].cnt > 0) {
+        results.push(`SKIP (já existe): ${col.name}`)
+        continue
+      }
       try {
-        await conn.execute(sql)
-        results.push(`OK: ${sql.slice(0, 60)}`)
+        await conn.execute(`ALTER TABLE \`Escola\` ADD COLUMN \`${col.name}\` ${col.definition}`)
+        results.push(`OK: adicionado ${col.name}`)
       } catch (e: any) {
-        // ER_DUP_FIELDNAME = coluna já existe (normal)
-        if (e.code === 'ER_DUP_FIELDNAME') {
-          results.push(`SKIP (já existe): ${sql.slice(40, 80)}`)
-        } else {
-          results.push(`ERR ${e.code}: ${e.message.slice(0, 100)}`)
-        }
+        results.push(`ERR ${e.code}: ${e.message.slice(0, 100)}`)
       }
     }
 
