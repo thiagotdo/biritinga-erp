@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Landmark, Map, Accessibility, Search } from 'lucide-react'
 
 /**
  * Header do Portal Público com link "Acesso Restrito" para o painel admin.
@@ -22,10 +23,10 @@ export default function PortalHeader() {
         background: '#1B5E20', color: '#fff', fontSize: 11,
         padding: '4px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span>🏛️ Prefeitura Municipal de Biritinga — Estado da Bahia — CNPJ: 13.831.566/0001-10</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Landmark size={12} color="#fff" strokeWidth={1.5} /> Prefeitura Municipal de Biritinga — Estado da Bahia — CNPJ: 13.831.566/0001-10</span>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <a href="/acessibilidade" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 11 }}>♿ Acessibilidade</a>
-          <a href="/mapa-do-site" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 11 }}>🗺️ Mapa do Site</a>
+          <a href="/acessibilidade" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Accessibility size={11} /> Acessibilidade</a>
+          <a href="/mapa-do-site" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Map size={11} /> Mapa do Site</a>
           {/* ════ LINK ACESSO RESTRITO ════ */}
           <a href="/login"
             style={{
@@ -56,8 +57,8 @@ export default function PortalHeader() {
           <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
             <div style={{
               width: 44, height: 44, background: '#1B5E20', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
-            }}>🏛️</div>
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}><Landmark size={22} color="#fff" strokeWidth={1.5} /></div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: '#1B5E20', lineHeight: 1.2 }}>Prefeitura Municipal</div>
               <div style={{ fontSize: 12, color: '#888' }}>de Biritinga — Bahia</div>
@@ -98,7 +99,7 @@ export default function PortalHeader() {
                 onFocus={e => (e.target.style.borderColor = '#2E7D32')}
                 onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
               />
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#999', fontSize: 14 }}>🔍</span>
+              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
             </div>
             <a href="/login"
               style={{

@@ -394,7 +394,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               </span>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-              <a href="/" target="_blank"
+              <a href={process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://biritinga.ba.gov.br'} target="_blank" rel="noopener noreferrer"
                 style={{ fontSize:12, color:'var(--cor-primaria)', textDecoration:'none', display:'flex', alignItems:'center', gap:5, fontWeight:500 }}>
                 <Globe size={13} strokeWidth={1.5} />
                 Ver Portal

@@ -123,7 +123,7 @@ export default function BoletimPage() {
                 <div style={{ marginTop: 16, background: freq.reprovadoFreq ? '#fef2f2' : freq.emRisco ? '#fffbeb' : '#f0fdf4', borderRadius: 10, padding: '12px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {freq.reprovadoFreq ? <AlertTriangle size={16} color="#dc2626" /> : <CheckCircle size={16} color="#16a34a" />}
+                      {freq.reprovadoFreq ? <AlertTriangle size={16} color="var(--cor-primaria)" /> : <CheckCircle size={16} color="var(--cor-primaria)" />}
                       Frequência
                     </div>
                     <div style={{ fontSize: 20, fontWeight: 800, color: freqCor }}>{freq.percentual}%</div>

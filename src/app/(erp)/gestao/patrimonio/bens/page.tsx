@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Building2, Car, Armchair, Monitor, Refrigerator, Wrench, Settings2, Palette, Beef, HardDrive, Package, Landmark, TrendingDown } from 'lucide-react'
 
 type Bem = {
   id: string; numeroPlaqueta: string; descricao: string; categoria: string
@@ -18,10 +19,14 @@ type MovRow = { id: string; tipo: string; dataMovimentacao: string; motivo: stri
 type KPIs  = { total: number; ativos: number; emManut: number; extraviados: number; baixados: number; alienados: number; valorAtual: number; valorAquisicao: number; depAcumulada: number }
 type DepPreview = { id: string; numeroPlaqueta: string; descricao: string; secretaria: string; valorAtual: number; depMensal: string; valorApos: string }
 
-const CAT_ICON: Record<string, string> = {
-  IMOVEL: '🏢', VEICULO: '🚗', MOVEL: '🪑', EQUIPAMENTO: '💻',
-  ELETRODOMESTICO: '❄️', FERRAMENTA: '🔧', MAQUINA: '⚙️',
-  OBRA_ARTE: '🎨', SEMOVENTE: '🐄', INTANGIVEL: '💾', OUTRO: '📦',
+const CAT_ICON: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>> = {
+  IMOVEL: Building2, VEICULO: Car, MOVEL: Armchair, EQUIPAMENTO: Monitor,
+  ELETRODOMESTICO: Refrigerator, FERRAMENTA: Wrench, MAQUINA: Settings2,
+  OBRA_ARTE: Palette, SEMOVENTE: Beef, INTANGIVEL: HardDrive, OUTRO: Package,
+}
+function CatIcon({ cat, size = 16 }: { cat: string; size?: number }) {
+  const Icon = CAT_ICON[cat] ?? Package
+  return <Icon size={size} strokeWidth={1.5} style={{ color: 'var(--cor-primaria)' }} />
 }
 const SIT_COR: Record<string, string> = {
   ATIVO:            'bg-green-100 text-green-700',
@@ -330,8 +335,8 @@ export default function BensPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={carregarDepPreview}
-              className="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-600 text-sm font-medium hover:bg-indigo-50">
-              📉 Depreciar
+              className="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-600 text-sm font-medium hover:bg-indigo-50 flex items-center gap-1.5">
+              <TrendingDown size={14} /> Depreciar
             </button>
             <button onClick={() => setModalBem(true)}
               className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">
@@ -444,7 +449,7 @@ export default function BensPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-base">{CAT_ICON[b.categoria] ?? '📦'}</span>
+                    <CatIcon cat={b.categoria} size={16} />
                     <span className="font-mono text-xs text-indigo-600">{b.numeroPlaqueta}</span>
                   </div>
                   <div className="font-semibold text-sm text-gray-900 leading-tight truncate">{b.descricao}</div>
@@ -475,7 +480,7 @@ export default function BensPage() {
           ))}
           {bens.length === 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
-              <div className="text-4xl mb-2">📦</div>
+              <Package size={40} style={{ color: 'var(--cor-primaria)', margin: '0 auto 8px' }} strokeWidth={1.5} />
               <div>Nenhum bem encontrado</div>
             </div>
           )}
@@ -485,7 +490,7 @@ export default function BensPage() {
         <div className="col-span-3">
           {!detalhe ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
-              <div className="text-5xl mb-3">🏛️</div>
+              <Landmark size={48} style={{ color: 'var(--cor-primaria)', margin: '0 auto 12px' }} strokeWidth={1.5} />
               <div>Selecione um bem para ver detalhes</div>
               {/* Mini gráfico por categoria */}
               {porCategoria.length > 0 && (
@@ -494,7 +499,7 @@ export default function BensPage() {
                   <div className="space-y-1.5">
                     {porCategoria.slice(0, 8).map((c: any) => (
                       <div key={c.categoria} className="flex items-center gap-2 text-xs">
-                        <span className="w-5">{CAT_ICON[c.categoria] ?? '📦'}</span>
+                        <span className="w-5 flex items-center justify-center"><CatIcon cat={c.categoria} size={14} /></span>
                         <span className="text-gray-600 w-28 truncate">{c.categoria.replace(/_/g, ' ')}</span>
                         <span className="font-medium text-gray-800 w-8 text-right">{c._count.id}</span>
                         <div className="flex-1 bg-gray-100 rounded-full h-1.5 ml-1">
@@ -513,7 +518,7 @@ export default function BensPage() {
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-3xl">{CAT_ICON[detalhe.categoria] ?? '📦'}</span>
+                      <CatIcon cat={detalhe.categoria} size={28} />
                       <div>
                         <div className="font-mono text-sm text-indigo-600">{detalhe.numeroPlaqueta}</div>
                         <h2 className="text-lg font-bold text-gray-900 leading-tight">{detalhe.descricao}</h2>

@@ -1,6 +1,7 @@
 'use client'
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { Landmark, ShieldCheck, Megaphone, Inbox, Building2, Eye, EyeOff, Lock, Loader } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -68,7 +69,7 @@ export default function LoginPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 48, marginBottom: 24, border: '3px solid rgba(249,168,37,0.6)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        }}>🏛️</div>
+        }}><Landmark size={48} color="#fff" strokeWidth={1.5} /></div>
 
         <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 800, textAlign: 'center', letterSpacing: '-0.5px' }}>
           Prefeitura Municipal
@@ -86,16 +87,16 @@ export default function LoginPage() {
         {/* Perfis disponíveis */}
         <div style={{ marginTop: 48, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%', maxWidth: 360 }}>
           {[
-            { emoji: '👑', label: 'Administrador', desc: 'Acesso total' },
-            { emoji: '📢', label: 'Comunicação', desc: 'Notícias e mídia' },
-            { emoji: '📬', label: 'Ouvidoria', desc: 'Demandas cidadãs' },
-            { emoji: '🏢', label: 'Secretaria', desc: 'Módulo da área' },
+            { Icon: ShieldCheck, label: 'Administrador', desc: 'Acesso total' },
+            { Icon: Megaphone, label: 'Comunicação', desc: 'Notícias e mídia' },
+            { Icon: Inbox, label: 'Ouvidoria', desc: 'Demandas cidadãs' },
+            { Icon: Building2, label: 'Secretaria', desc: 'Módulo da área' },
           ].map(p => (
             <div key={p.label} style={{
               background: 'rgba(255,255,255,0.1)', borderRadius: 10,
               padding: '10px 14px', border: '1px solid rgba(255,255,255,0.15)',
             }}>
-              <div style={{ fontSize: 20, marginBottom: 2 }}>{p.emoji}</div>
+              <div style={{ marginBottom: 2 }}><p.Icon size={20} color="#fff" strokeWidth={1.5} /></div>
               <div style={{ fontSize: 12, fontWeight: 700 }}>{p.label}</div>
               <div style={{ fontSize: 10, opacity: 0.7 }}>{p.desc}</div>
             </div>
@@ -158,7 +159,7 @@ export default function LoginPage() {
                     position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 18,
                   }}>
-                  {senhaVis ? '🙈' : '👁️'}
+                  {senhaVis ? <EyeOff size={18} strokeWidth={1.5} /> : <Eye size={18} strokeWidth={1.5} />}
                 </button>
               </div>
               <div style={{ textAlign: 'right', marginTop: 6 }}>
@@ -188,7 +189,10 @@ export default function LoginPage() {
                 boxShadow: carregando ? 'none' : '0 4px 16px rgba(27,94,32,0.3)',
                 transition: 'all 0.2s',
               }}>
-              {carregando ? '⏳ Autenticando...' : '🔐 Entrar no Sistema'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                {carregando ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Lock size={16} />}
+                {carregando ? 'Autenticando...' : 'Entrar no Sistema'}
+              </span>
             </button>
           </form>
 

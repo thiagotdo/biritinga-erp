@@ -1,5 +1,16 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Building2, Car, Armchair, Monitor, Refrigerator, Wrench, Settings2, Palette, Beef, HardDrive, Package, ClipboardList } from 'lucide-react'
+
+const CAT_ICON_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties }>> = {
+  IMOVEL: Building2, VEICULO: Car, MOVEL: Armchair, EQUIPAMENTO: Monitor,
+  ELETRODOMESTICO: Refrigerator, FERRAMENTA: Wrench, MAQUINA: Settings2,
+  OBRA_ARTE: Palette, SEMOVENTE: Beef, INTANGIVEL: HardDrive, OUTRO: Package,
+}
+function CatIcon({ cat, size = 16 }: { cat: string; size?: number }) {
+  const Icon = CAT_ICON_MAP[cat] ?? Package
+  return <Icon size={size} strokeWidth={1.5} style={{ color: 'var(--cor-primaria)' }} />
+}
 
 type Inventario = {
   id: string; ano: number; descricao?: string; situacao: string
@@ -22,11 +33,7 @@ const SIT_COR: Record<string, string> = {
   CANCELADO:    'bg-gray-100 text-gray-400',
 }
 
-const CAT_ICON: Record<string, string> = {
-  IMOVEL: '🏢', VEICULO: '🚗', MOVEL: '🪑', EQUIPAMENTO: '💻',
-  ELETRODOMESTICO: '❄️', FERRAMENTA: '🔧', MAQUINA: '⚙️',
-  OBRA_ARTE: '🎨', SEMOVENTE: '🐄', INTANGIVEL: '💾', OUTRO: '📦',
-}
+// CAT_ICON replaced by CatIcon component above
 
 function BarraProgresso({ conf, total }: { conf: number; total: number }) {
   const pct = total ? Math.round((conf / total) * 100) : 0
@@ -226,7 +233,7 @@ export default function InventarioPage() {
         <div className="col-span-3">
           {!inventarioAtivo ? (
             <div className="bg-white rounded-xl border border-gray-200 p-16 text-center text-gray-400">
-              <div className="text-6xl mb-4">📋</div>
+              <ClipboardList size={56} style={{ color: 'var(--cor-primaria)', margin: '0 auto 16px' }} strokeWidth={1.5} />
               <div className="text-lg">Selecione um inventário ou crie um novo</div>
               <div className="text-sm mt-2 text-gray-300">O inventário anual é obrigatório pelo Decreto 93.872/1986</div>
             </div>
@@ -315,7 +322,7 @@ export default function InventarioPage() {
                     {/* Info do bem */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span>{CAT_ICON[item.bem.categoria] ?? '📦'}</span>
+                        <CatIcon cat={item.bem.categoria} size={14} />
                         <span className="font-mono text-xs text-indigo-600">{item.bem.numeroPlaqueta}</span>
                         <span className="text-xs text-gray-400">{item.bem.estado}</span>
                       </div>

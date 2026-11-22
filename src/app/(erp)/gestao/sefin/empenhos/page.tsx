@@ -121,7 +121,7 @@ export default function EmpenhosList() {
           <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Carregando...</div>
         ) : empenhos.length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center' }}>
-            <FileText size={40} color="#d1d5db" />
+            <FileText size={40} color="var(--cor-primaria)" />
             <p style={{ color: '#9ca3af', marginTop: 12, fontSize: 14 }}>Nenhum empenho encontrado</p>
           </div>
         ) : (

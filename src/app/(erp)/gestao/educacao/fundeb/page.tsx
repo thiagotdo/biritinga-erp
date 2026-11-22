@@ -23,7 +23,7 @@ function PctBar({ pct, min = 70 }: { pct: number | null; min?: number }) {
         <div style={{ width: `${Math.min(pct, 100)}%`, height: 8, borderRadius: 100, background: cor }} />
       </div>
       <span style={{ fontSize: 13, fontWeight: 700, color: cor, minWidth: 48 }}>{pct.toFixed(1)}%</span>
-      {pct < min && <AlertTriangle size={14} color="#dc2626" />}
+      {pct < min && <AlertTriangle size={14} color="var(--cor-primaria)" />}
     </div>
   )
 }
@@ -161,8 +161,8 @@ export default function FundebPage() {
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                     {r.alertaProfessores
-                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fef2f2', color: '#dc2626', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}><AlertTriangle size={11} /> ABAIXO 70%</span>
-                      : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0fdf4', color: '#16a34a', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}><CheckCircle size={11} /> OK</span>
+                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(var(--cor-primaria-rgb,27,94,32),0.08)', color: 'var(--cor-primaria)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}><AlertTriangle size={11} /> ABAIXO 70%</span>
+                      : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(var(--cor-primaria-rgb,27,94,32),0.08)', color: 'var(--cor-primaria)', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}><CheckCircle size={11} /> OK</span>
                     }
                   </td>
                 </tr>

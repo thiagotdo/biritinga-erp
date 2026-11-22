@@ -249,7 +249,7 @@ export default function SefinDashboard() {
                 </p>
               </div>
               <div style={{ background: '#fefce8', borderRadius: 8, padding: 8 }}>
-                <FileText size={20} color="#ca8a04" strokeWidth={1.5} />
+                <FileText size={20} color="var(--cor-primaria)" strokeWidth={1.5} />
               </div>
             </div>
             <div style={{ marginTop: 10 }}>
@@ -270,7 +270,7 @@ export default function SefinDashboard() {
                 </p>
               </div>
               <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 8 }}>
-                <Wallet size={20} color="#16a34a" strokeWidth={1.5} />
+                <Wallet size={20} color="var(--cor-primaria)" strokeWidth={1.5} />
               </div>
             </div>
             <div style={{ marginTop: 10 }}>
@@ -293,7 +293,7 @@ export default function SefinDashboard() {
                 </p>
               </div>
               <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 8 }}>
-                <TrendingUp size={20} color="#16a34a" strokeWidth={1.5} />
+                <TrendingUp size={20} color="var(--cor-primaria)" strokeWidth={1.5} />
               </div>
             </div>
             <div style={{ marginTop: 10 }}>
@@ -327,8 +327,8 @@ export default function SefinDashboard() {
                 borderRadius: 8, padding: 8,
               }}>
                 {data.kpi.totalReceita >= data.kpi.totalPago
-                  ? <ArrowUpRight size={20} color="#16a34a" strokeWidth={1.5} />
-                  : <ArrowDownRight size={20} color="#dc2626" strokeWidth={1.5} />
+                  ? <ArrowUpRight size={20} color="var(--cor-primaria)" strokeWidth={1.5} />
+                  : <ArrowDownRight size={20} color="var(--cor-primaria)" strokeWidth={1.5} />
                 }
               </div>
             </div>

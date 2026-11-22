@@ -13,12 +13,12 @@ type Stats = {
 }
 
 const KPI_CONFIG = [
-  { key:'noticias',      label:'Notícias',      Icon:Newspaper,    href:'/gestao/comunicacao/noticias', cor:'#1565C0' },
-  { key:'eventos',       label:'Eventos',       Icon:CalendarDays, href:'/gestao/comunicacao/agenda',   cor:'#E65100' },
-  { key:'demandas',      label:'Demandas',      Icon:Inbox,        href:'/admin/ouvidoria',             cor:'#6A1B9A' },
-  { key:'usuarios',      label:'Usuários',      Icon:Users,        href:'/admin/usuarios',              cor:'#00695C' },
-  { key:'esic',          label:'e-SIC',         Icon:Search,       href:'/gestao/esic',                 cor:'#AD1457' },
-  { key:'transparencia', label:'Transparência', Icon:BarChart2,    href:'/gestao/transparencia',        cor:'#2E7D32' },
+  { key:'noticias',      label:'Notícias',      Icon:Newspaper,    href:'/gestao/comunicacao/noticias', cor:'var(--cor-primaria)' },
+  { key:'eventos',       label:'Eventos',       Icon:CalendarDays, href:'/gestao/comunicacao/agenda',   cor:'var(--cor-primaria)' },
+  { key:'demandas',      label:'Demandas',      Icon:Inbox,        href:'/admin/ouvidoria',             cor:'var(--cor-primaria)' },
+  { key:'usuarios',      label:'Usuários',      Icon:Users,        href:'/admin/usuarios',              cor:'var(--cor-primaria)' },
+  { key:'esic',          label:'e-SIC',         Icon:Search,       href:'/gestao/esic',                 cor:'var(--cor-primaria)' },
+  { key:'transparencia', label:'Transparência', Icon:BarChart2,    href:'/gestao/transparencia',        cor:'var(--cor-primaria)' },
 ] as const
 
 const ACESSO_RAPIDO = [
@@ -27,7 +27,7 @@ const ACESSO_RAPIDO = [
   { label:'Novo Usuário',   Icon:UserPlus,     href:'/admin/usuarios'              },
   { label:'Ver Relatórios', Icon:FileText,     href:'/gestao/comunicacao/relatorios'},
   { label:'Configurações',  Icon:Settings,     href:'/admin/configuracoes'         },
-  { label:'Portal Público', Icon:Globe,        href:'/', target:'_blank'           },
+  { label:'Portal Público', Icon:Globe,        href:'https://biritinga.ba.gov.br', target:'_blank' },
 ]
 
 const STATUS = [
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
         {/* Acesso Rápido */}
         <div style={{ background:'#fff', borderRadius:12, padding:'18px 22px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:14 }}>
-            <Settings size={14} strokeWidth={1.5} color='#9E9E9E' />
+            <Settings size={14} strokeWidth={1.5} color='var(--cor-primaria)' />
             <h3 style={{ margin:0, fontSize:13, fontWeight:700, color:'#424242' }}>Acesso Rápido</h3>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
         {/* Status do Sistema */}
         <div style={{ background:'#fff', borderRadius:12, padding:'18px 22px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:14 }}>
-            <Circle size={9} fill='#43A047' color='#43A047' />
+            <Circle size={9} fill='var(--cor-primaria)' color='var(--cor-primaria)' />
             <h3 style={{ margin:0, fontSize:13, fontWeight:700, color:'#424242' }}>Status do Sistema</h3>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
                   background:'#E8F5E9', padding:'2px 8px', borderRadius:4,
                   display:'flex', alignItems:'center', gap:4,
                 }}>
-                  <Circle size={6} fill='#43A047' color='#43A047' />
+                  <Circle size={6} fill='var(--cor-primaria)' color='var(--cor-primaria)' />
                   Online
                 </span>
               </div>
