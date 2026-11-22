@@ -1,6 +1,6 @@
 // ─── Gestão de sessões (criar, renovar, revogar) ─────────────────────────────
 
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { gerarAccessToken, gerarRefreshToken, verificarRefreshToken } from './jwt'
 import { randomBytes, createHash } from 'crypto'
 import type { PerfilPadrao } from '@/types'
@@ -52,7 +52,7 @@ export async function criarSessao(params: CriarSessaoParams) {
 
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-  await prisma.sessao.create({
+  await prisma.Sessao.create({
     data: {
       id:           sessionId,
       municipioId:  params.municipioId,
@@ -65,7 +65,7 @@ export async function criarSessao(params: CriarSessaoParams) {
   })
 
   // Atualizar ultimoLogin e zerar tentativas
-  await prisma.usuario.update({
+  await prisma.Usuario.update({
     where: { id: params.usuarioId },
     data:  { ultimoLogin: new Date(), tentativasFalhas: 0, bloqueadoAte: null },
   })
@@ -79,24 +79,26 @@ export async function renovarSessao(refreshToken: string, ip?: string) {
   const payload = await verificarRefreshToken(refreshToken)
   if (!payload) return null
 
-  const sessao = await prisma.sessao.findUnique({ where: { id: payload.sid } })
+  const sessao = await prisma.Sessao.findUnique({ where: { id: payload.sid } })
   if (!sessao || sessao.revokedAt || sessao.expiresAt < new Date()) return null
 
   // Verificar que o hash bate
   if (sessao.refreshToken !== hashRefreshToken(refreshToken)) return null
 
-  const usuario = await prisma.usuario.findUnique({
-    where: { id: payload.sub },
-    include: { perfilCustom: true },
-  })
+  const [usuario] = await prisma.$queryRaw`
+    SELECT u.*, p.permissoes AS perfilCustomPermissoes
+    FROM Usuario u
+    LEFT JOIN PerfilCustom p ON p.id = u.perfilId
+    WHERE u.id = ${payload.sub} LIMIT 1
+  ` as any[]
   if (!usuario || !usuario.ativo) return null
 
-  const permissoes: string[] = usuario.perfilCustom
-    ? JSON.parse(usuario.perfilCustom.permissoes)
+  const permissoes: string[] = usuario.perfilCustomPermissoes
+    ? JSON.parse(usuario.perfilCustomPermissoes)
     : []
 
   // Revogar sessão antiga e criar nova (rotation)
-  await prisma.sessao.update({
+  await prisma.Sessao.update({
     where: { id: payload.sid },
     data:  { revokedAt: new Date() },
   })
@@ -117,7 +119,7 @@ export async function renovarSessao(refreshToken: string, ip?: string) {
 // ─── Revogar sessão (logout) ──────────────────────────────────────────────────
 
 export async function revogarSessao(sessionId: string): Promise<void> {
-  await prisma.sessao.updateMany({
+  await prisma.Sessao.updateMany({
     where: { id: sessionId, revokedAt: null },
     data:  { revokedAt: new Date() },
   })
@@ -126,7 +128,7 @@ export async function revogarSessao(sessionId: string): Promise<void> {
 // ─── Revogar todas as sessões do usuário ──────────────────────────────────────
 
 export async function revogarTodasSessoes(usuarioId: string): Promise<void> {
-  await prisma.sessao.updateMany({
+  await prisma.Sessao.updateMany({
     where: { usuarioId, revokedAt: null },
     data:  { revokedAt: new Date() },
   })
@@ -138,14 +140,14 @@ const MAX_TENTATIVAS   = 5
 const BLOQUEIO_MINUTOS = 30
 
 export async function registrarTentativaFalha(usuarioId: string): Promise<{ bloqueado: boolean; tentativas: number }> {
-  const usuario = await prisma.usuario.update({
+  const usuario = await prisma.Usuario.update({
     where: { id: usuarioId },
     data:  { tentativasFalhas: { increment: 1 } },
   })
 
   if (usuario.tentativasFalhas >= MAX_TENTATIVAS) {
     const bloqueadoAte = new Date(Date.now() + BLOQUEIO_MINUTOS * 60 * 1000)
-    await prisma.usuario.update({
+    await prisma.Usuario.update({
       where: { id: usuarioId },
       data:  { bloqueadoAte },
     })

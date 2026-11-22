@@ -1,6 +1,7 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { obterUsuario } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 

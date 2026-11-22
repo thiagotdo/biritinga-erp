@@ -2,7 +2,7 @@
 // auditLog() é fire-and-forget: nunca lança exceção (silent fail)
 // Chame após toda operação CREATE/UPDATE/DELETE em dados sensíveis
 
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
 import type { ContextoRequest } from '@/types'
 
 interface AuditParams {
@@ -22,7 +22,7 @@ interface AuditParams {
 
 export async function auditLog(params: AuditParams): Promise<void> {
   try {
-    await prisma.auditLog.create({
+    await db.AuditLog.create({
       data: {
         municipioId:  params.municipioId,
         usuarioId:    params.usuarioId,
@@ -50,19 +50,22 @@ export { extrairContextoRequest } from '@/lib/rbac'
 
 export async function auditBatch(entries: AuditParams[]): Promise<void> {
   try {
-    await prisma.auditLog.createMany({
-      data: entries.map(p => ({
-        municipioId:  p.municipioId,
-        usuarioId:    p.usuarioId,
-        acao:         p.acao,
-        modulo:       p.modulo,
-        recurso:      p.recurso,
-        registroId:   p.registroId,
-        dadosAntigos: p.dadosAntigos ? JSON.stringify(p.dadosAntigos) : undefined,
-        dadosNovos:   p.dadosNovos   ? JSON.stringify(p.dadosNovos)   : undefined,
-        ip:           p.ip,
-      })),
-    })
+    // db não tem createMany — executar em série (fire-and-forget)
+    await Promise.all(entries.map(p =>
+      db.AuditLog.create({
+        data: {
+          municipioId:  p.municipioId,
+          usuarioId:    p.usuarioId,
+          acao:         p.acao,
+          modulo:       p.modulo,
+          recurso:      p.recurso,
+          registroId:   p.registroId,
+          dadosAntigos: p.dadosAntigos ? JSON.stringify(p.dadosAntigos) : undefined,
+          dadosNovos:   p.dadosNovos   ? JSON.stringify(p.dadosNovos)   : undefined,
+          ip:           p.ip,
+        },
+      }).catch(() => null)
+    ))
   } catch (err) {
     console.error('[AUDIT] falha no batch:', err)
   }
@@ -83,34 +86,26 @@ export async function consultarAudit(params: {
   const { pagina = 1, porPagina = 50 } = params
   const skip = (pagina - 1) * porPagina
 
+  const where: Record<string, unknown> = { municipioId: params.municipioId }
+  if (params.modulo)    where.modulo    = params.modulo
+  if (params.recurso)   where.recurso   = params.recurso
+  if (params.usuarioId) where.usuarioId = params.usuarioId
+
   const [dados, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where: {
-        municipioId: params.municipioId,
-        ...(params.modulo    && { modulo:    params.modulo    }),
-        ...(params.recurso   && { recurso:   params.recurso   }),
-        ...(params.usuarioId && { usuarioId: params.usuarioId }),
-        ...(params.de || params.ate) && {
-          createdAt: {
-            ...(params.de  && { gte: params.de  }),
-            ...(params.ate && { lte: params.ate }),
-          },
-        },
-      },
-      include: {
-        usuario: { select: { nome: true, email: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: porPagina,
-    }),
-    prisma.auditLog.count({
-      where: {
-        municipioId: params.municipioId,
-        ...(params.modulo    && { modulo:    params.modulo    }),
-        ...(params.usuarioId && { usuarioId: params.usuarioId }),
-      },
-    }),
+    db.$queryRaw`
+      SELECT a.*, u.nome AS usuarioNome, u.email AS usuarioEmail
+      FROM AuditLog a
+      LEFT JOIN Usuario u ON u.id = a.usuarioId
+      WHERE a.municipioId = ${params.municipioId}
+        ${params.modulo    ? db.$queryRaw`AND a.modulo    = ${params.modulo}`    : db.$queryRaw``}
+        ${params.recurso   ? db.$queryRaw`AND a.recurso   = ${params.recurso}`   : db.$queryRaw``}
+        ${params.usuarioId ? db.$queryRaw`AND a.usuarioId = ${params.usuarioId}` : db.$queryRaw``}
+        ${params.de  ? db.$queryRaw`AND a.criadoEm >= ${params.de}`  : db.$queryRaw``}
+        ${params.ate ? db.$queryRaw`AND a.criadoEm <= ${params.ate}` : db.$queryRaw``}
+      ORDER BY a.criadoEm DESC
+      LIMIT ${porPagina} OFFSET ${skip}
+    `,
+    db.AuditLog.count({ where }),
   ])
 
   return {

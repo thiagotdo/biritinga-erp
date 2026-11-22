@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
 

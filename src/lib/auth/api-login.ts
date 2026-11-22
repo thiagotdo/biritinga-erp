@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { verificarSenha } from './senha'
 import { criarSessao, registrarTentativaFalha } from './session'
 import { auditLog } from '@/lib/audit'
@@ -32,7 +32,7 @@ export async function handleLogin(request: NextRequest) {
       const slug = host.split('.')[0]
       // Tenta também pelo domínio completo (sem porta)
       const dominio = host.split(':')[0]
-      const mun = await prisma.municipio.findFirst({
+      const mun = await prisma.Municipio.findFirst({
         where: {
           OR: [
             { slug, ativo: true },
@@ -42,9 +42,9 @@ export async function handleLogin(request: NextRequest) {
       })
       if (!mun) {
         // Fallback: se só há um município, usa ele
-        const total = await prisma.municipio.count()
+        const total = await prisma.Municipio.count()
         if (total === 1) {
-          const unico = await prisma.municipio.findFirst({ where: { ativo: true } })
+          const unico = await prisma.Municipio.findFirst({ where: { ativo: true } })
           if (unico) {
             municipioId = unico.id
           } else {
@@ -58,11 +58,14 @@ export async function handleLogin(request: NextRequest) {
       }
     }
 
-    // Buscar usuário
-    const usuario = await prisma.usuario.findFirst({
-      where: { municipioId, email: dados.email, ativo: true },
-      include: { perfilCustom: true },
-    })
+    // Buscar usuário (db.ts não suporta include — usar $queryRaw para JOIN)
+    const [usuario] = await prisma.$queryRaw`
+      SELECT u.*, p.nome AS perfilCustomNome, p.permissoes AS perfilCustomPermissoes, p.id AS perfilCustomId
+      FROM Usuario u
+      LEFT JOIN PerfilCustom p ON p.id = u.perfilId
+      WHERE u.municipioId = ${municipioId} AND u.email = ${dados.email} AND u.ativo = true
+      LIMIT 1
+    ` as any[]
 
     if (!usuario) {
       return NextResponse.json(
