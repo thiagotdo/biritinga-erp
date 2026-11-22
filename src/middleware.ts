@@ -26,6 +26,8 @@ const ROTAS_PUBLICAS = [
   '/_next',
   '/favicon',
   '/logo',
+  '/brasao',
+  '/brasao.png',
 ]
 
 // Verificar se a rota é pública
@@ -108,6 +110,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Aplicar em todas as rotas exceto assets estáticos
-    '/((?!_next/static|_next/image|favicon.ico|logo|icons|images).*)',
+    '/((?!_next/static|_next/image|favicon.ico|logo|icons|images|brasao.png|brasao).*)',
   ],
 }
