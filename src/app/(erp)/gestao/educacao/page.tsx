@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   GraduationCap, School, Users, BookOpen, AlertTriangle,
   TrendingUp, UserCheck, UserX, Heart, RefreshCw,
-  ChevronRight, BarChart2,
+  ChevronRight, BarChart2, Bus, Shield, DollarSign, FileBarChart,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -199,13 +199,18 @@ export default function EducacaoDashboard() {
       {/* Acesso rápido */}
       <div>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Acesso Rápido</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
           {[
-            { href: '/gestao/educacao/escolas',   Icon: School,        label: 'Escolas' },
-            { href: '/gestao/educacao/alunos',     Icon: Users,         label: 'Alunos' },
-            { href: '/gestao/educacao/turmas',     Icon: BookOpen,      label: 'Turmas' },
-            { href: '/gestao/educacao/diario',     Icon: BarChart2,     label: 'Diário' },
-            { href: '/gestao/educacao/merenda',    Icon: GraduationCap, label: 'Merenda' },
+            { href: '/gestao/educacao/escolas',          Icon: School,        label: 'Escolas' },
+            { href: '/gestao/educacao/alunos',           Icon: Users,         label: 'Alunos' },
+            { href: '/gestao/educacao/turmas',           Icon: BookOpen,      label: 'Turmas' },
+            { href: '/gestao/educacao/diario',           Icon: BarChart2,     label: 'Diário' },
+            { href: '/gestao/educacao/merenda',          Icon: GraduationCap, label: 'Merenda' },
+            { href: '/gestao/educacao/boletim',          Icon: TrendingUp,    label: 'Boletim' },
+            { href: '/gestao/educacao/transporte',       Icon: Bus,           label: 'Transporte' },
+            { href: '/gestao/educacao/censo',            Icon: FileBarChart,  label: 'Censo Escolar' },
+            { href: '/gestao/educacao/conselho-tutelar', Icon: Shield,        label: 'Conselho Tutelar' },
+            { href: '/gestao/educacao/fundeb',           Icon: DollarSign,    label: 'FUNDEB' },
           ].map(({ href, Icon, label }) => (
             <a
               key={href} href={href}
