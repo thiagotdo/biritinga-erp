@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import AdminShell from '@/components/AdminShell'
 
 type Noticia = {
   id: string; titulo: string; tipo: string; status: string
@@ -81,8 +80,7 @@ export default function NoticiasPage() {
   const totalPaginas = Math.ceil(total / perPagina)
 
   return (
-    <AdminShell>
-      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         {/* Cabeçalho */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
@@ -275,7 +273,6 @@ export default function NoticiasPage() {
             </div>
           </div>
         )}
-      </div>
-    </AdminShell>
+    </div>
   )
 }

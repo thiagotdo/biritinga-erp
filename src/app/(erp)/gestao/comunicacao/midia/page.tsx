@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import AdminShell from '@/components/AdminShell'
 
 type Album = { id: string; nome: string; descricao?: string; categoria: string; _count?: { midias: number }; criadoEm: string }
 type Midia = { id: string; titulo: string; tipo: string; categoria: string; url: string; urlThumb?: string; nomeArquivo: string; tamanhoBytes?: number; autor?: string; destaque: boolean; albumId?: string; criadoEm: string }
@@ -95,7 +94,7 @@ export default function MidiaPage() {
   const totalPaginas = Math.ceil(total / perPagina)
 
   return (
-    <AdminShell>
+<>
       <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
@@ -316,6 +315,6 @@ export default function MidiaPage() {
           </div>
         )}
       </div>
-    </AdminShell>
+</>
   )
 }
