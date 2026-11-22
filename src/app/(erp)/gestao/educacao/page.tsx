@@ -11,7 +11,7 @@ type KPIs = {
   totalMatriculas: number; ativas: number; transferidas: number
   evadidas: number; emRisco: number; pcd: number; bolsaFamilia: number; freqMedia: string
 }
-type Escola = { id: string; nome: string; tipo: string; totalTurmas: number }
+type Escola = { id: string; nome: string; zona: string; totalTurmas: number }
 type DashData = { kpis: KPIs; escolas: Escola[]; totalEscolas: number }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export default function EducacaoDashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">{e.nome}</p>
-                    <p className="text-xs text-gray-400">{e.tipo ?? '—'}</p>
+                    <p className="text-xs text-gray-400">{e.zona === 'RURAL' ? 'Zona Rural' : e.zona === 'URBANA' ? 'Zona Urbana' : '—'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">

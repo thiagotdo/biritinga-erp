@@ -3,6 +3,8 @@
  * GET  /api/educacao/turma?id=X      - detalhe com alunos matriculados
  * POST /api/educacao/turma           - cria turma
  * PATCH /api/educacao/turma          - atualiza turma
+ *
+ * Schema (Turma): id, escolaId, municipioId, codigo, etapa, ano, serie, turno, capacidade, sala
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
@@ -19,10 +21,11 @@ export async function GET(req: NextRequest) {
   if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const id        = searchParams.get('id')
-  const escolaId  = searchParams.get('escolaId')
-  const anoLetivo = searchParams.get('anoLetivo')
-  const turno     = searchParams.get('turno')
+  const id       = searchParams.get('id')
+  const escolaId = searchParams.get('escolaId')
+  const ano      = searchParams.get('ano') ?? searchParams.get('anoLetivo')
+  const turno    = searchParams.get('turno')
+  const etapa    = searchParams.get('etapa')
 
   try {
     if (id) {
@@ -38,8 +41,8 @@ export async function GET(req: NextRequest) {
       if (!turmas.length) return NextResponse.json({ erro: 'Turma não encontrada' }, { status: 404 })
 
       const alunos = await db.$queryRaw`
-        SELECT m.id as matriculaId, m.numero, m.situacao, m.percentualFreq, m.mediaGeral, m.resultadoFinal,
-               a.id as alunoId, a.nome, a.pcd, a.bolsaFamilia
+        SELECT m.id as matriculaId, m.numeroChamada, m.situacao,
+               a.id as alunoId, a.nome, a.nee
         FROM Matricula m
         JOIN Aluno a ON a.id = m.alunoId
         WHERE m.turmaId = ${id} AND m.situacao = 'ATIVA'
@@ -58,50 +61,60 @@ export async function GET(req: NextRequest) {
     }
 
     // Monta filtros dinamicamente
-    const ano = anoLetivo ? parseInt(anoLetivo) : null
+    const anoInt = ano ? parseInt(ano) : null
+
     let turmas: any[]
 
-    if (escolaId && ano && turno) {
+    if (escolaId && anoInt && turno) {
       turmas = await db.$queryRaw`
         SELECT t.*, e.nome as escolaNome, COUNT(m.id) as totalMatriculas
         FROM Turma t JOIN Escola e ON e.id = t.escolaId
         LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
-        WHERE t.municipioId = ${municipioId} AND t.ativo = 1
-          AND t.escolaId = ${escolaId} AND t.anoLetivo = ${ano} AND t.turno = ${turno}
-        GROUP BY t.id ORDER BY t.serie ASC, t.turma ASC
+        WHERE t.municipioId = ${municipioId}
+          AND t.escolaId = ${escolaId} AND t.ano = ${anoInt} AND t.turno = ${turno}
+        GROUP BY t.id ORDER BY t.etapa ASC, t.serie ASC, t.codigo ASC
       ` as any[]
-    } else if (escolaId && ano) {
+    } else if (escolaId && anoInt) {
       turmas = await db.$queryRaw`
         SELECT t.*, e.nome as escolaNome, COUNT(m.id) as totalMatriculas
         FROM Turma t JOIN Escola e ON e.id = t.escolaId
         LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
-        WHERE t.municipioId = ${municipioId} AND t.ativo = 1
-          AND t.escolaId = ${escolaId} AND t.anoLetivo = ${ano}
-        GROUP BY t.id ORDER BY t.serie ASC, t.turma ASC
+        WHERE t.municipioId = ${municipioId}
+          AND t.escolaId = ${escolaId} AND t.ano = ${anoInt}
+        GROUP BY t.id ORDER BY t.etapa ASC, t.serie ASC, t.codigo ASC
       ` as any[]
     } else if (escolaId) {
       turmas = await db.$queryRaw`
         SELECT t.*, e.nome as escolaNome, COUNT(m.id) as totalMatriculas
         FROM Turma t JOIN Escola e ON e.id = t.escolaId
         LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
-        WHERE t.municipioId = ${municipioId} AND t.ativo = 1 AND t.escolaId = ${escolaId}
-        GROUP BY t.id ORDER BY t.serie ASC, t.turma ASC
+        WHERE t.municipioId = ${municipioId} AND t.escolaId = ${escolaId}
+        GROUP BY t.id ORDER BY t.etapa ASC, t.serie ASC, t.codigo ASC
       ` as any[]
-    } else if (ano) {
+    } else if (anoInt && etapa) {
       turmas = await db.$queryRaw`
         SELECT t.*, e.nome as escolaNome, COUNT(m.id) as totalMatriculas
         FROM Turma t JOIN Escola e ON e.id = t.escolaId
         LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
-        WHERE t.municipioId = ${municipioId} AND t.ativo = 1 AND t.anoLetivo = ${ano}
-        GROUP BY t.id ORDER BY t.serie ASC, t.turma ASC
+        WHERE t.municipioId = ${municipioId} AND t.ano = ${anoInt} AND t.etapa = ${etapa}
+        GROUP BY t.id ORDER BY e.nome ASC, t.serie ASC, t.codigo ASC
+      ` as any[]
+    } else if (anoInt) {
+      turmas = await db.$queryRaw`
+        SELECT t.*, e.nome as escolaNome, COUNT(m.id) as totalMatriculas
+        FROM Turma t JOIN Escola e ON e.id = t.escolaId
+        LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
+        WHERE t.municipioId = ${municipioId} AND t.ano = ${anoInt}
+        GROUP BY t.id ORDER BY e.nome ASC, t.etapa ASC, t.serie ASC, t.codigo ASC
       ` as any[]
     } else {
+      const anoAtual = new Date().getFullYear()
       turmas = await db.$queryRaw`
         SELECT t.*, e.nome as escolaNome, COUNT(m.id) as totalMatriculas
         FROM Turma t JOIN Escola e ON e.id = t.escolaId
         LEFT JOIN Matricula m ON m.turmaId = t.id AND m.situacao = 'ATIVA'
-        WHERE t.municipioId = ${municipioId} AND t.ativo = 1
-        GROUP BY t.id ORDER BY t.serie ASC, t.turma ASC
+        WHERE t.municipioId = ${municipioId} AND t.ano = ${anoAtual}
+        GROUP BY t.id ORDER BY e.nome ASC, t.etapa ASC, t.serie ASC, t.codigo ASC
       ` as any[]
     }
 
@@ -123,36 +136,34 @@ export async function POST(req: NextRequest) {
   if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   try {
-    const { escolaId, serie, segmento, turma, turno, anoLetivo,
-            professorNome, professorEmail, capacidade } = await req.json()
+    const { escolaId, codigo, etapa, serie, turno, ano, capacidade, sala } = await req.json()
 
-    if (!escolaId || !serie || !turma || !turno) {
-      return NextResponse.json({ erro: 'Obrigatórios: escolaId, serie, turma, turno' }, { status: 400 })
+    if (!escolaId || !codigo || !etapa || !turno) {
+      return NextResponse.json({ erro: 'Obrigatórios: escolaId, codigo, etapa, turno' }, { status: 400 })
     }
 
-    const escola = await db.Escola.findFirst({ where: { id: escolaId, municipioId } })
-    if (!escola) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
+    const escola = await db.$queryRaw`
+      SELECT id FROM Escola WHERE id = ${escolaId} AND municipioId = ${municipioId} LIMIT 1
+    ` as any[]
+    if (!escola.length) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
 
-    const ano = anoLetivo ?? new Date().getFullYear()
-    const existente = await db.Turma.findFirst({
-      where: { municipioId, escolaId, serie, turma, turno, anoLetivo: ano },
-    })
-    if (existente) {
-      return NextResponse.json({ erro: 'Turma já existe para este período e escola', turmaId: existente.id }, { status: 409 })
+    const anoLetivo = ano ?? new Date().getFullYear()
+
+    const existente = await db.$queryRaw`
+      SELECT id FROM Turma WHERE municipioId = ${municipioId} AND escolaId = ${escolaId}
+        AND codigo = ${codigo} AND ano = ${anoLetivo} LIMIT 1
+    ` as any[]
+    if (existente.length) {
+      return NextResponse.json({ erro: 'Turma já existe para este período e escola', turmaId: existente[0].id }, { status: 409 })
     }
 
-    const created = await db.Turma.create({
-      data: {
-        id: randomUUID(), municipioId, escolaId, serie,
-        segmento: segmento ?? 'EF1', turma, turno,
-        anoLetivo: ano,
-        professorNome: professorNome || null,
-        professorEmail: professorEmail || null,
-        capacidade: capacidade ?? 30,
-      },
-    })
+    const id = randomUUID()
+    await db.$queryRaw`
+      INSERT INTO Turma (id, municipioId, escolaId, codigo, etapa, serie, turno, ano, capacidade, sala, criadoEm, atualizadoEm)
+      VALUES (${id}, ${municipioId}, ${escolaId}, ${codigo}, ${etapa}, ${serie ?? null}, ${turno}, ${anoLetivo}, ${capacidade ?? 30}, ${sala ?? null}, NOW(), NOW())
+    `
 
-    return NextResponse.json({ turma: created }, { status: 201 })
+    return NextResponse.json({ turma: { id, municipioId, escolaId, codigo, etapa, serie, turno, ano: anoLetivo, capacidade: capacidade ?? 30 } }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
   }
@@ -163,13 +174,27 @@ export async function PATCH(req: NextRequest) {
   if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   try {
-    const { id, ...dados } = await req.json()
+    const { id, codigo, etapa, serie, turno, capacidade, sala } = await req.json()
     if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-    const turma = await db.Turma.findFirst({ where: { id, municipioId } })
-    if (!turma) return NextResponse.json({ erro: 'Turma não encontrada' }, { status: 404 })
+    const turma = await db.$queryRaw`
+      SELECT id FROM Turma WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1
+    ` as any[]
+    if (!turma.length) return NextResponse.json({ erro: 'Turma não encontrada' }, { status: 404 })
 
-    await db.Turma.update({ where: { id }, data: dados })
+    const sets: string[] = []
+    if (codigo    !== undefined) sets.push(`codigo = '${codigo}'`)
+    if (etapa     !== undefined) sets.push(`etapa = '${etapa}'`)
+    if (serie     !== undefined) sets.push(`serie = '${serie}'`)
+    if (turno     !== undefined) sets.push(`turno = '${turno}'`)
+    if (capacidade !== undefined) sets.push(`capacidade = ${capacidade}`)
+    if (sala      !== undefined) sets.push(`sala = '${sala}'`)
+    sets.push(`atualizadoEm = NOW()`)
+
+    if (sets.length > 1) {
+      await db.$queryRaw`UPDATE Turma SET ${sets.join(', ')} WHERE id = ${id}`
+    }
+
     return NextResponse.json({ sucesso: true })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })

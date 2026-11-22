@@ -3,10 +3,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Users, Plus, Search, ChevronLeft, ChevronRight, X, Heart, BookOpen } from 'lucide-react'
 
 type Aluno = {
-  id: string; nome: string; cpf: string; nis: string
+  id: string; nome: string; cpf: string
   dataNascimento: string; sexo: string
-  pcd: number; bolsaFamilia: number; situacao: string
-  responsavelNome: string; responsavelTelefone: string
+  nee: boolean | number; ativo: boolean | number
+  responsavel: string; telefoneResponsavel: string
+  bairro: string
 }
 
 function idade(dn: string) {
@@ -19,11 +20,11 @@ function idade(dn: string) {
 
 function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose: () => void }) {
   const [form, setForm] = useState({
-    nome: '', nomeMae: '', nomePai: '', cpf: '', nis: '',
-    dataNascimento: '', sexo: '', racaCor: '',
-    logradouro: '', numero: '', bairro: '', cep: '',
-    responsavelNome: '', responsavelTelefone: '', responsavelEmail: '',
-    bolsaFamilia: false, pcd: false, laudoPcd: '',
+    nome: '', nomeMae: '', nomePai: '', cpf: '',
+    dataNascimento: '', sexo: '', zona: 'URBANA',
+    logradouro: '', bairro: '',
+    responsavel: '', telefoneResponsavel: '',
+    nee: false, laudoNEE: '',
   })
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }))
 
@@ -107,20 +108,15 @@ function ModalAluno({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose
           </div>
           <div className="flex gap-4 pt-1">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.bolsaFamilia} onChange={e => set('bolsaFamilia', e.target.checked)}
+              <input type="checkbox" checked={form.nee} onChange={e => set('nee', e.target.checked)}
                 className="rounded" />
-              <span className="text-sm text-gray-700">Bolsa Família</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.pcd} onChange={e => set('pcd', e.target.checked)}
-                className="rounded" />
-              <span className="text-sm text-gray-700">PCD</span>
+              <span className="text-sm text-gray-700">NEE (Necessidades Educacionais Especiais)</span>
             </label>
           </div>
-          {form.pcd && (
+          {form.nee && (
             <div>
               <label className="text-xs font-medium text-gray-600">Laudo / CID</label>
-              <input value={form.laudoPcd} onChange={e => set('laudoPcd', e.target.value)}
+              <input value={form.laudoNEE} onChange={e => set('laudoNEE', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none" />
             </div>
           )}
@@ -192,7 +188,7 @@ export default function AlunosPage() {
           </div>
           <h1 className="text-xl font-bold text-gray-900">Alunos</h1>
           <p className="text-sm text-gray-500">
-            {buscado ? `${alunos.length} resultado(s)` : 'Busque por nome, CPF ou NIS'}
+            {buscado ? `${alunos.length} resultado(s)` : 'Busque por nome ou CPF'}
           </p>
         </div>
         <button
@@ -212,7 +208,7 @@ export default function AlunosPage() {
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && buscar(q)}
-            placeholder="Buscar por nome, CPF ou NIS (mín. 3 caracteres)..."
+            placeholder="Buscar por nome ou CPF (mín. 3 caracteres)..."
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
@@ -262,21 +258,18 @@ export default function AlunosPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{idade(a.dataNascimento)}</td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <p className="text-gray-700 text-xs">{a.responsavelNome ?? '—'}</p>
-                    {a.responsavelTelefone && <p className="text-gray-400 text-xs">{a.responsavelTelefone}</p>}
+                    <p className="text-gray-700 text-xs">{a.responsavel ?? '—'}</p>
+                    {a.telefoneResponsavel && <p className="text-gray-400 text-xs">{a.telefoneResponsavel}</p>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      a.situacao === 'ATIVO' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>{a.situacao ?? 'ATIVO'}</span>
+                      a.ativo ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>{a.ativo ? 'ATIVO' : 'INATIVO'}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-center">
-                      {a.pcd === 1 && (
-                        <span title="PCD" className="p-1 rounded bg-purple-50"><Heart size={12} className="text-purple-600" /></span>
-                      )}
-                      {a.bolsaFamilia === 1 && (
-                        <span title="Bolsa Família" className="p-1 rounded bg-blue-50"><BookOpen size={12} className="text-blue-600" /></span>
+                      {(a.nee === 1 || a.nee === true) && (
+                        <span title="NEE" className="p-1 rounded bg-purple-50"><Heart size={12} className="text-purple-600" /></span>
                       )}
                     </div>
                   </td>
