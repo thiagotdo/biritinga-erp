@@ -45,23 +45,31 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const municipioId = mid(req)
-  const { numero, modalidade, objeto, valorEstimado, dataAbertura, dataPublicacao,
-    unidadeRequisitante, dotacaoOrcamentaria, observacoes } = await req.json()
+  const { numero, modalidade, forma, objeto, valorEstimado, dataAbertura, dataPublicacao,
+    exercicio, unidadeGestora, dotacaoOrcamentaria, justificativa, fundamentacao,
+    urlEdital, pregoeiro, comissao } = await req.json()
 
-  if (!numero || !modalidade || !objeto)
-    return NextResponse.json({ erro: 'Número, modalidade e objeto obrigatórios' }, { status: 400 })
+  if (!numero || !modalidade || !objeto || !valorEstimado)
+    return NextResponse.json({ erro: 'Número, modalidade, objeto e valorEstimado obrigatórios' }, { status: 400 })
+
+  const formaVal = forma || 'MENOR_PRECO'
+  const exercicioVal = exercicio || new Date().getFullYear()
 
   try {
     const dup = await db.$queryRaw`SELECT id FROM Licitacao WHERE municipioId = ${municipioId} AND numero = ${numero} LIMIT 1`
     if (dup.length) return NextResponse.json({ erro: 'Número já existe' }, { status: 409 })
     const id = crypto.randomUUID()
+    const now = new Date()
     await db.$queryRaw`
-      INSERT INTO Licitacao (id, municipioId, numero, modalidade, objeto, valorEstimado,
-                             dataAbertura, dataPublicacao, unidadeRequisitante,
-                             dotacaoOrcamentaria, observacoes)
-      VALUES (${id}, ${municipioId}, ${numero}, ${modalidade}, ${objeto},
-              ${valorEstimado || null}, ${dataAbertura || null}, ${dataPublicacao || null},
-              ${unidadeRequisitante || null}, ${dotacaoOrcamentaria || null}, ${observacoes || null})`
+      INSERT INTO Licitacao (id, municipioId, numero, modalidade, forma, objeto, valorEstimado,
+                             dataAbertura, dataPublicacao, exercicio, unidadeGestora,
+                             dotacaoOrcamentaria, justificativa, fundamentacao,
+                             urlEdital, pregoeiro, comissao, atualizadoEm)
+      VALUES (${id}, ${municipioId}, ${numero}, ${modalidade}, ${formaVal}, ${objeto},
+              ${valorEstimado}, ${dataAbertura || null}, ${dataPublicacao || null},
+              ${exercicioVal}, ${unidadeGestora || null}, ${dotacaoOrcamentaria || null},
+              ${justificativa || null}, ${fundamentacao || null},
+              ${urlEdital || null}, ${pregoeiro || null}, ${comissao || null}, ${now})`
     return NextResponse.json({ id }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
