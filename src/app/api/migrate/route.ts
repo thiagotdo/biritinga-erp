@@ -16,64 +16,81 @@ function parseDbUrl(url: string) {
   return { user: m[1], password: decodeURIComponent(m[2]), host: m[3], port: parseInt(m[4]), database: m[5].split('?')[0] }
 }
 
-// Lista de migrações idempotentes (podem ser rodadas várias vezes sem erro)
-const MIGRATIONS: { name: string; sql: string }[] = [
+type Migration = { name: string; sql: string; checkColumn?: { table: string; column: string } }
+
+// Lista de migrações idempotentes
+const MIGRATIONS: Migration[] = [
   // ── Licitacao ──────────────────────────────────────────────────────────────
   {
     name: 'licitacao_forma',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS forma VARCHAR(50) NOT NULL DEFAULT 'MENOR_PRECO' AFTER modalidade`,
-  },
-  {
-    name: 'licitacao_exercicio',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS exercicio INT NOT NULL DEFAULT 2024 AFTER dataPublicacao`,
-  },
-  {
-    name: 'licitacao_unidadeGestora',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS unidadeGestora VARCHAR(255) NULL AFTER exercicio`,
-  },
-  {
-    name: 'licitacao_dotacaoOrcamentaria',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS dotacaoOrcamentaria VARCHAR(255) NULL AFTER unidadeGestora`,
-  },
-  {
-    name: 'licitacao_justificativa',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS justificativa TEXT NULL AFTER dotacaoOrcamentaria`,
-  },
-  {
-    name: 'licitacao_fundamentacao',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS fundamentacao VARCHAR(255) NULL AFTER justificativa`,
-  },
-  {
-    name: 'licitacao_urlEdital',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS urlEdital VARCHAR(500) NULL AFTER fundamentacao`,
-  },
-  {
-    name: 'licitacao_pregoeiro',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS pregoeiro VARCHAR(255) NULL AFTER urlEdital`,
-  },
-  {
-    name: 'licitacao_comissao',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS comissao TEXT NULL AFTER pregoeiro`,
-  },
-  {
-    name: 'licitacao_atualizadoEm',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS atualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER comissao`,
+    sql: `ALTER TABLE Licitacao ADD COLUMN forma VARCHAR(50) NOT NULL DEFAULT 'MENOR_PRECO' AFTER modalidade`,
+    checkColumn: { table: 'Licitacao', column: 'forma' },
   },
   {
     name: 'licitacao_dataPublicacao',
-    sql: `ALTER TABLE Licitacao ADD COLUMN IF NOT EXISTS dataPublicacao DATETIME NULL AFTER dataAbertura`,
+    sql: `ALTER TABLE Licitacao ADD COLUMN dataPublicacao DATETIME NULL AFTER dataAbertura`,
+    checkColumn: { table: 'Licitacao', column: 'dataPublicacao' },
+  },
+  {
+    name: 'licitacao_exercicio',
+    sql: `ALTER TABLE Licitacao ADD COLUMN exercicio INT NOT NULL DEFAULT 2024`,
+    checkColumn: { table: 'Licitacao', column: 'exercicio' },
+  },
+  {
+    name: 'licitacao_unidadeGestora',
+    sql: `ALTER TABLE Licitacao ADD COLUMN unidadeGestora VARCHAR(255) NULL`,
+    checkColumn: { table: 'Licitacao', column: 'unidadeGestora' },
+  },
+  {
+    name: 'licitacao_dotacaoOrcamentaria',
+    sql: `ALTER TABLE Licitacao ADD COLUMN dotacaoOrcamentaria VARCHAR(255) NULL`,
+    checkColumn: { table: 'Licitacao', column: 'dotacaoOrcamentaria' },
+  },
+  {
+    name: 'licitacao_justificativa',
+    sql: `ALTER TABLE Licitacao ADD COLUMN justificativa TEXT NULL`,
+    checkColumn: { table: 'Licitacao', column: 'justificativa' },
+  },
+  {
+    name: 'licitacao_fundamentacao',
+    sql: `ALTER TABLE Licitacao ADD COLUMN fundamentacao VARCHAR(255) NULL`,
+    checkColumn: { table: 'Licitacao', column: 'fundamentacao' },
+  },
+  {
+    name: 'licitacao_urlEdital',
+    sql: `ALTER TABLE Licitacao ADD COLUMN urlEdital VARCHAR(500) NULL`,
+    checkColumn: { table: 'Licitacao', column: 'urlEdital' },
+  },
+  {
+    name: 'licitacao_pregoeiro',
+    sql: `ALTER TABLE Licitacao ADD COLUMN pregoeiro VARCHAR(255) NULL`,
+    checkColumn: { table: 'Licitacao', column: 'pregoeiro' },
+  },
+  {
+    name: 'licitacao_comissao',
+    sql: `ALTER TABLE Licitacao ADD COLUMN comissao TEXT NULL`,
+    checkColumn: { table: 'Licitacao', column: 'comissao' },
+  },
+  {
+    name: 'licitacao_atualizadoEm',
+    sql: `ALTER TABLE Licitacao ADD COLUMN atualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    checkColumn: { table: 'Licitacao', column: 'atualizadoEm' },
   },
   // ── Servidor ───────────────────────────────────────────────────────────────
   {
     name: 'servidor_observacoes',
-    sql: `ALTER TABLE Servidor ADD COLUMN IF NOT EXISTS observacoes TEXT NULL`,
-  },
-  // ── Escola ─────────────────────────────────────────────────────────────────
-  {
-    name: 'escola_turmas_fix',
-    sql: `ALTER TABLE Turma MODIFY COLUMN IF EXISTS ativo TINYINT(1) NOT NULL DEFAULT 1`,
+    sql: `ALTER TABLE Servidor ADD COLUMN observacoes TEXT NULL`,
+    checkColumn: { table: 'Servidor', column: 'observacoes' },
   },
 ]
+
+async function columnExists(conn: mysql.Connection, table: string, column: string, database: string): Promise<boolean> {
+  const [rows]: any = await conn.execute(
+    `SELECT COUNT(*) AS n FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [database, table, column]
+  )
+  return rows[0].n > 0
+}
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
@@ -94,6 +111,14 @@ export async function GET(req: NextRequest) {
 
   for (const mig of MIGRATIONS) {
     try {
+      // Verificar se a coluna já existe (compatível com MySQL antigo)
+      if (mig.checkColumn) {
+        const exists = await columnExists(conn, mig.checkColumn.table, mig.checkColumn.column, cfg.database)
+        if (exists) {
+          results.push({ name: mig.name, status: 'já existe' })
+          continue
+        }
+      }
       await conn.execute(mig.sql)
       results.push({ name: mig.name, status: 'ok' })
     } catch (e: any) {
