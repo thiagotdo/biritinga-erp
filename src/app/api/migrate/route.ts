@@ -226,16 +226,16 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Listar colunas das tabelas principais para diagnóstico
+  // Listar colunas e ENUMs para diagnóstico
   const tableNames = ['Veiculo', 'Obra', 'Servidor', 'Licitacao']
-  const tableInfo: Record<string, string[]> = {}
+  const tableInfo: Record<string, any[]> = {}
   for (const tbl of tableNames) {
     try {
       const [cols]: any = await conn.execute(
-        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
+        `SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
         [cfg.database, tbl]
       )
-      tableInfo[tbl] = cols.map((c: any) => c.COLUMN_NAME)
+      tableInfo[tbl] = cols.map((c: any) => ({ col: c.COLUMN_NAME, type: c.COLUMN_TYPE }))
     } catch { tableInfo[tbl] = [] }
   }
 
