@@ -143,6 +143,27 @@ const MIGRATIONS: Migration[] = [
     sql: `ALTER TABLE Obra ADD COLUMN observacoes TEXT NULL`,
     checkColumn: { table: 'Obra', column: 'observacoes' },
   },
+  // ── Veiculo ────────────────────────────────────────────────────────────────
+  {
+    name: 'veiculo_ativo',
+    sql: `ALTER TABLE Veiculo ADD COLUMN ativo TINYINT(1) NOT NULL DEFAULT 1`,
+    checkColumn: { table: 'Veiculo', column: 'ativo' },
+  },
+  {
+    name: 'veiculo_status',
+    sql: `ALTER TABLE Veiculo ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'ATIVO'`,
+    checkColumn: { table: 'Veiculo', column: 'status' },
+  },
+  {
+    name: 'veiculo_observacoes',
+    sql: `ALTER TABLE Veiculo ADD COLUMN observacoes TEXT NULL`,
+    checkColumn: { table: 'Veiculo', column: 'observacoes' },
+  },
+  {
+    name: 'veiculo_motoristaPadrao',
+    sql: `ALTER TABLE Veiculo ADD COLUMN motoristaPadrao VARCHAR(255) NULL`,
+    checkColumn: { table: 'Veiculo', column: 'motoristaPadrao' },
+  },
   // ── FK: Servidor.cargoId deve apontar para Cargo (não cargos) ─────────────
   // O Prisma criou a FK para a tabela 'cargos' mas a tabela real é 'Cargo'
   // Dropar a FK antiga e recriar apontando para a tabela correta
