@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO Veiculo (id, municipioId, placa, tipo, marca, modelo,
                            anoFabricacao, anoModelo, cor, combustivel, renavam, chassis,
                            secretaria, odometroAtual, observacoes)
-      VALUES (${id}, ${municipioId}, ${placaNorm}, ${tipo || null},
+      VALUES (${id}, ${municipioId}, ${placaNorm}, ${tipo || 'CARRO'},
               ${marca || null}, ${modelo || null}, ${anoFabricacao || null},
               ${anoModelo || null}, ${cor || null}, ${combustivel || 'FLEX'},
               ${renavam || null}, ${chassisVal},
