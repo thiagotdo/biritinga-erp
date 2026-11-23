@@ -82,6 +82,67 @@ const MIGRATIONS: Migration[] = [
     sql: `ALTER TABLE Servidor ADD COLUMN observacoes TEXT NULL`,
     checkColumn: { table: 'Servidor', column: 'observacoes' },
   },
+  // ── Obra ───────────────────────────────────────────────────────────────────
+  {
+    name: 'obra_endereco',
+    sql: `ALTER TABLE Obra ADD COLUMN endereco VARCHAR(255) NULL`,
+    checkColumn: { table: 'Obra', column: 'endereco' },
+  },
+  {
+    name: 'obra_bairro',
+    sql: `ALTER TABLE Obra ADD COLUMN bairro VARCHAR(100) NULL`,
+    checkColumn: { table: 'Obra', column: 'bairro' },
+  },
+  {
+    name: 'obra_tipo',
+    sql: `ALTER TABLE Obra ADD COLUMN tipo VARCHAR(50) NULL`,
+    checkColumn: { table: 'Obra', column: 'tipo' },
+  },
+  {
+    name: 'obra_fonte',
+    sql: `ALTER TABLE Obra ADD COLUMN fonte VARCHAR(100) NULL`,
+    checkColumn: { table: 'Obra', column: 'fonte' },
+  },
+  {
+    name: 'obra_licitacaoId',
+    sql: `ALTER TABLE Obra ADD COLUMN licitacaoId VARCHAR(36) NULL`,
+    checkColumn: { table: 'Obra', column: 'licitacaoId' },
+  },
+  {
+    name: 'obra_valorContrato',
+    sql: `ALTER TABLE Obra ADD COLUMN valorContrato DECIMAL(15,2) NULL`,
+    checkColumn: { table: 'Obra', column: 'valorContrato' },
+  },
+  {
+    name: 'obra_dataInicio',
+    sql: `ALTER TABLE Obra ADD COLUMN dataInicio DATE NULL`,
+    checkColumn: { table: 'Obra', column: 'dataInicio' },
+  },
+  {
+    name: 'obra_dataPrevistaConclusao',
+    sql: `ALTER TABLE Obra ADD COLUMN dataPrevistaConclusao DATE NULL`,
+    checkColumn: { table: 'Obra', column: 'dataPrevistaConclusao' },
+  },
+  {
+    name: 'obra_executora',
+    sql: `ALTER TABLE Obra ADD COLUMN executora VARCHAR(255) NULL`,
+    checkColumn: { table: 'Obra', column: 'executora' },
+  },
+  {
+    name: 'obra_anotacaoArt',
+    sql: `ALTER TABLE Obra ADD COLUMN anotacaoArt VARCHAR(100) NULL`,
+    checkColumn: { table: 'Obra', column: 'anotacaoArt' },
+  },
+  {
+    name: 'obra_responsavelTecnico',
+    sql: `ALTER TABLE Obra ADD COLUMN responsavelTecnico VARCHAR(255) NULL`,
+    checkColumn: { table: 'Obra', column: 'responsavelTecnico' },
+  },
+  {
+    name: 'obra_observacoes',
+    sql: `ALTER TABLE Obra ADD COLUMN observacoes TEXT NULL`,
+    checkColumn: { table: 'Obra', column: 'observacoes' },
+  },
   // ── FK: Servidor.cargoId deve apontar para Cargo (não cargos) ─────────────
   // O Prisma criou a FK para a tabela 'cargos' mas a tabela real é 'Cargo'
   // Dropar a FK antiga e recriar apontando para a tabela correta
