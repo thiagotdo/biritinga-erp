@@ -226,6 +226,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Listar colunas das tabelas principais para diagnóstico
+  const tableNames = ['Veiculo', 'Obra', 'Servidor', 'Licitacao']
+  const tableInfo: Record<string, string[]> = {}
+  for (const tbl of tableNames) {
+    try {
+      const [cols]: any = await conn.execute(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
+        [cfg.database, tbl]
+      )
+      tableInfo[tbl] = cols.map((c: any) => c.COLUMN_NAME)
+    } catch { tableInfo[tbl] = [] }
+  }
+
   await conn.end()
 
   const errors = results.filter(r => r.status === 'erro')
@@ -233,5 +246,6 @@ export async function GET(req: NextRequest) {
     ok: errors.length === 0,
     total: results.length,
     results,
+    tableInfo,
   }, { status: errors.length === 0 ? 200 : 207 })
 }
