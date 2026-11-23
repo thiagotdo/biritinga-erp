@@ -25,13 +25,13 @@ export async function GET(req: NextRequest) {
     if (q && q.length >= 2) {
       const like = `%${q}%`
       const rows = await db.$queryRaw`
-        SELECT * FROM Veiculo WHERE municipioId = ${municipioId} AND ativo = 1
-          AND (placa LIKE ${like} OR descricao LIKE ${like} OR modelo LIKE ${like})
+        SELECT * FROM Veiculo WHERE municipioId = ${municipioId}
+          AND (placa LIKE ${like} OR observacoes LIKE ${like} OR modelo LIKE ${like})
         LIMIT 20`
       return NextResponse.json({ veiculos: rows })
     }
     const rows = await db.$queryRaw`
-      SELECT * FROM Veiculo WHERE municipioId = ${municipioId} AND ativo = 1
+      SELECT * FROM Veiculo WHERE municipioId = ${municipioId} AND status != 'INATIVO'
       ORDER BY placa`
     return NextResponse.json({ veiculos: rows })
   } catch (e: any) {
@@ -42,22 +42,25 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const municipioId = mid(req)
   const { placa, descricao, tipo, marca, modelo, anoFabricacao, anoModelo,
-    cor, combustivel, renavam, chassi, secretaria, kmAtual } = await req.json()
-  if (!placa || !descricao)
-    return NextResponse.json({ erro: 'Placa e descrição obrigatórias' }, { status: 400 })
+    cor, combustivel, renavam, chassi, chassis, secretaria, kmAtual, odometroAtual } = await req.json()
+  if (!placa)
+    return NextResponse.json({ erro: 'Placa obrigatória' }, { status: 400 })
   const placaNorm = placa.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const chassisVal = chassi || chassis || null
+  const km = odometroAtual ?? kmAtual ?? 0
   try {
-    const dup = await db.$queryRaw`SELECT id FROM Veiculo WHERE municipioId = ${municipioId} AND placa = ${placaNorm} AND ativo = 1 LIMIT 1`
-    if (dup.length) return NextResponse.json({ erro: 'Placa já cadastrada' }, { status: 409 })
+    const dup = await db.$queryRaw`SELECT id FROM Veiculo WHERE municipioId = ${municipioId} AND placa = ${placaNorm} LIMIT 1`
+    if ((dup as any[]).length) return NextResponse.json({ erro: 'Placa já cadastrada' }, { status: 409 })
     const id = crypto.randomUUID()
     await db.$queryRaw`
-      INSERT INTO Veiculo (id, municipioId, placa, descricao, tipo, marca, modelo,
-                           anoFabricacao, anoModelo, cor, combustivel, renavam, chassi,
-                           secretaria, kmAtual)
-      VALUES (${id}, ${municipioId}, ${placaNorm}, ${descricao}, ${tipo || null},
+      INSERT INTO Veiculo (id, municipioId, placa, tipo, marca, modelo,
+                           anoFabricacao, anoModelo, cor, combustivel, renavam, chassis,
+                           secretaria, odometroAtual, observacoes)
+      VALUES (${id}, ${municipioId}, ${placaNorm}, ${tipo || null},
               ${marca || null}, ${modelo || null}, ${anoFabricacao || null},
               ${anoModelo || null}, ${cor || null}, ${combustivel || 'FLEX'},
-              ${renavam || null}, ${chassi || null}, ${secretaria || null}, ${kmAtual ?? 0})`
+              ${renavam || null}, ${chassisVal},
+              ${secretaria || null}, ${km}, ${descricao || null})`
     return NextResponse.json({ id }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
