@@ -82,6 +82,19 @@ const MIGRATIONS: Migration[] = [
     sql: `ALTER TABLE Servidor ADD COLUMN observacoes TEXT NULL`,
     checkColumn: { table: 'Servidor', column: 'observacoes' },
   },
+  // ── FK: Servidor.cargoId deve apontar para Cargo (não cargos) ─────────────
+  // O Prisma criou a FK para a tabela 'cargos' mas a tabela real é 'Cargo'
+  // Dropar a FK antiga e recriar apontando para a tabela correta
+  {
+    name: 'servidor_cargo_fk_fix',
+    sql: `ALTER TABLE Servidor DROP FOREIGN KEY Servidor_cargoId_fkey`,
+    checkColumn: undefined, // sempre tenta; ignora erro se já não existe
+  },
+  {
+    name: 'servidor_cargo_fk_new',
+    sql: `ALTER TABLE Servidor ADD CONSTRAINT Servidor_cargoId_fkey FOREIGN KEY (cargoId) REFERENCES Cargo(id) ON DELETE RESTRICT ON UPDATE CASCADE`,
+    checkColumn: undefined,
+  },
 ]
 
 async function columnExists(conn: mysql.Connection, table: string, column: string, database: string): Promise<boolean> {
