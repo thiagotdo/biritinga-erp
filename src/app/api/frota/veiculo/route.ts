@@ -67,6 +67,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  const municipioId = mid(req)
+  const id = new URL(req.url).searchParams.get('id')
+  if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
+  try {
+    const rows: any[] = await db.$queryRaw`SELECT id FROM Veiculo WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+    if (!rows.length) return NextResponse.json({ erro: 'Veículo não encontrado' }, { status: 404 })
+    await db.$queryRaw`DELETE FROM Veiculo WHERE id = ${id} AND municipioId = ${municipioId}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    return NextResponse.json({ erro: e.message }, { status: 500 })
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   const municipioId = mid(req)
   const { id, status, kmAtual, secretaria, motoristaPadrao, ativo, observacoes } = await req.json()
