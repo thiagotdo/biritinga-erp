@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
+import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 
@@ -27,24 +28,24 @@ export async function GET(req: NextRequest) {
 
   if (relatorio === 'DASHBOARD') {
     const [totais, porNatureza, porOrgao, evolucao] = await Promise.all([
-      prisma.despesaOrcamentaria.aggregate({
+      prisma.DespesaOrcamentaria.aggregate({
         where: { municipioId: usuario.municipioId, exercicio },
         _sum: { orcado: true, empenhado: true, liquidado: true, pago: true },
       }),
-      prisma.despesaOrcamentaria.groupBy({
+      prisma.DespesaOrcamentaria.groupBy({
         by: ['natureza'],
         where: { municipioId: usuario.municipioId, exercicio },
         _sum: { orcado: true, pago: true },
         orderBy: { _sum: { pago: 'desc' } },
       }),
-      prisma.despesaOrcamentaria.groupBy({
+      prisma.DespesaOrcamentaria.groupBy({
         by: ['orgao'],
         where: { municipioId: usuario.municipioId, exercicio },
         _sum: { pago: true },
         orderBy: { _sum: { pago: 'desc' } },
         take: 8,
       }),
-      prisma.despesaOrcamentaria.groupBy({
+      prisma.DespesaOrcamentaria.groupBy({
         by: ['mes', 'competencia'],
         where: { municipioId: usuario.municipioId, exercicio },
         _sum: { empenhado: true, pago: true },
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
     ])
 
     // Top 10 credores
-    const topCredores = await prisma.despesaOrcamentaria.groupBy({
+    const topCredores = await prisma.DespesaOrcamentaria.groupBy({
       by: ['credorNome', 'credorCPFCNPJ'],
       where: { municipioId: usuario.municipioId, exercicio, credorNome: { not: null } },
       _sum: { pago: true },
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
     { credorCPFCNPJ: { contains: credor } },
   ]
 
-  const despesas = await prisma.despesaOrcamentaria.findMany({
+  const despesas = await prisma.DespesaOrcamentaria.findMany({
     where, orderBy: [{ orgao: 'asc' }, { competencia: 'asc' }], take: 500,
   })
   return NextResponse.json({ despesas, total: despesas.length })
@@ -115,9 +116,26 @@ export async function POST(req: NextRequest) {
     const rows: any[] = body.rows ?? []
     if (!rows.length) return NextResponse.json({ erro: 'Nenhum registro' }, { status: 400 })
 
+    // Mapeamento de natureza para ENUM válido
+    const mapNatureza = (n: string) => {
+      const m: Record<string, string> = {
+        'PESSOAL': 'PESSOAL_ENCARGOS', 'CUSTEIO': 'OUTRAS_CORRENTES',
+        'INVESTIMENTO': 'INVESTIMENTOS', 'PESSOAL_ENCARGOS': 'PESSOAL_ENCARGOS',
+        'OUTRAS_CORRENTES': 'OUTRAS_CORRENTES', 'INVESTIMENTOS': 'INVESTIMENTOS',
+        'JUROS_ENCARGOS_DIVIDA': 'JUROS_ENCARGOS_DIVIDA',
+        'INVERSOES_FINANCEIRAS': 'INVERSOES_FINANCEIRAS',
+        'AMORTIZACAO_DIVIDA': 'AMORTIZACAO_DIVIDA',
+        'RESERVA_CONTINGENCIA': 'RESERVA_CONTINGENCIA',
+      }
+      return (m[n] ?? 'OUTRAS_CORRENTES') as any
+    }
+
     const criados = await prisma.$transaction(
-      rows.map((r: any) => prisma.despesaOrcamentaria.create({
+      rows.map((r: any) => prisma.DespesaOrcamentaria.create({
         data: {
+          id: randomUUID(),
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
           municipioId: usuario.municipioId,
           exercicio: r.exercicio ?? new Date().getFullYear(),
           mes: r.mes ?? parseInt(r.competencia?.split('-')[1] ?? '1'),
@@ -128,7 +146,7 @@ export async function POST(req: NextRequest) {
           subfuncao: r.subfuncao,
           programa: r.programa,
           acao: r.acao,
-          natureza: r.natureza as any,
+          natureza: mapNatureza(r.natureza),
           elementoDespesa: r.elementoDespesa,
           descricao: r.descricao,
           fonte: r.fonte,
@@ -174,8 +192,8 @@ export async function POST(req: NextRequest) {
   if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
   const d = val.data
 
-  const desp = await prisma.despesaOrcamentaria.create({
-    data: { municipioId: usuario.municipioId, ...d, natureza: d.natureza as any } as any,
+  const desp = await prisma.DespesaOrcamentaria.create({
+    data: { id: randomUUID(), criadoEm: new Date(), atualizadoEm: new Date(), municipioId: usuario.municipioId, ...d, natureza: d.natureza as any } as any,
   })
   return NextResponse.json({ despesa: desp }, { status: 201 })
 }

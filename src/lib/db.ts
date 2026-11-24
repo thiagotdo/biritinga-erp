@@ -443,7 +443,7 @@ const DB_TABLES = [
   // Portal / Ouvidoria / e-SIC
   'Demanda', 'RespostaDemanda', 'SolicitacaoSIC', 'RespostaSIC',
   // Transparência
-  'PortalTransparencia',
+  'PortalTransparencia', 'DespesaOrcamentaria',
 ] as const
 
 type DbModels = {
