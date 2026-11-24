@@ -151,17 +151,17 @@ export default function OuvidoriaDashboard() {
                 className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-mono font-semibold text-purple-600">{m.numero}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COR[m.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {STATUS_LABEL[m.status] ?? m.status}
+                    <span className="text-xs font-mono font-semibold text-purple-600">{m.protocolo}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COR[m.situacao] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {STATUS_LABEL[m.situacao] ?? m.situacao}
                     </span>
                     <span className={`text-xs font-medium ${TIPO_COR[m.tipo] ?? 'text-gray-600'}`}>
                       {TIPO_LABEL[m.tipo] ?? m.tipo}
                     </span>
                   </div>
                   <p className="text-sm text-gray-800 font-medium truncate">{m.assunto}</p>
-                  {!m.anonimo && m.nomeRequerente && (
-                    <p className="text-xs text-gray-400 truncate">{m.nomeRequerente}</p>
+                  {!m.anonimo && m.cidadaoNome && (
+                    <p className="text-xs text-gray-400 truncate">{m.cidadaoNome}</p>
                   )}
                   {m.anonimo && <p className="text-xs text-gray-400 italic">Anônimo</p>}
                 </div>

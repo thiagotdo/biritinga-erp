@@ -59,21 +59,21 @@ export default function ManifestacoesList() {
     })
     setSalvando(false)
     if (r.ok) {
-      setMsg(`Manifestação ${sel.numero} respondida com sucesso.`)
+      setMsg(`Manifestação ${sel.protocolo} respondida com sucesso.`)
       setModal(null); setSel(null); setResposta('')
       carregar()
     }
   }
 
-  const encerrar = async (id: string, numero: string, status: string) => {
+  const encerrar = async (id: string, protocolo: string, status: string) => {
     const r = await fetch('/api/ouvidoria/manifestacao', {
       method:'PATCH', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ id, status })
     })
-    if (r.ok) { setMsg(`Manifestação ${numero} atualizada.`); carregar() }
+    if (r.ok) { setMsg(`Manifestação ${protocolo} atualizada.`); carregar() }
   }
 
-  const isAtiva = (s: string) => !['RESPONDIDA','ENCERRADA','CANCELADA'].includes(s)
+  const isAtiva = (s: string) => !['RESPONDIDA','ENCERRADA','CANCELADA','ENCAMINHADA'].includes(s)
 
   return (
     <div className="p-6 space-y-4">
@@ -121,16 +121,16 @@ export default function ManifestacoesList() {
       ) : (
         <div className="space-y-3">
           {items.map((m: any) => {
-            const vencendo = m.prazo && isAtiva(m.status) &&
-              new Date(m.prazo) <= new Date(Date.now() + 3*24*60*60*1000)
+            const vencendo = m.prazoResposta && isAtiva(m.situacao) &&
+              new Date(m.prazoResposta) <= new Date(Date.now() + 3*24*60*60*1000)
             return (
               <div key={m.id} className={`bg-white rounded-xl border shadow-sm p-4 ${vencendo ? 'border-orange-300' : 'border-gray-200'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-xs font-mono font-semibold text-purple-600">{m.numero}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COR[m.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {STATUS_LABEL[m.status] ?? m.status}
+                      <span className="text-xs font-mono font-semibold text-purple-600">{m.protocolo}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COR[m.situacao] ?? 'bg-gray-100 text-gray-700'}`}>
+                        {STATUS_LABEL[m.situacao] ?? m.situacao}
                       </span>
                       <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
                         {TIPO_LABEL[m.tipo] ?? m.tipo}
@@ -140,10 +140,10 @@ export default function ManifestacoesList() {
                     </div>
                     <p className="text-sm font-medium text-gray-900 mb-1">{m.assunto}</p>
                     <div className="flex items-center gap-4 text-xs text-gray-400">
-                      {m.anonimo ? <span className="italic">Anônimo</span> : m.nomeRequerente && <span>{m.nomeRequerente}</span>}
+                      {m.anonimo ? <span className="italic">Anônimo</span> : m.cidadaoNome && <span>{m.cidadaoNome}</span>}
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Aberto em {fmtData(m.criadoEm)}</span>
-                      {m.prazo && <span>Prazo: {fmtData(m.prazo)}</span>}
-                      {m.setorResponsavel && <span>Setor: {m.setorResponsavel}</span>}
+                      {m.prazoResposta && <span>Prazo: {fmtData(m.prazoResposta)}</span>}
+                      {m.orgaoRelacionado && <span>Setor: {m.orgaoRelacionado}</span>}
                     </div>
                     {m.descricao && (
                       <p className="text-xs text-gray-500 mt-2 line-clamp-2">{m.descricao}</p>
@@ -155,7 +155,7 @@ export default function ManifestacoesList() {
                       </div>
                     )}
                   </div>
-                  {isAtiva(m.status) && (
+                  {isAtiva(m.situacao) && (
                     <div className="flex flex-col gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => { setSel(m); setResposta(''); setModal('responder') }}
@@ -163,16 +163,16 @@ export default function ManifestacoesList() {
                       >
                         <Send className="w-3 h-3" />Responder
                       </button>
-                      {m.status === 'RECEBIDA' && (
+                      {m.situacao === 'RECEBIDA' && (
                         <button
-                          onClick={() => encerrar(m.id, m.numero, 'EM_ANALISE')}
+                          onClick={() => encerrar(m.id, m.protocolo, 'EM_ANALISE')}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 text-xs font-medium"
                         >
                           Em Análise
                         </button>
                       )}
                       <button
-                        onClick={() => encerrar(m.id, m.numero, 'ENCERRADA')}
+                        onClick={() => encerrar(m.id, m.protocolo, 'ENCERRADA')}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs font-medium"
                       >
                         Encerrar
@@ -195,7 +195,7 @@ export default function ManifestacoesList() {
               <button onClick={() => { setModal(null); setSel(null) }}><X className="w-5 h-5 text-gray-500" /></button>
             </div>
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs font-mono text-purple-600">{sel.numero}</p>
+              <p className="text-xs font-mono text-purple-600">{sel.protocolo}</p>
               <p className="text-sm font-medium text-gray-900">{sel.assunto}</p>
             </div>
             <div className="space-y-3">
