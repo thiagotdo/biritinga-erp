@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const mun = await prisma.municipio.findFirst({
+    const mun = await prisma.Municipio.findFirst({
       where: { ativo: true },
     })
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const brasaoUrl = mun.brasaoUrl ?? `${appUrl}/brasao.png`
 
     // Buscar notícias publicadas
-    const noticias = await prisma.noticia.findMany({
+    const noticias = await prisma.Noticia.findMany({
       where: { municipioId: mun.id, status: 'PUBLICADA', ativo: true },
       orderBy: [{ destaque: 'desc' }, { dataPublicacao: 'desc' }],
       take: 6,
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
     // Buscar próximos eventos
     const agora = new Date()
-    const eventos = await prisma.eventoAgenda.findMany({
+    const eventos = await prisma.EventoAgenda.findMany({
       where: {
         municipioId: mun.id,
         ativo: true,

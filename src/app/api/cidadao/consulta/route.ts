@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   // Verificar se é pedido e-SIC
   if (protocolo.startsWith('SIC-')) {
-    const pedido = await prisma.pedidoAcesso.findFirst({
+    const pedido = await prisma.PedidoAcesso.findFirst({
       where: { protocolo },
       select: {
         protocolo: true,
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
   // Verificar se é manifestação de ouvidoria
   if (protocolo.startsWith('OUV-')) {
-    const manifestacao = await prisma.manifestacao.findFirst({
+    const manifestacao = await prisma.Manifestacao.findFirst({
       where: { protocolo },
       select: {
         protocolo: true,

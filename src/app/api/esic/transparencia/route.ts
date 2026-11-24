@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   // ── Painel de conformidade Art. 8 ─────────────────────────────────────────
   if (relatorio === 'CONFORMIDADE') {
-    const publicados = await prisma.transparenciaAtiva.findMany({
+    const publicados = await prisma.TransparenciaAtiva.findMany({
       where: {
         municipioId: usuario.municipioId,
         situacao: 'PUBLICADO',
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (id) {
-    const item = await prisma.transparenciaAtiva.findFirst({
+    const item = await prisma.TransparenciaAtiva.findFirst({
       where: { id, municipioId: usuario.municipioId },
     })
     if (!item) return NextResponse.json({ erro: 'Publicação não encontrada' }, { status: 404 })
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
     { palavrasChave:{ contains: busca } },
   ]
 
-  const items = await prisma.transparenciaAtiva.findMany({
+  const items = await prisma.TransparenciaAtiva.findMany({
     where,
     orderBy: { atualizadoEm: 'desc' },
   })
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
   const agora = new Date()
 
-  const item = await prisma.transparenciaAtiva.create({
+  const item = await prisma.TransparenciaAtiva.create({
     data: {
       municipioId:   usuario.municipioId,
       tipo:          d.tipo as any,
@@ -167,7 +167,7 @@ export async function PATCH(req: NextRequest) {
   const { id, acao, ...extras } = await req.json()
   if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const item = await prisma.transparenciaAtiva.findFirst({
+  const item = await prisma.TransparenciaAtiva.findFirst({
     where: { id, municipioId: usuario.municipioId },
   })
   if (!item) return NextResponse.json({ erro: 'Publicação não encontrada' }, { status: 404 })
@@ -213,7 +213,7 @@ export async function PATCH(req: NextRequest) {
     dataAtualizada.downloads = { increment: 1 }
   }
 
-  const atualizado = await prisma.transparenciaAtiva.update({
+  const atualizado = await prisma.TransparenciaAtiva.update({
     where: { id },
     data:  dataAtualizada,
   })

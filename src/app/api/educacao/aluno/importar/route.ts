@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
         // Checar CPF duplicado
         if (cpf) {
-          const dup = await prisma.aluno.findFirst({ where: { municipioId, cpf } })
+          const dup = await prisma.Aluno.findFirst({ where: { municipioId, cpf } })
           if (dup) {
             resultados.push({ linha: i + 1, nome, status: 'ignorado', erro: 'CPF já cadastrado' })
             continue
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
         const sexoRaw = get('sexo').toUpperCase()
         const sexo = ['M','F'].includes(sexoRaw) ? sexoRaw : null
 
-        const aluno = await prisma.aluno.create({
+        const aluno = await prisma.Aluno.create({
           data: {
             municipioId,
             nome,
@@ -115,15 +115,15 @@ export async function POST(req: NextRequest) {
         // Matricular se tiver turmaId
         const turmaId = get('turmaid')
         if (turmaId) {
-          const turma = await prisma.turma.findFirst({ where: { id: turmaId, municipioId } })
+          const turma = await prisma.Turma.findFirst({ where: { id: turmaId, municipioId } })
           if (turma) {
             const anoMat = Number(get('anoletivo')) || anoLetivo
-            const jaMatriculado = await prisma.matricula.findFirst({
+            const jaMatriculado = await prisma.Matricula.findFirst({
               where: { alunoId: aluno.id, turmaId, anoLetivo: anoMat },
             })
             if (!jaMatriculado) {
-              const contagem = await prisma.matricula.count({ where: { turmaId, anoLetivo: anoMat } })
-              await prisma.matricula.create({
+              const contagem = await prisma.Matricula.count({ where: { turmaId, anoLetivo: anoMat } })
+              await prisma.Matricula.create({
                 data: {
                   municipioId,
                   alunoId: aluno.id,

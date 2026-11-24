@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const page    = Math.max(parseInt(searchParams.get('page') ?? '1'), 1)
     const skip    = (page - 1) * limit
 
-    const mun = await prisma.municipio.findFirst({ where: { ativo: true }, select: { id: true } })
+    const mun = await prisma.Municipio.findFirst({ where: { ativo: true }, select: { id: true } })
     if (!mun) return NextResponse.json({ eventos: [], total: 0 }, { headers: corsHeaders() })
 
     const agora = new Date()
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     }
 
     const [eventos, total] = await Promise.all([
-      prisma.eventoAgenda.findMany({
+      prisma.EventoAgenda.findMany({
         where,
         orderBy: [{ destaque: 'desc' }, { dataInicio: proximos ? 'asc' : 'desc' }],
         take: limit,
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
           publicoEsperado: true,
         },
       }),
-      prisma.eventoAgenda.count({ where }),
+      prisma.EventoAgenda.count({ where }),
     ])
 
     return NextResponse.json({

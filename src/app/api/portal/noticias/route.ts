@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const page     = Math.max(parseInt(searchParams.get('page') ?? '1'), 1)
     const skip     = (page - 1) * limit
 
-    const mun = await prisma.municipio.findFirst({ where: { ativo: true }, select: { id: true } })
+    const mun = await prisma.Municipio.findFirst({ where: { ativo: true }, select: { id: true } })
     if (!mun) return NextResponse.json({ noticias: [], total: 0 }, { headers: corsHeaders() })
 
     const where = {
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
 
     const [noticias, total] = await Promise.all([
-      prisma.noticia.findMany({
+      prisma.Noticia.findMany({
         where,
         orderBy: [{ destaque: 'desc' }, { dataPublicacao: 'desc' }],
         take: limit,
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
           tags: true,
         },
       }),
-      prisma.noticia.count({ where }),
+      prisma.Noticia.count({ where }),
     ])
 
     return NextResponse.json({

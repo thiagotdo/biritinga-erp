@@ -26,7 +26,7 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
-    const mun = await prisma.municipio.findFirst({
+    const mun = await prisma.Municipio.findFirst({
       where: { ativo: true },
       select: {
         id: true,

@@ -21,12 +21,12 @@ export async function GET(req: NextRequest) {
   if (!manifestacaoId) return NextResponse.json({ erro: 'manifestacaoId obrigatório' }, { status: 400 })
 
   // Verifica se a manifestação pertence ao município
-  const manifestacao = await prisma.manifestacao.findFirst({
+  const manifestacao = await prisma.Manifestacao.findFirst({
     where: { id: manifestacaoId, municipioId: usuario.municipioId },
   })
   if (!manifestacao) return NextResponse.json({ erro: 'Manifestação não encontrada' }, { status: 404 })
 
-  const respostas = await prisma.respostaManifestacao.findMany({
+  const respostas = await prisma.RespostaManifestacao.findMany({
     where: { manifestacaoId },
     orderBy: { criadoEm: 'asc' },
   })
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
   const d = val.data
 
-  const manifestacao = await prisma.manifestacao.findFirst({
+  const manifestacao = await prisma.Manifestacao.findFirst({
     where: { id: d.manifestacaoId, municipioId: usuario.municipioId },
   })
   if (!manifestacao) return NextResponse.json({ erro: 'Manifestação não encontrada' }, { status: 404 })
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'Manifestação já encerrada - não aceita mais respostas' }, { status: 409 })
   }
 
-  const resposta = await prisma.respostaManifestacao.create({
+  const resposta = await prisma.RespostaManifestacao.create({
     data: {
       municipioId: usuario.municipioId,
       manifestacaoId: d.manifestacaoId,

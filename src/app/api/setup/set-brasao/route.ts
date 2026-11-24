@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
     const brasaoUrl = body.brasaoUrl ?? `${appUrl}/brasao.png`
 
     // Atualizar município (pega o primeiro ativo)
-    const mun = await prisma.municipio.findFirst({ where: { ativo: true } })
+    const mun = await prisma.Municipio.findFirst({ where: { ativo: true } })
     if (!mun) return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404 })
 
-    await prisma.municipio.update({
+    await prisma.Municipio.update({
       where: { id: mun.id },
       data: {
         brasaoUrl,

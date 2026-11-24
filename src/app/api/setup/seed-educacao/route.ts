@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Buscar municipio
-    const municipio = await prisma.municipio.findFirst({ where: { slug: 'biritinga' } })
+    const municipio = await prisma.Municipio.findFirst({ where: { slug: 'biritinga' } })
     if (!municipio) {
       return NextResponse.json({ erro: 'Município biritinga não encontrado. Execute o setup primeiro.' }, { status: 404 })
     }
@@ -329,7 +329,7 @@ export async function POST(req: NextRequest) {
 
     for (const esc of ESCOLAS_BIRITINGA) {
       // Verificar se já existe
-      const existe = await prisma.escola.findFirst({
+      const existe = await prisma.Escola.findFirst({
         where: { municipioId: municipio.id, inep: esc.inep },
       })
 
@@ -338,7 +338,7 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      const escola = await prisma.escola.create({
+      const escola = await prisma.Escola.create({
         data: {
           municipioId:     municipio.id,
           nome:            esc.nome,
@@ -361,7 +361,7 @@ export async function POST(req: NextRequest) {
         for (const t of turmas) {
           // Código único por escola+etapa+série no ano letivo
           const codigoUnico = `${etapa.slice(0, 2)}-${t.codigo}`
-          await prisma.turma.create({
+          await prisma.Turma.create({
             data: {
               escolaId:    escola.id,
               municipioId: municipio.id,

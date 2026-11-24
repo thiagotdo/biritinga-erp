@@ -457,18 +457,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const municipio = await prisma.municipio.findFirst({ where: { slug: 'biritinga' } })
+    const municipio = await prisma.Municipio.findFirst({ where: { slug: 'biritinga' } })
     if (!municipio) {
       return NextResponse.json({ erro: 'Município biritinga não encontrado. Execute o setup primeiro.' }, { status: 404 })
     }
     const municipioId = municipio.id
 
     // ── 1. Exercício orçamentário 2025 ─────────────────────────────────────────
-    let exercicio = await prisma.exercicioOrcamentario.findFirst({
+    let exercicio = await prisma.ExercicioOrcamentario.findFirst({
       where: { municipioId, exercicio: 2025 },
     })
     if (!exercicio) {
-      exercicio = await prisma.exercicioOrcamentario.create({
+      exercicio = await prisma.ExercicioOrcamentario.create({
         data: {
           municipioId,
           exercicio: 2025,
@@ -482,13 +482,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Admin para criação de registros
-    const admin = await prisma.usuario.findFirst({ where: { municipioId } })
+    const admin = await prisma.Usuario.findFirst({ where: { municipioId } })
     if (!admin) return NextResponse.json({ erro: 'Nenhum usuário encontrado. Execute o setup de usuário primeiro.' }, { status: 404 })
 
     // ── 2. LOA 2025 ────────────────────────────────────────────────────────────
-    let loa = await prisma.lOA.findFirst({ where: { municipioId, exercicio: 2025 } })
+    let loa = await prisma.LOA.findFirst({ where: { municipioId, exercicio: 2025 } })
     if (!loa) {
-      loa = await prisma.lOA.create({
+      loa = await prisma.LOA.create({
         data: {
           municipioId,
           exercicio: 2025,
@@ -502,9 +502,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Orçamento para ReceitaPrevista ──────────────────────────────────────
-    let orcamento = await prisma.orcamento.findFirst({ where: { municipioId, exercicio: 2025 } })
+    let orcamento = await prisma.Orcamento.findFirst({ where: { municipioId, exercicio: 2025 } })
     if (!orcamento) {
-      orcamento = await prisma.orcamento.create({
+      orcamento = await prisma.Orcamento.create({
         data: {
           municipioId,
           exercicio: 2025,
@@ -520,11 +520,11 @@ export async function POST(req: NextRequest) {
     // ── 4. Receitas previstas ──────────────────────────────────────────────────
     let receitasCriadas = 0
     for (const r of RECEITAS_LOA_2025) {
-      const existe = await prisma.receitaPrevista.findFirst({
+      const existe = await prisma.ReceitaPrevista.findFirst({
         where: { orcamentoId: orcamento.id, codigo: r.codigo },
       })
       if (!existe) {
-        await prisma.receitaPrevista.create({
+        await prisma.ReceitaPrevista.create({
           data: {
             municipioId,
             orcamentoId: orcamento.id,
@@ -542,11 +542,11 @@ export async function POST(req: NextRequest) {
     // ── 5. Dotações 2025 ───────────────────────────────────────────────────────
     let dotacoesCriadas = 0
     for (const d of DOTACOES_2025) {
-      const existe = await prisma.dotacao.findFirst({
+      const existe = await prisma.Dotacao.findFirst({
         where: { municipioId, exercicioId: exercicio.id, unidadeOrcamentaria: d.unidade, elementoDespesa: d.elementoDespesa },
       })
       if (!existe) {
-        await prisma.dotacao.create({
+        await prisma.Dotacao.create({
           data: {
             municipioId,
             exercicioId: exercicio.id,
@@ -571,21 +571,21 @@ export async function POST(req: NextRequest) {
     // ── 6. Empenhos reais dos Diários Oficiais ─────────────────────────────────
     let empenhosCriados = 0
     for (const e of EMPENHOS_REAIS) {
-      const existe = await prisma.empenho.findFirst({ where: { municipioId, numero: e.numero } })
+      const existe = await prisma.Empenho.findFirst({ where: { municipioId, numero: e.numero } })
       if (!existe) {
         // Busca exercício correto
-        const ex = await prisma.exercicioOrcamentario.findFirst({
+        const ex = await prisma.ExercicioOrcamentario.findFirst({
           where: { municipioId, exercicio: e.exercicio },
         })
         if (!ex) continue
 
         // Busca uma dotação compatível com a unidade
-        const dotacao = await prisma.dotacao.findFirst({
+        const dotacao = await prisma.Dotacao.findFirst({
           where: { municipioId, unidadeOrcamentaria: { startsWith: e.unidade.split('.')[0] } },
         })
         if (!dotacao) continue
 
-        await prisma.empenho.create({
+        await prisma.Empenho.create({
           data: {
             municipioId,
             numero: e.numero,
@@ -610,16 +610,16 @@ export async function POST(req: NextRequest) {
     // ── 7. Lançamentos de receita (1º bimestre 2025) ───────────────────────────
     let lancamentosCriados = 0
     for (const l of LANCAMENTOS_BIMESTRE_1_2025) {
-      const rp = await prisma.receitaPrevista.findFirst({
+      const rp = await prisma.ReceitaPrevista.findFirst({
         where: { orcamentoId: orcamento.id, codigo: l.codigoReceita },
       })
       if (!rp) continue
 
-      const existe = await prisma.lancamentoReceita.findFirst({
+      const existe = await prisma.LancamentoReceita.findFirst({
         where: { receitaPrevistaId: rp.id, competencia: l.competencia },
       })
       if (!existe) {
-        await prisma.lancamentoReceita.create({
+        await prisma.LancamentoReceita.create({
           data: {
             municipioId,
             receitaPrevistaId: rp.id,

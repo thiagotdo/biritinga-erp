@@ -443,14 +443,15 @@ const DB_TABLES = [
   'LoteLicitacao', 'ParticipanteLicitacao',
   // Portal / Ouvidoria / e-SIC
   'Demanda', 'RespostaDemanda', 'SolicitacaoSIC', 'RespostaSIC',
-  'Manifestacao', 'MovimentacaoManifestacao',
+  'Manifestacao', 'MovimentacaoManifestacao', 'RespostaManifestacao',
   'PedidoAcesso', 'RecursoPedido', 'TramitacaoPedido',
+  'TransparenciaAtiva', 'PublicacaoTransparencia',
   // Transparência
   'PortalTransparencia', 'DespesaOrcamentaria',
   // Assistência Social (SUAS)
   'UnidadeSuas', 'FamiliaReferenciada', 'AtendimentoSuas', 'BeneficioFamilia',
   // SEFIN extra
-  'ReceitaOrcamentaria', 'Folha',
+  'ReceitaOrcamentaria', 'Folha', 'ExercicioOrcamentario', 'Orcamento',
 ] as const
 
 type DbModels = {

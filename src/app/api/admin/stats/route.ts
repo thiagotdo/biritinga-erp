@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
     const mId = usuario.municipioId
 
     const [noticias, eventos, usuarios, demandas] = await Promise.all([
-      prisma.noticia.count({ where: { municipioId: mId, ativo: true } }).catch(() => 0),
-      prisma.eventoAgenda.count({ where: { municipioId: mId, ativo: true } }).catch(() => 0),
-      prisma.usuario.count({ where: { municipioId: mId, ativo: true } }).catch(() => 0),
+      prisma.Noticia.count({ where: { municipioId: mId, ativo: true } }).catch(() => 0),
+      prisma.EventoAgenda.count({ where: { municipioId: mId, ativo: true } }).catch(() => 0),
+      prisma.Usuario.count({ where: { municipioId: mId, ativo: true } }).catch(() => 0),
       // Ouvidoria - tabela pode ou não existir
       prisma.$queryRaw`SELECT COUNT(*) as c FROM OuvidoriaDemanda WHERE municipioId = ${mId}`.then((r: any) => Number(r[0]?.c ?? 0)).catch(() => 0),
     ])

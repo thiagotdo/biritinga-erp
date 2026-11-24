@@ -19,25 +19,25 @@ export async function GET(req: NextRequest) {
       totalMidias, totalAlbums,
       ultimasNoticias, proximosEventos,
     ] = await Promise.all([
-      prisma.noticia.count({ where: { municipioId: mid } }),
-      prisma.noticia.count({ where: { municipioId: mid, status: 'PUBLICADA' } }),
-      prisma.noticia.count({ where: { municipioId: mid, status: 'RASCUNHO' } }),
-      prisma.noticia.count({ where: { municipioId: mid, status: 'REVISAO' } }),
+      prisma.Noticia.count({ where: { municipioId: mid } }),
+      prisma.Noticia.count({ where: { municipioId: mid, status: 'PUBLICADA' } }),
+      prisma.Noticia.count({ where: { municipioId: mid, status: 'RASCUNHO' } }),
+      prisma.Noticia.count({ where: { municipioId: mid, status: 'REVISAO' } }),
 
-      prisma.eventoAgenda.count({ where: { municipioId: mid, ativo: true } }),
-      prisma.eventoAgenda.count({ where: { municipioId: mid, ativo: true, status: 'PROGRAMADO', dataInicio: { gte: agora } } }),
+      prisma.EventoAgenda.count({ where: { municipioId: mid, ativo: true } }),
+      prisma.EventoAgenda.count({ where: { municipioId: mid, ativo: true, status: 'PROGRAMADO', dataInicio: { gte: agora } } }),
 
-      prisma.midia.count({ where: { municipioId: mid, ativo: true } }),
-      prisma.albumMidia.count({ where: { municipioId: mid, ativo: true } }),
+      prisma.Midia.count({ where: { municipioId: mid, ativo: true } }),
+      prisma.AlbumMidia.count({ where: { municipioId: mid, ativo: true } }),
 
-      prisma.noticia.findMany({
+      prisma.Noticia.findMany({
         where: { municipioId: mid },
         orderBy: { criadoEm: 'desc' },
         take: 5,
         select: { id: true, titulo: true, status: true, criadoEm: true },
       }),
 
-      prisma.eventoAgenda.findMany({
+      prisma.EventoAgenda.findMany({
         where: { municipioId: mid, ativo: true, status: 'PROGRAMADO', dataInicio: { gte: agora } },
         orderBy: { dataInicio: 'asc' },
         take: 5,

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (id) {
-      const escola = await prisma.escola.findFirst({
+      const escola = await prisma.Escola.findFirst({
         where: { id, municipioId },
         include: {
           turmas: {
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const where: any = { municipioId, situacao: 'ATIVA' }
     if (zona) where.zona = zona
 
-    const escolas = await prisma.escola.findMany({
+    const escolas = await prisma.Escola.findMany({
       where,
       orderBy: { nome: 'asc' },
       include: {
@@ -83,11 +83,11 @@ export async function POST(req: NextRequest) {
     if (!nome) return NextResponse.json({ erro: 'Nome é obrigatório' }, { status: 400 })
 
     if (inep) {
-      const existe = await prisma.escola.findFirst({ where: { municipioId, inep } })
+      const existe = await prisma.Escola.findFirst({ where: { municipioId, inep } })
       if (existe) return NextResponse.json({ erro: 'Código INEP já cadastrado' }, { status: 409 })
     }
 
-    const escola = await prisma.escola.create({
+    const escola = await prisma.Escola.create({
       data: {
         municipioId, nome,
         inep:           inep || null,
@@ -119,10 +119,10 @@ export async function PATCH(req: NextRequest) {
     const { id, ...dados } = await req.json()
     if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-    const escola = await prisma.escola.findFirst({ where: { id, municipioId } })
+    const escola = await prisma.Escola.findFirst({ where: { id, municipioId } })
     if (!escola) return NextResponse.json({ erro: 'Escola não encontrada' }, { status: 404 })
 
-    await prisma.escola.update({ where: { id }, data: dados })
+    await prisma.Escola.update({ where: { id }, data: dados })
     return NextResponse.json({ sucesso: true })
   } catch (e: any) {
     console.error('[escola PATCH]', e)

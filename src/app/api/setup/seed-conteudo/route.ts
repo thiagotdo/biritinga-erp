@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 })
   }
 
-  const mun = await prisma.municipio.findFirst({ where: { ativo: true } })
+  const mun = await prisma.Municipio.findFirst({ where: { ativo: true } })
   if (!mun) {
     return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404 })
   }
@@ -263,11 +263,11 @@ export async function POST(req: NextRequest) {
 
   // Criar notícias (pular se já existir pelo slug)
   for (const n of noticias) {
-    const existe = await prisma.noticia.findFirst({
+    const existe = await prisma.Noticia.findFirst({
       where: { municipioId: mun.id, slug: n.slug },
     })
     if (!existe) {
-      await prisma.noticia.create({
+      await prisma.Noticia.create({
         data: { ...n, municipioId: mun.id },
       })
       criadas++
@@ -276,11 +276,11 @@ export async function POST(req: NextRequest) {
 
   // Criar eventos (pular se título já existir)
   for (const e of eventos) {
-    const existe = await prisma.eventoAgenda.findFirst({
+    const existe = await prisma.EventoAgenda.findFirst({
       where: { municipioId: mun.id, titulo: e.titulo },
     })
     if (!existe) {
-      await prisma.eventoAgenda.create({
+      await prisma.EventoAgenda.create({
         data: { ...e, municipioId: mun.id },
       })
       criados++

@@ -31,7 +31,7 @@ const PRAZO_DIAS: Record<string, number> = {
 
 async function gerarProtocolo(municipioId: string): Promise<string> {
   const ano = new Date().getFullYear()
-  const count = await prisma.manifestacao.count({ where: { municipioId } })
+  const count = await prisma.Manifestacao.count({ where: { municipioId } })
   return `OUV-${ano}-${String(count + 1).padStart(5, '0')}`
 }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const mun = await prisma.municipio.findFirst({ where: { ativo: true } })
+    const mun = await prisma.Municipio.findFirst({ where: { ativo: true } })
     if (!mun) {
       return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404, headers: corsHeaders() })
     }
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const dataLimite = new Date(agora)
     dataLimite.setDate(dataLimite.getDate() + prazoDias)
 
-    const manifestacao = await prisma.manifestacao.create({
+    const manifestacao = await prisma.Manifestacao.create({
       data: {
         municipioId: mun.id,
         protocolo,

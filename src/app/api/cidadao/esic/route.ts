@@ -33,7 +33,7 @@ function adicionarDiasUteis(data: Date, dias: number): Date {
 
 async function gerarProtocolo(municipioId: string): Promise<string> {
   const ano = new Date().getFullYear()
-  const count = await prisma.pedidoAcesso.count({
+  const count = await prisma.PedidoAcesso.count({
     where: { municipioId, protocolo: { startsWith: `SIC-${ano}-` } },
   })
   return `SIC-${ano}-${String(count + 1).padStart(4, '0')}`
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const mun = await prisma.municipio.findFirst({ where: { ativo: true } })
+    const mun = await prisma.Municipio.findFirst({ where: { ativo: true } })
     if (!mun) {
       return NextResponse.json({ erro: 'Município não encontrado' }, { status: 404, headers: corsHeaders() })
     }
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     const dataProtocolo = new Date()
     const dataLimiteResposta = adicionarDiasUteis(dataProtocolo, 20)
 
-    const pedido = await prisma.pedidoAcesso.create({
+    const pedido = await prisma.PedidoAcesso.create({
       data: {
         municipioId: mun.id,
         protocolo,
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Tramitação inicial
-    await prisma.tramitacaoPedido.create({
+    await prisma.TramitacaoPedido.create({
       data: {
         municipioId: mun.id,
         pedidoId: pedido.id,
