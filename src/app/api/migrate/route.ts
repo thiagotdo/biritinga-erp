@@ -164,6 +164,180 @@ const MIGRATIONS: Migration[] = [
     sql: `ALTER TABLE Veiculo ADD COLUMN motoristaPadrao VARCHAR(255) NULL`,
     checkColumn: { table: 'Veiculo', column: 'motoristaPadrao' },
   },
+  // ── Empenho: colunas novas usadas pela rota atual ──────────────────────────
+  {
+    name: 'empenho_credorNome',
+    sql: `ALTER TABLE Empenho ADD COLUMN credorNome VARCHAR(255) NOT NULL DEFAULT ''`,
+    checkColumn: { table: 'Empenho', column: 'credorNome' },
+  },
+  {
+    name: 'empenho_credorCpfCnpj',
+    sql: `ALTER TABLE Empenho ADD COLUMN credorCpfCnpj VARCHAR(20) NULL`,
+    checkColumn: { table: 'Empenho', column: 'credorCpfCnpj' },
+  },
+  {
+    name: 'empenho_credorBanco',
+    sql: `ALTER TABLE Empenho ADD COLUMN credorBanco VARCHAR(100) NULL`,
+    checkColumn: { table: 'Empenho', column: 'credorBanco' },
+  },
+  {
+    name: 'empenho_credorAgencia',
+    sql: `ALTER TABLE Empenho ADD COLUMN credorAgencia VARCHAR(20) NULL`,
+    checkColumn: { table: 'Empenho', column: 'credorAgencia' },
+  },
+  {
+    name: 'empenho_credorConta',
+    sql: `ALTER TABLE Empenho ADD COLUMN credorConta VARCHAR(30) NULL`,
+    checkColumn: { table: 'Empenho', column: 'credorConta' },
+  },
+  {
+    name: 'empenho_credorPix',
+    sql: `ALTER TABLE Empenho ADD COLUMN credorPix VARCHAR(255) NULL`,
+    checkColumn: { table: 'Empenho', column: 'credorPix' },
+  },
+  {
+    name: 'empenho_modalidade',
+    sql: `ALTER TABLE Empenho ADD COLUMN modalidade VARCHAR(20) NOT NULL DEFAULT 'ORDINARIO'`,
+    checkColumn: { table: 'Empenho', column: 'modalidade' },
+  },
+  {
+    name: 'empenho_contratoNumero',
+    sql: `ALTER TABLE Empenho ADD COLUMN contratoNumero VARCHAR(100) NULL`,
+    checkColumn: { table: 'Empenho', column: 'contratoNumero' },
+  },
+  {
+    name: 'empenho_licitacaoNumero',
+    sql: `ALTER TABLE Empenho ADD COLUMN licitacaoNumero VARCHAR(100) NULL`,
+    checkColumn: { table: 'Empenho', column: 'licitacaoNumero' },
+  },
+  {
+    name: 'empenho_processoNumero',
+    sql: `ALTER TABLE Empenho ADD COLUMN processoNumero VARCHAR(100) NULL`,
+    checkColumn: { table: 'Empenho', column: 'processoNumero' },
+  },
+  {
+    name: 'empenho_notaFiscal',
+    sql: `ALTER TABLE Empenho ADD COLUMN notaFiscal VARCHAR(100) NULL`,
+    checkColumn: { table: 'Empenho', column: 'notaFiscal' },
+  },
+  {
+    name: 'empenho_dataVencimento',
+    sql: `ALTER TABLE Empenho ADD COLUMN dataVencimento DATETIME NULL`,
+    checkColumn: { table: 'Empenho', column: 'dataVencimento' },
+  },
+  {
+    name: 'empenho_competencia',
+    sql: `ALTER TABLE Empenho ADD COLUMN competencia VARCHAR(7) NOT NULL DEFAULT '2026-01'`,
+    checkColumn: { table: 'Empenho', column: 'competencia' },
+  },
+  {
+    name: 'empenho_atualizadoEm',
+    sql: `ALTER TABLE Empenho ADD COLUMN atualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    checkColumn: { table: 'Empenho', column: 'atualizadoEm' },
+  },
+  // ── Liquidacao: colunas novas ───────────────────────────────────────────────
+  {
+    name: 'liquidacao_municipioId',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN municipioId VARCHAR(36) NOT NULL DEFAULT '220b0a46-3db5-4ec5-b14d-e2f05d68755a'`,
+    checkColumn: { table: 'Liquidacao', column: 'municipioId' },
+  },
+  {
+    name: 'liquidacao_tipo',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN tipo VARCHAR(20) NOT NULL DEFAULT 'TOTAL'`,
+    checkColumn: { table: 'Liquidacao', column: 'tipo' },
+  },
+  {
+    name: 'liquidacao_notaFiscal',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN notaFiscal VARCHAR(100) NULL`,
+    checkColumn: { table: 'Liquidacao', column: 'notaFiscal' },
+  },
+  {
+    name: 'liquidacao_dataDocumento',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN dataDocumento DATETIME NULL`,
+    checkColumn: { table: 'Liquidacao', column: 'dataDocumento' },
+  },
+  {
+    name: 'liquidacao_descricao',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN descricao TEXT NULL`,
+    checkColumn: { table: 'Liquidacao', column: 'descricao' },
+  },
+  {
+    name: 'liquidacao_usuarioId',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN usuarioId VARCHAR(36) NULL`,
+    checkColumn: { table: 'Liquidacao', column: 'usuarioId' },
+  },
+  {
+    name: 'liquidacao_criadoEm',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN criadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    checkColumn: { table: 'Liquidacao', column: 'criadoEm' },
+  },
+  {
+    name: 'liquidacao_atualizadoEm',
+    sql: `ALTER TABLE Liquidacao ADD COLUMN atualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    checkColumn: { table: 'Liquidacao', column: 'atualizadoEm' },
+  },
+  // ── Pagamento: colunas novas ───────────────────────────────────────────────
+  {
+    name: 'pagamento_municipioId',
+    sql: `ALTER TABLE Pagamento ADD COLUMN municipioId VARCHAR(36) NOT NULL DEFAULT '220b0a46-3db5-4ec5-b14d-e2f05d68755a'`,
+    checkColumn: { table: 'Pagamento', column: 'municipioId' },
+  },
+  {
+    name: 'pagamento_tipo',
+    sql: `ALTER TABLE Pagamento ADD COLUMN tipo VARCHAR(30) NOT NULL DEFAULT 'TRANSFERENCIA_BANCARIA'`,
+    checkColumn: { table: 'Pagamento', column: 'tipo' },
+  },
+  {
+    name: 'pagamento_autenticacao',
+    sql: `ALTER TABLE Pagamento ADD COLUMN autenticacao VARCHAR(255) NULL`,
+    checkColumn: { table: 'Pagamento', column: 'autenticacao' },
+  },
+  {
+    name: 'pagamento_descricao',
+    sql: `ALTER TABLE Pagamento ADD COLUMN descricao TEXT NULL`,
+    checkColumn: { table: 'Pagamento', column: 'descricao' },
+  },
+  {
+    name: 'pagamento_usuarioId',
+    sql: `ALTER TABLE Pagamento ADD COLUMN usuarioId VARCHAR(36) NULL`,
+    checkColumn: { table: 'Pagamento', column: 'usuarioId' },
+  },
+  {
+    name: 'pagamento_criadoEm',
+    sql: `ALTER TABLE Pagamento ADD COLUMN criadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    checkColumn: { table: 'Pagamento', column: 'criadoEm' },
+  },
+  {
+    name: 'pagamento_atualizadoEm',
+    sql: `ALTER TABLE Pagamento ADD COLUMN atualizadoEm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    checkColumn: { table: 'Pagamento', column: 'atualizadoEm' },
+  },
+  // ── Dotacao: colunas novas usadas pela rota ──────────────────────────────
+  {
+    name: 'dotacao_valorAtual',
+    sql: `ALTER TABLE Dotacao ADD COLUMN valorAtual DECIMAL(15,2) NOT NULL DEFAULT 0`,
+    checkColumn: { table: 'Dotacao', column: 'valorAtual' },
+  },
+  {
+    name: 'dotacao_valorEmpenhado',
+    sql: `ALTER TABLE Dotacao ADD COLUMN valorEmpenhado DECIMAL(15,2) NOT NULL DEFAULT 0`,
+    checkColumn: { table: 'Dotacao', column: 'valorEmpenhado' },
+  },
+  {
+    name: 'dotacao_valorLiquidado',
+    sql: `ALTER TABLE Dotacao ADD COLUMN valorLiquidado DECIMAL(15,2) NOT NULL DEFAULT 0`,
+    checkColumn: { table: 'Dotacao', column: 'valorLiquidado' },
+  },
+  {
+    name: 'dotacao_valorPago',
+    sql: `ALTER TABLE Dotacao ADD COLUMN valorPago DECIMAL(15,2) NOT NULL DEFAULT 0`,
+    checkColumn: { table: 'Dotacao', column: 'valorPago' },
+  },
+  {
+    name: 'dotacao_orcamentoId',
+    sql: `ALTER TABLE Dotacao ADD COLUMN orcamentoId VARCHAR(36) NULL`,
+    checkColumn: { table: 'Dotacao', column: 'orcamentoId' },
+  },
   // ── FK: Servidor.cargoId deve apontar para Cargo (não cargos) ─────────────
   // O Prisma criou a FK para a tabela 'cargos' mas a tabela real é 'Cargo'
   // Dropar a FK antiga e recriar apontando para a tabela correta

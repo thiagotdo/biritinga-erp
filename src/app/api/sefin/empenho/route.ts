@@ -78,86 +78,101 @@ export async function GET(request: NextRequest) {
     const pagina      = Number(searchParams.get('pagina') ?? 1)
     const porPagina   = Math.min(Number(searchParams.get('porPagina') ?? 20), 100)
 
+    const pool = (prisma as any)._pool ?? (prisma as any).__pool
     // Busca individual com histórico completo
     if (id) {
-      const empenho = await prisma.Empenho.findFirst({
-        where: { id, municipioId: ctx.municipioId },
-        include: {
-          dotacao: { select: { codigo: true, descricao: true, secretaria: true, natureza: true } },
-          liquidacoes: { orderBy: { criadoEm: 'asc' } },
-          pagamentos:  { orderBy: { dataPagamento: 'asc' } },
+      const rows = await prisma.$queryRaw`
+        SELECT e.*, d.codigo as dotCodigo, d.descricao as dotDescricao, d.secretaria as dotSecretaria, d.natureza as dotNatureza
+        FROM Empenho e
+        LEFT JOIN Dotacao d ON d.id = e.dotacaoId
+        WHERE e.id = ${id} AND e.municipioId = ${ctx.municipioId}
+        LIMIT 1
+      ` as any[]
+      if (!rows.length) return NextResponse.json({ erro: 'Empenho não encontrado' }, { status: 404 })
+      const e = rows[0]
+      const liquidacoes = await prisma.$queryRaw`SELECT * FROM Liquidacao WHERE empenhoId = ${id} ORDER BY criadoEm ASC` as any[]
+      const pagamentos  = await prisma.$queryRaw`SELECT * FROM Pagamento  WHERE empenhoId = ${id} ORDER BY dataPagamento ASC` as any[]
+      return NextResponse.json({ empenho: { ...e, dotacao: { codigo: e.dotCodigo, descricao: e.dotDescricao, secretaria: e.dotSecretaria, natureza: e.dotNatureza }, liquidacoes, pagamentos } })
+    }
+
+    // Construir filtros
+    const filtros: string[] = ['e.municipioId = ?']
+    const params: any[] = [ctx.municipioId]
+    if (situacao)    { filtros.push('e.situacao = ?');    params.push(situacao) }
+    if (competencia) { filtros.push('e.competencia = ?'); params.push(competencia) }
+    if (dotacaoId)   { filtros.push('e.dotacaoId = ?');   params.push(dotacaoId) }
+    if (busca) {
+      filtros.push('(e.numero LIKE ? OR e.credorNome LIKE ? OR e.credorCpfCnpj LIKE ? OR e.contratoNumero LIKE ? OR e.processoNumero LIKE ?)')
+      const b = `%${busca}%`
+      params.push(b, b, b, b, b)
+    }
+
+    const whereClause = filtros.join(' AND ')
+    const offset = (pagina - 1) * porPagina
+
+    // Usar getPool via db.$queryRaw com template literal manual
+    const { getConn } = await import('@/lib/db')
+    const conn = await getConn()
+    try {
+      const [empenhos] = await conn.execute(`
+        SELECT e.id, e.numero, e.situacao, e.modalidade, e.credorNome, e.credorCpfCnpj,
+               e.valorOriginal, e.valorLiquidado, e.valorPago, e.valorAnulado,
+               e.competencia, e.dataEmissao, e.dataVencimento, e.descricao,
+               e.contratoNumero, e.processoNumero,
+               d.codigo as dotCodigo, d.descricao as dotDescricao, d.secretaria as dotSecretaria
+        FROM Empenho e
+        LEFT JOIN Dotacao d ON d.id = e.dotacaoId
+        WHERE ${whereClause}
+        ORDER BY e.dataEmissao DESC
+        LIMIT ? OFFSET ?
+      `, [...params, porPagina, offset]) as any[]
+
+      const [totalRows] = await conn.execute(
+        `SELECT COUNT(*) as n FROM Empenho e WHERE ${whereClause}`, params
+      ) as any[]
+      const total = Number((totalRows as any[])[0]?.n ?? 0)
+
+      // Totalizadores
+      const baseParams2: any[] = [ctx.municipioId]
+      let filtroBase2 = 'municipioId = ?'
+      if (competencia) { filtroBase2 += ' AND competencia = ?'; baseParams2.push(competencia) }
+
+      const [totaisRows] = await conn.execute(`
+        SELECT SUM(valorOriginal) as somaOriginal, SUM(valorLiquidado) as somaLiquidado,
+               SUM(valorPago) as somaPago, COUNT(*) as total
+        FROM Empenho WHERE ${filtroBase2}
+      `, baseParams2) as any[]
+
+      const [porSitRows] = await conn.execute(`
+        SELECT situacao, COUNT(*) as qtd, SUM(valorOriginal) as soma
+        FROM Empenho WHERE ${filtroBase2} GROUP BY situacao
+      `, baseParams2) as any[]
+
+      const t = (totaisRows as any[])[0] ?? {}
+      return NextResponse.json({
+        empenhos: (empenhos as any[]).map((e: any) => ({
+          ...e,
+          dotacao: { codigo: e.dotCodigo, descricao: e.dotDescricao, secretaria: e.dotSecretaria },
+        })),
+        total,
+        pagina,
+        porPagina,
+        totalPaginas: Math.ceil(total / porPagina),
+        resumo: {
+          totalEmitido:    Number(t.somaOriginal   ?? 0),
+          totalLiquidado:  Number(t.somaLiquidado  ?? 0),
+          totalPago:       Number(t.somaPago        ?? 0),
+          totalEmpenhos:   Number(t.total           ?? 0),
+          porSituacao: (porSitRows as any[]).map((s: any) => ({
+            situacao: s.situacao,
+            total:    Number(s.qtd),
+            valor:    Number(s.soma ?? 0),
+          })),
         },
       })
-      if (!empenho) return NextResponse.json({ erro: 'Empenho não encontrado' }, { status: 404 })
-      return NextResponse.json({ empenho })
+    } finally {
+      await conn.end()
     }
-
-    const where: any = {
-      municipioId: ctx.municipioId,
-      ...(situacao    && { situacao }),
-      ...(competencia && { competencia }),
-      ...(dotacaoId   && { dotacaoId }),
-      ...(busca && {
-        OR: [
-          { numero:       { contains: busca } },
-          { credorNome:   { contains: busca } },
-          { credorCpfCnpj:{ contains: busca } },
-          { contratoNumero:{ contains: busca } },
-          { processoNumero:{ contains: busca } },
-        ],
-      }),
-    }
-
-    const [empenhos, total] = await Promise.all([
-      prisma.Empenho.findMany({
-        where,
-        select: {
-          id: true, numero: true, situacao: true, modalidade: true,
-          credorNome: true, credorCpfCnpj: true,
-          valorOriginal: true, valorLiquidado: true, valorPago: true, valorAnulado: true,
-          competencia: true, dataEmissao: true, dataVencimento: true,
-          descricao: true, contratoNumero: true, processoNumero: true,
-          dotacao: { select: { codigo: true, descricao: true, secretaria: true } },
-        },
-        orderBy: { dataEmissao: 'desc' },
-        skip: (pagina - 1) * porPagina,
-        take: porPagina,
-      }),
-      prisma.Empenho.count({ where }),
-    ])
-
-    // Totalizadores para o painel
-    const totais = await prisma.Empenho.aggregate({
-      where: { municipioId: ctx.municipioId, ...(competencia && { competencia }) },
-      _sum: { valorOriginal: true, valorLiquidado: true, valorPago: true },
-      _count: { id: true },
-    })
-
-    const porSituacao = await prisma.Empenho.groupBy({
-      by: ['situacao'],
-      where: { municipioId: ctx.municipioId, ...(competencia && { competencia }) },
-      _sum: { valorOriginal: true },
-      _count: { id: true },
-    })
-
-    return NextResponse.json({
-      empenhos,
-      total,
-      pagina,
-      porPagina,
-      totalPaginas: Math.ceil(total / porPagina),
-      resumo: {
-        totalEmitido:    Number(totais._sum.valorOriginal  ?? 0),
-        totalLiquidado:  Number(totais._sum.valorLiquidado ?? 0),
-        totalPago:       Number(totais._sum.valorPago      ?? 0),
-        totalEmpenhos:   totais._count.id,
-        porSituacao: porSituacao.map(s => ({
-          situacao: s.situacao,
-          total:    s._count.id,
-          valor:    Number(s._sum.valorOriginal ?? 0),
-        })),
-      },
-    })
   } catch (error) {
     console.error('[SEFIN/EMPENHO/GET]', error)
     return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
@@ -176,12 +191,17 @@ export async function POST(request: NextRequest) {
     const dados = EmitirSchema.parse(await request.json())
 
     // Verificar dotação
-    const dotacao = await prisma.Dotacao.findFirst({
-      where: { id: dados.dotacaoId, municipioId: ctx.municipioId, ativo: true },
-      include: { orcamento: { select: { exercicio: true, situacao: true } } },
-    })
+    const dotacaoRows = await prisma.$queryRaw`
+      SELECT d.*, o.situacao as orcSituacao, o.exercicio as orcExercicio
+      FROM Dotacao d
+      LEFT JOIN OrcamentoUnidade o ON o.id = d.orcamentoId
+      WHERE d.id = ${dados.dotacaoId} AND d.municipioId = ${ctx.municipioId}
+      LIMIT 1
+    ` as any[]
+    const dotacao = dotacaoRows[0]
     if (!dotacao) return NextResponse.json({ erro: 'Dotação não encontrada' }, { status: 404 })
-    if (dotacao.orcamento.situacao !== 'VIGENTE') {
+    // Se orcamento não for vigente e existir
+    if (dotacao.orcSituacao && dotacao.orcSituacao !== 'VIGENTE') {
       return NextResponse.json({ erro: 'Orçamento não está vigente' }, { status: 422 })
     }
 
