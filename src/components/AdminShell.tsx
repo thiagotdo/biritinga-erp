@@ -13,6 +13,7 @@ import {
   Syringe, Pill, Activity, Building2, Package, UserCheck,
   Briefcase, Car, DollarSign, Fuel, ClipboardList, AlertCircle,
   ArrowRightLeft, FilePlus2,
+  PackagePlus, MessageSquare,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -90,6 +91,8 @@ const NAV_ADMIN = [
     { href: '/gestao/obras',        label: 'Sec. de Obras e Serviços - SEMOSP',   Icon: HardHat         },
     { href: '/gestao/comunicacao/noticias', label: 'Sec. de Comunicação - SECOM', Icon: Newspaper       },
     { href: '/gestao/protocolo',            label: 'Protocolo Eletrônico - SEADM', Icon: ArrowRightLeft  },
+    { href: '/gestao/almoxarifado',         label: 'Almoxarifado - SEALM',         Icon: PackagePlus     },
+    { href: '/gestao/ouvidoria',            label: 'Ouvidoria Municipal',           Icon: MessageSquare   },
   ]},
 ]
 
@@ -186,6 +189,18 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/protocolo/processos',    label: 'Processos',         Icon: FileText       },
     { href: '/gestao/protocolo/novo',         label: 'Novo Protocolo',    Icon: FilePlus2      },
   ]}],
+  ALMOXARIFADO: [{ grupo: 'Almoxarifado - SEALM', items: [
+    { href: '/gestao/almoxarifado',               label: 'Painel Almoxarifado', Icon: PackagePlus   },
+    { href: '/gestao/almoxarifado/estoque',        label: 'Estoque de Itens',    Icon: Package       },
+    { href: '/gestao/almoxarifado/movimentacoes',  label: 'Movimentações',       Icon: ClipboardList },
+    { href: '/gestao/almoxarifado/estoque?acao=novo', label: 'Cadastrar Item',   Icon: FilePlus2     },
+  ]}],
+  OUVIDORIA: [{ grupo: 'Ouvidoria Municipal', items: [
+    { href: '/gestao/ouvidoria',                   label: 'Painel Ouvidoria',    Icon: MessageSquare },
+    { href: '/gestao/ouvidoria/manifestacoes',      label: 'Manifestações',       Icon: FileText      },
+    { href: '/gestao/ouvidoria/nova',               label: 'Nova Manifestação',   Icon: FilePlus2     },
+    { href: '/gestao/ouvidoria/manifestacoes?tipo=SOLICITACAO_LAI', label: 'Pedidos LAI', Icon: Briefcase },
+  ]}],
 }
 
 function navPorPerfil(perfil: string, secretaria?: string) {
@@ -259,7 +274,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   if (!usuario) return null
 
-  const nav = navPorPerfil(usuario.perfil, usuario.secretaria)
+  // Override de nav por rota específica
+  const navRoute = pathname.startsWith('/gestao/protocolo')   ? NAV_SECRETARIA.PROTOCOLO
+                 : pathname.startsWith('/gestao/almoxarifado') ? NAV_SECRETARIA.ALMOXARIFADO
+                 : pathname.startsWith('/gestao/ouvidoria')    ? NAV_SECRETARIA.OUVIDORIA
+                 : null
+  const nav = navRoute ?? navPorPerfil(usuario.perfil, usuario.secretaria)
 
   return (
     <CtxUsuario.Provider value={{ usuario, sair }}>

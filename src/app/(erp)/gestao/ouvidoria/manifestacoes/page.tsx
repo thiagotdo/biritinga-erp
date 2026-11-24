@@ -1,572 +1,228 @@
 'use client'
+
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
+import {
+  MessageSquare, Search, X, Loader2, CheckCircle2,
+  Clock, AlertCircle, Send
+} from 'lucide-react'
+import Link from 'next/link'
 
-type Manifestacao = {
-  id: string; protocolo: string; tipo: string; situacao: string; assunto: string
-  secretariaDestino?: string; prioridade: string; prazoResposta: string; prorrogado: boolean
-  anonima: boolean; nomeManifestante?: string; lai: boolean; avaliado: boolean; satisfacao?: string
-  criadoEm: string; atrasada: boolean; vencendoBreve: boolean; diasRestantes: number
-}
-type ManifDetalhe = Manifestacao & {
-  descricao: string; cpfManifestante?: string; emailManifestante?: string
-  telefoneManifestante?: string; atribuidoA?: string
-  movimentacoes: MovRow[]; respostas: RespRow[]
-}
-type MovRow  = { id: string; situacaoDe: string; situacaoPara: string; motivo?: string; criadoEm: string }
-type RespRow = { id: string; texto: string; tipo: string; remetente?: string; publica: boolean; criadoEm: string }
-type KPIs = { total: number; recebidas: number; emAnalise: number; aguardando: number; respondidas: number; encerradas: number; vencendo48h: number; atrasadas: number }
+const fmtData = (d: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 
-const TIPO_ICON: Record<string, string> = {
-  RECLAMACAO:         '😠', SUGESTAO:           '💡', ELOGIO:             '👏',
-  DENUNCIA:           '🚨', SOLICITACAO_INFO:   '📋', SOLICITACAO_SERVICO: '🔧',
+const STATUS_COR: Record<string,string> = {
+  RECEBIDA:'bg-blue-100 text-blue-800', EM_ANALISE:'bg-yellow-100 text-yellow-800',
+  RESPONDIDA:'bg-green-100 text-green-800', ENCERRADA:'bg-gray-100 text-gray-700',
+  CANCELADA:'bg-red-100 text-red-800',
 }
-const TIPO_COR: Record<string, string> = {
-  RECLAMACAO:         'text-red-600',
-  SUGESTAO:           'text-blue-600',
-  ELOGIO:             'text-green-600',
-  DENUNCIA:           'text-purple-600',
-  SOLICITACAO_INFO:   'text-indigo-600',
-  SOLICITACAO_SERVICO: 'text-orange-600',
+const STATUS_LABEL: Record<string,string> = {
+  RECEBIDA:'Recebida', EM_ANALISE:'Em Análise', RESPONDIDA:'Respondida', ENCERRADA:'Encerrada', CANCELADA:'Cancelada'
 }
-const SIT_COR: Record<string, string> = {
-  RECEBIDA:        'bg-blue-100 text-blue-700',
-  EM_ANALISE:      'bg-yellow-100 text-yellow-700',
-  AGUARDANDO_RESP: 'bg-orange-100 text-orange-700',
-  RESPONDIDA:      'bg-indigo-100 text-indigo-700',
-  ENCERRADA:       'bg-green-100 text-green-700',
-  ARQUIVADA:       'bg-gray-100 text-gray-400',
-  DEVOLVIDA:       'bg-red-100 text-red-500',
-}
-const PRIOR_COR: Record<string, string> = {
-  BAIXA: 'text-gray-400', NORMAL: 'text-blue-500', ALTA: 'text-orange-500', URGENTE: 'text-red-600',
-}
-const SAT_ICON: Record<string, string> = {
-  MUITO_SATISFEITO: '😄', SATISFEITO: '🙂', NEUTRO: '😐', INSATISFEITO: '😕', MUITO_INSATISFEITO: '😠',
+const TIPO_LABEL: Record<string,string> = {
+  RECLAMACAO:'Reclamação', SUGESTAO:'Sugestão', ELOGIO:'Elogio',
+  DENUNCIA:'Denúncia', SOLICITACAO_LAI:'Solicitação LAI', PEDIDO_INFORMACAO:'Pedido de Info.'
 }
 
-function ModalNovaManif({ onSalvar, onClose }: { onSalvar: (d: any) => void; onClose: () => void }) {
-  const [form, setForm] = useState({
-    tipo: 'RECLAMACAO', assunto: '', descricao: '',
-    secretariaDestino: '', prioridade: 'NORMAL', anonima: 'false',
-    nomeManifestante: '', cpfManifestante: '', emailManifestante: '',
-    telefoneManifestante: '', lai: 'false',
-  })
-  const f = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
-  const anonima = form.anonima === 'true'
+export default function ManifestacoesList() {
+  const sp = useSearchParams()
+  const statusFiltro = sp.get('status') ?? ''
+  const tipoFiltro   = sp.get('tipo') ?? ''
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="p-5 border-b">
-          <h2 className="text-lg font-bold text-gray-800">Nova Manifestação</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Lei 13.460/2017 · LAI 12.527/2011</p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Tipo *</label>
-              <select value={form.tipo} onChange={e => f('tipo', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-                {Object.entries(TIPO_ICON).map(([k, v]) => (
-                  <option key={k} value={k}>{v} {k.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Prioridade</label>
-              <select value={form.prioridade} onChange={e => f('prioridade', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-                <option value="BAIXA">Baixa</option>
-                <option value="NORMAL">Normal</option>
-                <option value="ALTA">Alta</option>
-                <option value="URGENTE">Urgente</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Secretaria Destino</label>
-              <input type="text" value={form.secretariaDestino} onChange={e => f('secretariaDestino', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Assunto *</label>
-            <input type="text" value={form.assunto} onChange={e => f('assunto', e.target.value)}
-              placeholder="Resumo da manifestação"
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Descrição *</label>
-            <textarea value={form.descricao} onChange={e => f('descricao', e.target.value)} rows={4}
-              placeholder="Descreva detalhadamente a manifestação…"
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-          </div>
-          <div className="border-t pt-3">
-            <div className="flex items-center gap-4 mb-3">
-              <label className="text-xs font-medium text-gray-500">Identificação</label>
-              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" checked={anonima} onChange={e => f('anonima', e.target.checked.toString())}
-                  className="rounded" />
-                <span className="text-xs">Anônima / Confidencial</span>
-              </label>
-              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input type="checkbox" checked={form.lai === 'true'} onChange={e => f('lai', e.target.checked.toString())}
-                  className="rounded" />
-                <span className="text-xs">📋 Solicitação LAI</span>
-              </label>
-            </div>
-            {!anonima && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Nome do Manifestante *</label>
-                  <input type="text" value={form.nomeManifestante} onChange={e => f('nomeManifestante', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">CPF</label>
-                  <input type="text" value={form.cpfManifestante} onChange={e => f('cpfManifestante', e.target.value)} placeholder="000.000.000-00"
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">E-mail</label>
-                  <input type="email" value={form.emailManifestante} onChange={e => f('emailManifestante', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Telefone</label>
-                  <input type="tel" value={form.telefoneManifestante} onChange={e => f('telefoneManifestante', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="p-5 border-t flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancelar</button>
-          <button onClick={() => onSalvar({ ...form, anonima: form.anonima === 'true', lai: form.lai === 'true', secretariaDestino: form.secretariaDestino || undefined, cpfManifestante: form.cpfManifestante || undefined, emailManifestante: form.emailManifestante || undefined })}
-            disabled={!form.assunto || !form.descricao || (!anonima && !form.nomeManifestante)}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-            Registrar Manifestação
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ModalResposta({ manif, onSalvar, onClose }: { manif: ManifDetalhe; onSalvar: (d: any) => void; onClose: () => void }) {
-  const [form, setForm] = useState({ texto: '', tipo: 'OFICIAL', remetente: '', publica: 'true' })
-  const f = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
-        <div className="p-5 border-b">
-          <h2 className="font-bold">Responder Manifestação</h2>
-          <div className="text-xs text-gray-400 mt-0.5 font-mono">{manif.protocolo}</div>
-        </div>
-        <div className="p-5 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Resposta</label>
-              <select value={form.tipo} onChange={e => f('tipo', e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-                <option value="OFICIAL">Oficial (pública)</option>
-                <option value="COMPLEMENTO">Complemento</option>
-                <option value="INTERNO">Nota Interna</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Remetente</label>
-              <input type="text" value={form.remetente} onChange={e => f('remetente', e.target.value)}
-                placeholder="Secretaria, ouvidor…"
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Texto da Resposta *</label>
-            <textarea value={form.texto} onChange={e => f('texto', e.target.value)} rows={5}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
-          </div>
-          {form.tipo !== 'INTERNO' && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.publica === 'true'} onChange={e => f('publica', e.target.checked.toString())}
-                className="rounded" />
-              <span className="text-xs text-gray-600">Visível ao manifestante</span>
-            </label>
-          )}
-          {form.tipo === 'OFICIAL' && (
-            <div className="bg-indigo-50 rounded p-2 text-xs text-indigo-600">
-              A resposta oficial moverá a manifestação para RESPONDIDA.
-            </div>
-          )}
-        </div>
-        <div className="p-5 border-t flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Cancelar</button>
-          <button onClick={() => onSalvar({ texto: form.texto, tipo: form.tipo, remetente: form.remetente || undefined, publica: form.publica === 'true' })}
-            disabled={!form.texto}
-            className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-            Enviar Resposta
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function ManifestacaoPage() {
-  const [kpis, setKpis] = useState<KPIs | null>(null)
-  const [porTipo, setPorTipo] = useState<any[]>([])
-  const [mediaSatisfacao, setMediaSatisfacao] = useState<string | null>(null)
-  const [manifestacoes, setManifestacoes] = useState<Manifestacao[]>([])
-  const [detalhe, setDetalhe] = useState<ManifDetalhe | null>(null)
-  const [filtroTipo, setFiltroTipo] = useState('')
-  const [filtroSituacao, setFiltroSituacao] = useState('')
-  const [filtroVencendo, setFiltroVencendo] = useState(false)
-  const [busca, setBusca] = useState('')
-  const [modalNova, setModalNova] = useState(false)
-  const [modalResposta, setModalResposta] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [items, setItems]     = useState<any[]>([])
+  const [busca, setBusca]     = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sel, setSel]         = useState<any>(null)
+  const [modal, setModal]     = useState<'responder'|'encerrar'|null>(null)
+  const [resposta, setResposta] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [msg, setMsg]         = useState('')
 
   const carregar = useCallback(async () => {
-    const params = new URLSearchParams()
-    if (filtroTipo)      params.set('tipo', filtroTipo)
-    if (filtroSituacao)  params.set('situacao', filtroSituacao)
-    if (busca)           params.set('busca', busca)
-    if (filtroVencendo)  params.set('vencendo', 'true')
-    const [kR, mR] = await Promise.all([
-      fetch('/api/ouvidoria/manifestacao?relatorio=DASHBOARD'),
-      fetch(`/api/ouvidoria/manifestacao?${params}`),
-    ])
-    const [kD, mD] = await Promise.all([kR.json(), mR.json()])
-    setKpis(kD.kpis)
-    setPorTipo(kD.porTipo ?? [])
-    setMediaSatisfacao(kD.mediaSatisfacao)
-    setManifestacoes(mD.manifestacoes ?? [])
-  }, [filtroTipo, filtroSituacao, busca, filtroVencendo])
+    setLoading(true)
+    const qs = busca.length >= 2 ? `busca=${encodeURIComponent(busca)}`
+              : statusFiltro ? `status=${statusFiltro}`
+              : tipoFiltro ? `tipo=${tipoFiltro}` : ''
+    const r = await fetch(`/api/ouvidoria/manifestacao?${qs}`)
+    const d = await r.json()
+    setItems(d.manifestacoes ?? [])
+    setLoading(false)
+  }, [busca, statusFiltro, tipoFiltro])
 
   useEffect(() => { carregar() }, [carregar])
 
-  async function abrirDetalhe(id: string) {
-    const r = await fetch(`/api/ouvidoria/manifestacao?id=${id}`)
-    const d = await r.json()
-    if (d.manifestacao) setDetalhe(d.manifestacao)
-  }
-
-  async function registrar(dados: any) {
+  const responder = async () => {
+    if (!sel || !resposta.trim()) return
+    setSalvando(true)
     const r = await fetch('/api/ouvidoria/manifestacao', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados),
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: sel.id, status:'RESPONDIDA', resposta })
     })
-    const d = await r.json()
-    if (!r.ok) { setMsg(d.erro ?? 'Erro'); return }
-    setMsg(`Manifestação registrada - Protocolo: ${d.protocolo}`)
-    setModalNova(false)
-    carregar()
-    abrirDetalhe(d.manifestacao.id)
-    setTimeout(() => setMsg(''), 6000)
+    setSalvando(false)
+    if (r.ok) {
+      setMsg(`Manifestação ${sel.numero} respondida com sucesso.`)
+      setModal(null); setSel(null); setResposta('')
+      carregar()
+    }
   }
 
-  async function acaoManifestacao(acao: string, dados?: any) {
-    if (!detalhe) return
+  const encerrar = async (id: string, numero: string, status: string) => {
     const r = await fetch('/api/ouvidoria/manifestacao', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: detalhe.id, acao, ...dados }),
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, status })
     })
-    const d = await r.json()
-    if (!r.ok) { setMsg(d.erro ?? 'Erro'); return }
-    setMsg('Situação atualizada!')
-    carregar()
-    abrirDetalhe(detalhe.id)
-    setTimeout(() => setMsg(''), 3000)
+    if (r.ok) { setMsg(`Manifestação ${numero} atualizada.`); carregar() }
   }
 
-  async function responder(dados: any) {
-    if (!detalhe) return
-    const r = await fetch('/api/ouvidoria/resposta', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manifestacaoId: detalhe.id, ...dados }),
-    })
-    const d = await r.json()
-    if (!r.ok) { setMsg(d.erro ?? 'Erro'); return }
-    setMsg('Resposta registrada!')
-    setModalResposta(false)
-    carregar()
-    abrirDetalhe(detalhe.id)
-    setTimeout(() => setMsg(''), 3000)
-  }
-
-  const fmtData = (v: string) => new Date(v).toLocaleDateString('pt-BR')
-  const fmtDataHora = (v: string) => new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-
-  const TRANSICOES_DISPONIVEIS: Record<string, string[]> = {
-    RECEBIDA:       ['EM_ANALISE'],
-    EM_ANALISE:     ['AGUARDANDO_RESP', 'DEVOLVIDA'],
-    AGUARDANDO_RESP: ['EM_ANALISE'],
-    RESPONDIDA:     ['ENCERRADA'],
-    DEVOLVIDA:      ['EM_ANALISE'],
-  }
+  const isAtiva = (s: string) => !['RESPONDIDA','ENCERRADA','CANCELADA'].includes(s)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Ouvidoria Municipal</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Lei 13.460/2017 · LAI 12.527/2011 · Prazo LAI: 20 dias úteis</p>
-          </div>
-          <button onClick={() => setModalNova(true)}
-            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">
-            + Nova Manifestação
-          </button>
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/gestao/ouvidoria" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
+            <MessageSquare className="w-4 h-4" />
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">
+            {statusFiltro ? `Manifestações — ${STATUS_LABEL[statusFiltro] ?? statusFiltro}`
+              : tipoFiltro ? `Manifestações — ${TIPO_LABEL[tipoFiltro] ?? tipoFiltro}`
+              : 'Todas as Manifestações'}
+          </h1>
         </div>
+        <Link href="/gestao/ouvidoria/nova"
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium">
+          + Nova
+        </Link>
       </div>
 
       {msg && (
-        <div className="mx-6 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{msg}</div>
-      )}
-
-      {/* KPIs */}
-      {kpis && (
-        <div className="px-6 py-4 grid grid-cols-4 lg:grid-cols-8 gap-2">
-          {[
-            { label: 'Total',         valor: kpis.total,       cor: 'text-gray-800' },
-            { label: 'Novas',         valor: kpis.recebidas,   cor: 'text-blue-600' },
-            { label: 'Em Análise',    valor: kpis.emAnalise,   cor: 'text-yellow-600' },
-            { label: 'Aguardando',    valor: kpis.aguardando,  cor: 'text-orange-600' },
-            { label: 'Respondidas',   valor: kpis.respondidas, cor: 'text-indigo-600' },
-            { label: 'Encerradas',    valor: kpis.encerradas,  cor: 'text-green-600' },
-            { label: '⚠ Vencendo 48h', valor: kpis.vencendo48h, cor: 'text-orange-600' },
-            { label: '🔴 Atrasadas',  valor: kpis.atrasadas,   cor: 'text-red-600' },
-          ].map(k => (
-            <div key={k.label} className="bg-white rounded-xl border border-gray-200 p-3 text-center">
-              <div className={`text-sm font-bold ${k.cor}`}>{k.valor}</div>
-              <div className="text-xs text-gray-400 mt-0.5 leading-tight">{k.label}</div>
-            </div>
-          ))}
+        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          <CheckCircle2 className="w-4 h-4" />
+          {msg}
+          <button onClick={() => setMsg('')} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="px-6 pb-4 flex gap-3 flex-wrap">
-        <input type="text" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Protocolo, assunto, manifestante…"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-52" />
-        <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-          <option value="">Todos os tipos</option>
-          {Object.entries(TIPO_ICON).map(([k, v]) => <option key={k} value={k}>{v} {k.replace(/_/g, ' ')}</option>)}
-        </select>
-        <select value={filtroSituacao} onChange={e => setFiltroSituacao(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-          <option value="">Todas as situações</option>
-          {Object.keys(SIT_COR).map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-        </select>
-        <label className="flex items-center gap-2 text-sm cursor-pointer self-center">
-          <input type="checkbox" checked={filtroVencendo} onChange={e => setFiltroVencendo(e.target.checked)} className="rounded" />
-          <span className="text-xs text-orange-600 font-medium">⚠ Só a vencer</span>
-        </label>
-        {mediaSatisfacao && (
-          <div className="ml-auto bg-green-50 rounded-lg px-3 py-1 text-sm text-green-700 self-center">
-            😊 Satisfação média: <strong>{mediaSatisfacao}/5</strong>
+      {/* Busca */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-purple-500"
+          placeholder="Buscar por número ou assunto..."
+          value={busca} onChange={e => setBusca(e.target.value)} />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin w-8 h-8 text-purple-600" /></div>
+      ) : items.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">Nenhuma manifestação encontrada</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((m: any) => {
+            const vencendo = m.prazo && isAtiva(m.status) &&
+              new Date(m.prazo) <= new Date(Date.now() + 3*24*60*60*1000)
+            return (
+              <div key={m.id} className={`bg-white rounded-xl border shadow-sm p-4 ${vencendo ? 'border-orange-300' : 'border-gray-200'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs font-mono font-semibold text-purple-600">{m.numero}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COR[m.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                        {STATUS_LABEL[m.status] ?? m.status}
+                      </span>
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
+                        {TIPO_LABEL[m.tipo] ?? m.tipo}
+                      </span>
+                      {m.sigiloso === 1 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Sigiloso</span>}
+                      {vencendo && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" />Prazo próximo</span>}
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 mb-1">{m.assunto}</p>
+                    <div className="flex items-center gap-4 text-xs text-gray-400">
+                      {m.anonimo ? <span className="italic">Anônimo</span> : m.nomeRequerente && <span>{m.nomeRequerente}</span>}
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Aberto em {fmtData(m.criadoEm)}</span>
+                      {m.prazo && <span>Prazo: {fmtData(m.prazo)}</span>}
+                      {m.setorResponsavel && <span>Setor: {m.setorResponsavel}</span>}
+                    </div>
+                    {m.descricao && (
+                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">{m.descricao}</p>
+                    )}
+                    {m.resposta && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-lg">
+                        <p className="text-xs font-medium text-green-700 mb-0.5">Resposta:</p>
+                        <p className="text-xs text-green-800">{m.resposta}</p>
+                      </div>
+                    )}
+                  </div>
+                  {isAtiva(m.status) && (
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => { setSel(m); setResposta(''); setModal('responder') }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium"
+                      >
+                        <Send className="w-3 h-3" />Responder
+                      </button>
+                      {m.status === 'RECEBIDA' && (
+                        <button
+                          onClick={() => encerrar(m.id, m.numero, 'EM_ANALISE')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 text-xs font-medium"
+                        >
+                          Em Análise
+                        </button>
+                      )}
+                      <button
+                        onClick={() => encerrar(m.id, m.numero, 'ENCERRADA')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs font-medium"
+                      >
+                        Encerrar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modal Responder */}
+      {modal === 'responder' && sel && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Responder Manifestação</h2>
+              <button onClick={() => { setModal(null); setSel(null) }}><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs font-mono text-purple-600">{sel.numero}</p>
+              <p className="text-sm font-medium text-gray-900">{sel.assunto}</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Resposta Oficial *</label>
+                <textarea
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-purple-500 resize-none"
+                  rows={5}
+                  placeholder="Redija a resposta oficial à manifestação..."
+                  value={resposta}
+                  onChange={e => setResposta(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={responder} disabled={salvando || !resposta.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium">
+                  {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Enviar Resposta
+                </button>
+                <button onClick={() => { setModal(null); setSel(null) }}
+                  className="px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+                  Cancelar
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-        <span className="text-sm text-gray-400 self-center">{manifestacoes.length} manifestações</span>
-      </div>
-
-      {/* Layout 2 colunas */}
-      <div className="px-6 pb-8 grid grid-cols-5 gap-6">
-        {/* Lista */}
-        <div className="col-span-2 space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
-          {manifestacoes.map(m => (
-            <button key={m.id} onClick={() => abrirDetalhe(m.id)}
-              className={`w-full text-left bg-white rounded-xl border p-4 hover:border-indigo-400 transition-all ${
-                detalhe?.id === m.id ? 'border-indigo-500 ring-1 ring-indigo-200' :
-                m.atrasada ? 'border-red-300' : m.vencendoBreve ? 'border-orange-300' : 'border-gray-200'
-              }`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-base">{TIPO_ICON[m.tipo] ?? '📄'}</span>
-                    <span className="font-mono text-xs text-indigo-600">{m.protocolo}</span>
-                    {m.lai && <span className="text-xs bg-indigo-100 text-indigo-600 px-1 rounded">LAI</span>}
-                    {m.anonima && <span className="text-xs text-gray-400">🔒</span>}
-                  </div>
-                  <div className="font-semibold text-sm text-gray-900 leading-tight truncate">{m.assunto}</div>
-                  <div className={`text-xs font-medium ${TIPO_COR[m.tipo]}`}>{m.tipo.replace(/_/g, ' ')}</div>
-                  {m.nomeManifestante && <div className="text-xs text-gray-400">{m.nomeManifestante}</div>}
-                  <div className="text-xs text-gray-300 mt-0.5">{fmtData(m.criadoEm)}</div>
-                </div>
-                <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${SIT_COR[m.situacao]}`}>
-                    {m.situacao.replace(/_/g, ' ')}
-                  </span>
-                  <span className={`text-xs font-medium ${PRIOR_COR[m.prioridade]}`}>● {m.prioridade}</span>
-                  {m.atrasada ? (
-                    <span className="text-xs text-red-600 font-medium">🔴 {Math.abs(m.diasRestantes)}d atrasado</span>
-                  ) : m.vencendoBreve ? (
-                    <span className="text-xs text-orange-500 font-medium">⚠ {m.diasRestantes}d restantes</span>
-                  ) : (
-                    <span className="text-xs text-gray-300">{m.diasRestantes}d restantes</span>
-                  )}
-                  {m.avaliado && m.satisfacao && <span className="text-sm">{SAT_ICON[m.satisfacao]}</span>}
-                </div>
-              </div>
-            </button>
-          ))}
-          {manifestacoes.length === 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
-              <div className="text-4xl mb-2">📣</div>
-              <div>Nenhuma manifestação encontrada</div>
-            </div>
-          )}
         </div>
-
-        {/* Painel detalhe */}
-        <div className="col-span-3">
-          {!detalhe ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
-              <div className="text-5xl mb-3">📣</div>
-              <div>Selecione uma manifestação</div>
-              {porTipo.length > 0 && (
-                <div className="mt-8 text-left max-w-xs mx-auto">
-                  <div className="text-sm font-semibold text-gray-600 mb-3 text-center">Por Tipo</div>
-                  <div className="space-y-1.5">
-                    {porTipo.map((t: any) => (
-                      <div key={t.tipo} className="flex items-center gap-2 text-xs">
-                        <span>{TIPO_ICON[t.tipo] ?? '📄'}</span>
-                        <span className="text-gray-600 flex-1">{t.tipo.replace(/_/g, ' ')}</span>
-                        <span className="font-medium">{t._count.id}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200">
-              <div className="p-5 border-b">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-2xl">{TIPO_ICON[detalhe.tipo] ?? '📄'}</span>
-                      <div>
-                        <div className="font-mono text-sm text-indigo-600">{detalhe.protocolo}</div>
-                        <h2 className="text-lg font-bold text-gray-900 leading-tight">{detalhe.assunto}</h2>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-medium ${TIPO_COR[detalhe.tipo]}`}>{detalhe.tipo.replace(/_/g, ' ')}</span>
-                      {detalhe.lai && <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded">📋 LAI</span>}
-                      {detalhe.anonima && <span className="text-xs text-gray-400">🔒 Anônima</span>}
-                      <span className={`text-xs font-medium ${PRIOR_COR[detalhe.prioridade]}`}>● {detalhe.prioridade}</span>
-                    </div>
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${SIT_COR[detalhe.situacao]}`}>
-                    {detalhe.situacao.replace(/_/g, ' ')}
-                  </span>
-                </div>
-
-                {/* Prazo */}
-                <div className={`rounded-lg p-2 mb-3 text-xs flex items-center justify-between ${
-                  detalhe.atrasada ? 'bg-red-50 text-red-700' :
-                  detalhe.vencendoBreve ? 'bg-orange-50 text-orange-700' : 'bg-gray-50 text-gray-600'
-                }`}>
-                  <span>⏱ Prazo: {fmtData(detalhe.prazoResposta)}{detalhe.prorrogado ? ' (prorrogado)' : ''}</span>
-                  <span className="font-semibold">
-                    {detalhe.atrasada ? `🔴 ${Math.abs(detalhe.diasRestantes)}d atrasado` :
-                     `${detalhe.diasRestantes}d restantes`}
-                  </span>
-                </div>
-
-                {/* Descrição */}
-                <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 mb-3 max-h-28 overflow-y-auto">
-                  {detalhe.descricao}
-                </div>
-
-                {/* Manifestante */}
-                {!detalhe.anonima && detalhe.nomeManifestante && (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
-                    <div>Manifestante: <span className="text-gray-700">{detalhe.nomeManifestante}</span></div>
-                    {detalhe.emailManifestante && <div>E-mail: <span className="text-gray-700">{detalhe.emailManifestante}</span></div>}
-                    {detalhe.telefoneManifestante && <div>Telefone: <span className="text-gray-700">{detalhe.telefoneManifestante}</span></div>}
-                    {detalhe.secretariaDestino && <div>Destinado a: <span className="text-gray-700">{detalhe.secretariaDestino}</span></div>}
-                  </div>
-                )}
-
-                {/* Ações */}
-                <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => setModalResposta(true)}
-                    className="px-3 py-1.5 text-xs bg-indigo-100 text-indigo-700 rounded-lg font-medium hover:bg-indigo-200">
-                    💬 Responder
-                  </button>
-                  {(TRANSICOES_DISPONIVEIS[detalhe.situacao] ?? []).map(acao => (
-                    <button key={acao} onClick={() => acaoManifestacao(acao)}
-                      className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200">
-                      {acao.replace(/_/g, ' ')}
-                    </button>
-                  ))}
-                  {!detalhe.prorrogado && !['ENCERRADA','ARQUIVADA'].includes(detalhe.situacao) && (
-                    <button onClick={() => acaoManifestacao('PRORROGAR')}
-                      className="px-3 py-1.5 text-xs bg-yellow-100 text-yellow-700 rounded-lg font-medium hover:bg-yellow-200">
-                      ⏳ Prorrogar
-                    </button>
-                  )}
-                  {detalhe.situacao === 'RESPONDIDA' && !detalhe.avaliado && (
-                    <button onClick={() => acaoManifestacao('AVALIAR', { satisfacao: 'SATISFEITO' })}
-                      className="px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-lg font-medium hover:bg-green-200">
-                      ✓ Encerrar (satisfeito)
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Histórico e Respostas */}
-              <div className="p-5 grid grid-cols-2 gap-5 max-h-64 overflow-y-auto">
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Histórico</h3>
-                  <div className="space-y-1.5">
-                    <div className="text-xs bg-gray-50 rounded-lg px-3 py-2">
-                      <div className="text-indigo-600 font-medium">RECEBIDA</div>
-                      <div className="text-gray-400">{fmtDataHora(detalhe.criadoEm)}</div>
-                    </div>
-                    {detalhe.movimentacoes.map(m => (
-                      <div key={m.id} className="text-xs bg-gray-50 rounded-lg px-3 py-2">
-                        <div className="text-indigo-600 font-medium">{m.situacaoDe} → {m.situacaoPara}</div>
-                        {m.motivo && <div className="text-gray-500">{m.motivo}</div>}
-                        <div className="text-gray-300">{fmtDataHora(m.criadoEm)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Respostas</h3>
-                  {detalhe.respostas.length === 0 ? (
-                    <div className="text-xs text-gray-300 text-center py-3">Sem respostas ainda</div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {detalhe.respostas.map(r => (
-                        <div key={r.id} className={`text-xs rounded-lg px-3 py-2 ${r.tipo === 'INTERNO' ? 'bg-yellow-50' : 'bg-indigo-50'}`}>
-                          <div className="flex justify-between items-start mb-0.5">
-                            <span className={`font-medium ${r.tipo === 'OFICIAL' ? 'text-indigo-600' : r.tipo === 'INTERNO' ? 'text-yellow-600' : 'text-gray-600'}`}>
-                              {r.tipo}{r.remetente ? ` · ${r.remetente}` : ''}
-                            </span>
-                            {!r.publica && <span className="text-gray-400">🔒</span>}
-                          </div>
-                          <div className="text-gray-700 leading-relaxed">{r.texto.substring(0, 150)}{r.texto.length > 150 ? '…' : ''}</div>
-                          <div className="text-gray-300 mt-0.5">{fmtDataHora(r.criadoEm)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {modalNova && <ModalNovaManif onSalvar={registrar} onClose={() => setModalNova(false)} />}
-      {modalResposta && detalhe && (
-        <ModalResposta manif={detalhe} onSalvar={responder} onClose={() => setModalResposta(false)} />
       )}
     </div>
   )
