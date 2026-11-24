@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/db'
 import { extrairContextoRequest, temPermissao } from '@/lib/rbac'
 import { auditLog } from '@/lib/audit'
@@ -55,7 +56,7 @@ const TramitarSchema = z.object({
 
 async function gerarNumeroEmpenho(municipioId: string, competencia: string): Promise<string> {
   const ano   = competencia.split('-')[0]
-  const count = await prisma.empenho.count({ where: { municipioId, competencia: { startsWith: ano } } })
+  const count = await prisma.Empenho.count({ where: { municipioId, competencia: { startsWith: ano } } })
   return `EMP-${ano}-${String(count + 1).padStart(5, '0')}`
 }
 
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Busca individual com histórico completo
     if (id) {
-      const empenho = await prisma.empenho.findFirst({
+      const empenho = await prisma.Empenho.findFirst({
         where: { id, municipioId: ctx.municipioId },
         include: {
           dotacao: { select: { codigo: true, descricao: true, secretaria: true, natureza: true } },
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [empenhos, total] = await Promise.all([
-      prisma.empenho.findMany({
+      prisma.Empenho.findMany({
         where,
         select: {
           id: true, numero: true, situacao: true, modalidade: true,
@@ -122,17 +123,17 @@ export async function GET(request: NextRequest) {
         skip: (pagina - 1) * porPagina,
         take: porPagina,
       }),
-      prisma.empenho.count({ where }),
+      prisma.Empenho.count({ where }),
     ])
 
     // Totalizadores para o painel
-    const totais = await prisma.empenho.aggregate({
+    const totais = await prisma.Empenho.aggregate({
       where: { municipioId: ctx.municipioId, ...(competencia && { competencia }) },
       _sum: { valorOriginal: true, valorLiquidado: true, valorPago: true },
       _count: { id: true },
     })
 
-    const porSituacao = await prisma.empenho.groupBy({
+    const porSituacao = await prisma.Empenho.groupBy({
       by: ['situacao'],
       where: { municipioId: ctx.municipioId, ...(competencia && { competencia }) },
       _sum: { valorOriginal: true },
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
     const dados = EmitirSchema.parse(await request.json())
 
     // Verificar dotação
-    const dotacao = await prisma.dotacao.findFirst({
+    const dotacao = await prisma.Dotacao.findFirst({
       where: { id: dados.dotacaoId, municipioId: ctx.municipioId, ativo: true },
       include: { orcamento: { select: { exercicio: true, situacao: true } } },
     })
@@ -195,8 +196,11 @@ export async function POST(request: NextRequest) {
     const numero = await gerarNumeroEmpenho(ctx.municipioId, dados.competencia)
 
     const empenho = await prisma.$transaction(async (tx) => {
-      const e = await tx.empenho.create({
+      const e = await tx.Empenho.create({
         data: {
+          id:              randomUUID(),
+          criadoEm:        new Date(),
+          atualizadoEm:    new Date(),
           municipioId:     ctx.municipioId,
           numero,
           dotacaoId:       dados.dotacaoId,
@@ -221,7 +225,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Atualizar saldo da dotação
-      await tx.dotacao.update({
+      await tx.Dotacao.update({
         where: { id: dados.dotacaoId },
         data: { valorEmpenhado: { increment: dados.valorOriginal } },
       })
@@ -258,7 +262,7 @@ export async function PATCH(request: NextRequest) {
 
     const dados = TramitarSchema.parse(await request.json())
 
-    const empenho = await prisma.empenho.findFirst({
+    const empenho = await prisma.Empenho.findFirst({
       where: { id: dados.id, municipioId: ctx.municipioId },
     })
     if (!empenho) return NextResponse.json({ erro: 'Empenho não encontrado' }, { status: 404 })
@@ -274,8 +278,11 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ erro: `Valor excede o saldo a liquidar (R$ ${saldoALiquidar.toFixed(2)})` }, { status: 422 })
       }
       await prisma.$transaction(async (tx) => {
-        await tx.liquidacao.create({
+        await tx.Liquidacao.create({
           data: {
+            id:             randomUUID(),
+            criadoEm:       new Date(),
+            atualizadoEm:   new Date(),
             municipioId:    ctx.municipioId,
             empenhoId:      dados.id,
             tipo:           dados.tipo ?? (dados.valor === saldoALiquidar ? 'TOTAL' : 'PARCIAL'),
@@ -287,7 +294,7 @@ export async function PATCH(request: NextRequest) {
           },
         })
         const novoLiquidado = Number(empenho.valorLiquidado) + dados.valor
-        await tx.empenho.update({
+        await tx.Empenho.update({
           where: { id: dados.id },
           data: {
             valorLiquidado: novoLiquidado,
@@ -295,7 +302,7 @@ export async function PATCH(request: NextRequest) {
               ? 'LIQUIDADO' : 'EMITIDO',
           },
         })
-        await tx.dotacao.update({
+        await tx.Dotacao.update({
           where: { id: empenho.dotacaoId },
           data: { valorLiquidado: { increment: dados.valor } },
         })
@@ -308,8 +315,11 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ erro: `Valor excede o saldo a pagar (R$ ${saldoAPagar.toFixed(2)})` }, { status: 422 })
       }
       await prisma.$transaction(async (tx) => {
-        await tx.pagamento.create({
+        await tx.Pagamento.create({
           data: {
+            id:            randomUUID(),
+            criadoEm:      new Date(),
+            atualizadoEm:  new Date(),
             municipioId:   ctx.municipioId,
             empenhoId:     dados.id,
             valor:         dados.valor,
@@ -320,14 +330,14 @@ export async function PATCH(request: NextRequest) {
           },
         })
         const novoPago = Number(empenho.valorPago) + dados.valor
-        await tx.empenho.update({
+        await tx.Empenho.update({
           where: { id: dados.id },
           data: {
             valorPago: novoPago,
             situacao: novoPago >= Number(empenho.valorLiquidado) ? 'PAGO' : 'LIQUIDADO',
           },
         })
-        await tx.dotacao.update({
+        await tx.Dotacao.update({
           where: { id: empenho.dotacaoId },
           data: { valorPago: { increment: dados.valor } },
         })
@@ -341,7 +351,7 @@ export async function PATCH(request: NextRequest) {
       }
       await prisma.$transaction(async (tx) => {
         const novoAnulado = Number(empenho.valorAnulado) + dados.valor
-        await tx.empenho.update({
+        await tx.Empenho.update({
           where: { id: dados.id },
           data: {
             valorAnulado: novoAnulado,
@@ -350,14 +360,14 @@ export async function PATCH(request: NextRequest) {
           },
         })
         // Estornar saldo da dotação
-        await tx.dotacao.update({
+        await tx.Dotacao.update({
           where: { id: empenho.dotacaoId },
           data: { valorEmpenhado: { decrement: dados.valor } },
         })
       })
     }
 
-    const atualizado = await prisma.empenho.findUnique({ where: { id: dados.id } })
+    const atualizado = await prisma.Empenho.findUnique({ where: { id: dados.id } })
 
     await auditLog({
       municipioId: ctx.municipioId,
