@@ -1,7 +1,8 @@
 'use client'
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Landmark, ShieldCheck, Megaphone, Inbox, Building2, Eye, EyeOff, Lock, Loader } from 'lucide-react'
+import { ShieldCheck, Megaphone, Inbox, Building2, Eye, EyeOff, Lock, Loader } from 'lucide-react'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -63,13 +64,14 @@ export default function LoginPage() {
         flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '40px 60px', color: '#fff',
       }}>
-        {/* Brasão / logo */}
+        {/* Brasão */}
         <div style={{
-          width: 100, height: 100, background: 'rgba(255,255,255,0.15)', borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 48, marginBottom: 24, border: '3px solid rgba(249,168,37,0.6)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        }}><Landmark size={48} color="#fff" strokeWidth={1.5} /></div>
+          width: 120, height: 120, marginBottom: 24,
+          filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.35))',
+        }}>
+          <Image src="/brasao.png" alt="Brasão de Biritinga" width={120} height={120}
+            style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+        </div>
 
         <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 800, textAlign: 'center', letterSpacing: '-0.5px' }}>
           Prefeitura Municipal
