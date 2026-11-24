@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
         where: { id, municipioId },
         include: {
           turmas: {
-            where: { ativo: true },
             orderBy: [{ etapa: 'asc' }, { serie: 'asc' }],
           },
         },
@@ -43,7 +42,7 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { nome: 'asc' },
       include: {
-        _count: { select: { turmas: { where: { ativo: true } } } },
+        _count: { select: { turmas: true } },
       },
     })
 
