@@ -18,10 +18,9 @@ export async function GET(req: NextRequest) {
   try {
     if (id) {
       const rows = await db.$queryRaw`
-        SELECT p.*, u.nome AS solicitanteNome, s.nome AS secretariaNome
-        FROM Protocolo p
+        SELECT p.*, u.nome AS solicitanteNome
+        FROM protocolos p
         LEFT JOIN Usuario u ON u.id = p.solicitanteId
-        LEFT JOIN Secretaria s ON s.id = p.secretariaId
         WHERE p.id = ${id} AND p.municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Protocolo não encontrado' }, { status: 404 })
 
@@ -40,7 +39,7 @@ export async function GET(req: NextRequest) {
       const rows = await db.$queryRaw`
         SELECT p.id, p.numero, p.assunto, p.categoria, p.status, p.prioridade,
                p.criadoEm, p.prazo, u.nome AS solicitanteNome
-        FROM Protocolo p LEFT JOIN Usuario u ON u.id = p.solicitanteId
+        FROM protocolos p LEFT JOIN Usuario u ON u.id = p.solicitanteId
         WHERE p.municipioId = ${municipioId}
           AND (p.numero LIKE ${like} OR p.assunto LIKE ${like} OR p.nomeSolicitante LIKE ${like})
         ORDER BY p.criadoEm DESC LIMIT 50`
@@ -48,24 +47,22 @@ export async function GET(req: NextRequest) {
     }
 
     const countR = status
-      ? await db.$queryRaw`SELECT COUNT(*) AS t FROM Protocolo WHERE municipioId = ${municipioId} AND status = ${status}`
-      : await db.$queryRaw`SELECT COUNT(*) AS t FROM Protocolo WHERE municipioId = ${municipioId}`
+      ? await db.$queryRaw`SELECT COUNT(*) AS t FROM protocolos WHERE municipioId = ${municipioId} AND status = ${status}`
+      : await db.$queryRaw`SELECT COUNT(*) AS t FROM protocolos WHERE municipioId = ${municipioId}`
 
     const rows = status
       ? await db.$queryRaw`
           SELECT p.id, p.numero, p.assunto, p.categoria, p.status, p.prioridade,
-                 p.criadoEm, p.prazo, p.origem, u.nome AS solicitanteNome, s.nome AS secretariaNome
-          FROM Protocolo p
+                 p.criadoEm, p.prazo, p.origem, u.nome AS solicitanteNome
+          FROM protocolos p
           LEFT JOIN Usuario u ON u.id = p.solicitanteId
-          LEFT JOIN Secretaria s ON s.id = p.secretariaId
           WHERE p.municipioId = ${municipioId} AND p.status = ${status}
           ORDER BY p.criadoEm DESC LIMIT ${limit} OFFSET ${offset}`
       : await db.$queryRaw`
           SELECT p.id, p.numero, p.assunto, p.categoria, p.status, p.prioridade,
-                 p.criadoEm, p.prazo, p.origem, u.nome AS solicitanteNome, s.nome AS secretariaNome
-          FROM Protocolo p
+                 p.criadoEm, p.prazo, p.origem, u.nome AS solicitanteNome
+          FROM protocolos p
           LEFT JOIN Usuario u ON u.id = p.solicitanteId
-          LEFT JOIN Secretaria s ON s.id = p.secretariaId
           WHERE p.municipioId = ${municipioId}
           ORDER BY p.criadoEm DESC LIMIT ${limit} OFFSET ${offset}`
 
@@ -90,7 +87,7 @@ export async function POST(req: NextRequest) {
     // Gerar número sequencial: MUN-2026-NNNNNN
     const ano = new Date().getFullYear()
     const countR = await db.$queryRaw`
-      SELECT COUNT(*) AS t FROM Protocolo
+      SELECT COUNT(*) AS t FROM protocolos
       WHERE municipioId = ${municipioId} AND YEAR(criadoEm) = ${ano}`
     const seq = Number(countR[0]?.t ?? 0) + 1
     const numero = `MUN-${ano}-${String(seq).padStart(6, '0')}`
@@ -108,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     const id = randomUUID()
     await db.$queryRaw`
-      INSERT INTO Protocolo (id, municipioId, numero, solicitanteId, secretariaId,
+      INSERT INTO protocolos (id, municipioId, numero, solicitanteId, secretariaId,
                              responsavelId, assunto, descricao, categoria,
                              prioridade, status, prazo, origem,
                              cpfSolicitante, nomeSolicitante, criadoEm, atualizadoEm)
@@ -141,7 +138,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     if (status) {
-      await db.$queryRaw`UPDATE Protocolo SET status = ${status}, atualizadoEm = NOW()
+      await db.$queryRaw`UPDATE protocolos SET status = ${status}, atualizadoEm = NOW()
         WHERE id = ${id} AND municipioId = ${municipioId}`
 
       if (despacho && usuarioId) {
@@ -152,9 +149,9 @@ export async function PATCH(req: NextRequest) {
       }
     }
     if (responsavelId !== undefined)
-      await db.$queryRaw`UPDATE Protocolo SET responsavelId = ${responsavelId} WHERE id = ${id} AND municipioId = ${municipioId}`
+      await db.$queryRaw`UPDATE protocolos SET responsavelId = ${responsavelId} WHERE id = ${id} AND municipioId = ${municipioId}`
     if (prazo !== undefined)
-      await db.$queryRaw`UPDATE Protocolo SET prazo = ${prazo ? new Date(prazo) : null} WHERE id = ${id} AND municipioId = ${municipioId}`
+      await db.$queryRaw`UPDATE protocolos SET prazo = ${prazo ? new Date(prazo) : null} WHERE id = ${id} AND municipioId = ${municipioId}`
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {

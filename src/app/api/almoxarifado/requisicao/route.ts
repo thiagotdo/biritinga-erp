@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   try {
     if (id) {
       const rows = await db.$queryRaw`
-        SELECT * FROM Requisicao WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
+        SELECT * FROM requisicao WHERE id = ${id} AND municipioId = ${municipioId} LIMIT 1`
       if (!rows.length) return NextResponse.json({ erro: 'Requisição não encontrada' }, { status: 404 })
       const itens = await db.$queryRaw`
         SELECT ir.*, cm.descricao AS materialDesc, cm.unidadeMedida
@@ -28,16 +28,16 @@ export async function GET(req: NextRequest) {
     }
 
     const countR = status
-      ? await db.$queryRaw`SELECT COUNT(*) AS t FROM Requisicao WHERE municipioId = ${municipioId} AND status = ${status}`
-      : await db.$queryRaw`SELECT COUNT(*) AS t FROM Requisicao WHERE municipioId = ${municipioId}`
+      ? await db.$queryRaw`SELECT COUNT(*) AS t FROM requisicao WHERE municipioId = ${municipioId} AND status = ${status}`
+      : await db.$queryRaw`SELECT COUNT(*) AS t FROM requisicao WHERE municipioId = ${municipioId}`
 
     const rows = status
       ? await db.$queryRaw`
-          SELECT * FROM Requisicao WHERE municipioId = ${municipioId} AND status = ${status}
-          ORDER BY dataRequisicao DESC LIMIT ${limit} OFFSET ${offset}`
+          SELECT * FROM requisicao WHERE municipioId = ${municipioId} AND status = ${status}
+          ORDER BY criadoEm DESC LIMIT ${limit} OFFSET ${offset}`
       : await db.$queryRaw`
-          SELECT * FROM Requisicao WHERE municipioId = ${municipioId}
-          ORDER BY dataRequisicao DESC LIMIT ${limit} OFFSET ${offset}`
+          SELECT * FROM requisicao WHERE municipioId = ${municipioId}
+          ORDER BY criadoEm DESC LIMIT ${limit} OFFSET ${offset}`
 
     const total = Number(countR[0]?.t ?? 0)
     return NextResponse.json({ requisicoes: rows, total, page, pages: Math.ceil(total / limit) })
@@ -57,14 +57,14 @@ export async function POST(req: NextRequest) {
   try {
     const ano = new Date().getFullYear()
     const countR = await db.$queryRaw`
-      SELECT COUNT(*) AS t FROM Requisicao
-      WHERE municipioId = ${municipioId} AND YEAR(dataRequisicao) = ${ano}`
+      SELECT COUNT(*) AS t FROM requisicao
+      WHERE municipioId = ${municipioId} AND YEAR(criadoEm) = ${ano}`
     const seq = Number(countR[0]?.t ?? 0) + 1
     const numero = `REQ-${ano}-${String(seq).padStart(4, '0')}`
 
     const id = randomUUID()
     await db.$queryRaw`
-      INSERT INTO Requisicao (id, municipioId, numero, titulo, justificativa, secretaria,
+      INSERT INTO requisicao (id, municipioId, numero, titulo, justificativa, secretaria,
                               solicitante, prioridade, status, dataRequisicao,
                               dataLimite, valorEstimado, observacao, criadoEm, atualizadoEm)
       VALUES (${id}, ${municipioId}, ${numero}, ${titulo}, ${justificativa || ''},
@@ -99,17 +99,17 @@ export async function PATCH(req: NextRequest) {
   try {
     if (status === 'APROVADA') {
       await db.$queryRaw`
-        UPDATE Requisicao SET status = 'APROVADA', aprovadoPor = ${aprovadoPor || null},
+        UPDATE requisicao SET status = 'APROVADA', aprovadoPor = ${aprovadoPor || null},
                dataAprovacao = NOW(), atualizadoEm = NOW()
         WHERE id = ${id} AND municipioId = ${municipioId}`
     } else if (status === 'REJEITADA') {
       await db.$queryRaw`
-        UPDATE Requisicao SET status = 'REJEITADA',
+        UPDATE requisicao SET status = 'REJEITADA',
                motivoRejeicao = ${motivoRejeicao || null}, atualizadoEm = NOW()
         WHERE id = ${id} AND municipioId = ${municipioId}`
     } else if (status) {
       await db.$queryRaw`
-        UPDATE Requisicao SET status = ${status}, atualizadoEm = NOW()
+        UPDATE requisicao SET status = ${status}, atualizadoEm = NOW()
         WHERE id = ${id} AND municipioId = ${municipioId}`
     }
     return NextResponse.json({ ok: true })
