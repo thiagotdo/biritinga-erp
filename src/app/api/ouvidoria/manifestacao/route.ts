@@ -62,67 +62,78 @@ export async function GET(req: NextRequest) {
   if (relatorio === 'DASHBOARD') {
     const hoje = new Date()
     const em48h = new Date(hoje.getTime() + 48 * 60 * 60 * 1000)
-    const em7d  = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-    const [total, recebidas, emAnalise, aguardando, respondidas, encerradas, vencendo48h, atrasadas] = await Promise.all([
-      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId } }),
-      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RECEBIDA' } }),
-      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'EM_ANALISE' } }),
-      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'AGUARDANDO_RESP' } }),
-      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RESPONDIDA' } }),
-      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'ENCERRADA' } }),
-      prisma.Manifestacao.count({
-        where: {
-          municipioId: usuario.municipioId,
-          situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] },
-          prazoResposta: { gte: hoje, lte: em48h },
-        },
-      }),
-      prisma.Manifestacao.count({
-        where: {
-          municipioId: usuario.municipioId,
-          situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] },
-          prazoResposta: { lt: hoje },
-        },
-      }),
-    ])
+    let total = 0, recebidas = 0, emAnalise = 0, aguardando = 0, respondidas = 0, encerradas = 0, vencendo48h = 0, atrasadas = 0
+    try {
+      ;[total, recebidas, emAnalise, aguardando, respondidas, encerradas, vencendo48h, atrasadas] = await Promise.all([
+        prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId } }),
+        prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RECEBIDA' } }),
+        prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'EM_ANALISE' } }),
+        prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'AGUARDANDO_RESP' } }),
+        prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RESPONDIDA' } }),
+        prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'ENCERRADA' } }),
+        prisma.Manifestacao.count({
+          where: {
+            municipioId: usuario.municipioId,
+            situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] },
+            prazoResposta: { gte: hoje, lte: em48h },
+          },
+        }),
+        prisma.Manifestacao.count({
+          where: {
+            municipioId: usuario.municipioId,
+            situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] },
+            prazoResposta: { lt: hoje },
+          },
+        }),
+      ])
+    } catch { /* tabela não existe ainda */ }
 
     // Por tipo (SQL direto — groupBy não suportado pelo makeModel)
-    const _conn1 = await getConn()
-    const [porTipoRows] = await _conn1.execute(
-      `SELECT tipo, COUNT(*) as total FROM Manifestacao WHERE municipioId = ? GROUP BY tipo ORDER BY total DESC`,
-      [usuario.municipioId]
-    ).finally(() => _conn1.end()) as any[]
-    const porTipo = (porTipoRows as any[]).map((r: any) => ({ tipo: r.tipo, _count: { id: Number(r.total) } }))
+    let porTipo: any[] = []
+    let porSecretaria: any[] = []
+    let mediaSatisfacao: string | null = null
 
-    // Por secretaria
-    const _conn2 = await getConn()
-    const [porSecRows] = await _conn2.execute(
-      `SELECT secretariaDestino, COUNT(*) as total FROM Manifestacao WHERE municipioId = ? AND situacao NOT IN ('ENCERRADA','ARQUIVADA') GROUP BY secretariaDestino ORDER BY total DESC`,
-      [usuario.municipioId]
-    ).finally(() => _conn2.end()) as any[]
-    const porSecretaria = (porSecRows as any[]).map((r: any) => ({ secretariaDestino: r.secretariaDestino, _count: { id: Number(r.total) } }))
+    try {
+      const _conn1 = await getConn()
+      const [porTipoRows] = await _conn1.execute(
+        `SELECT tipo, COUNT(*) as total FROM Manifestacao WHERE municipioId = ? GROUP BY tipo ORDER BY total DESC`,
+        [usuario.municipioId]
+      ).finally(() => _conn1.end()) as any[]
+      porTipo = (porTipoRows as any[]).map((r: any) => ({ tipo: r.tipo, _count: { id: Number(r.total) } }))
 
-    // Satisfação média
-    const satisfacao = await prisma.Manifestacao.findMany({
-      where: { municipioId: usuario.municipioId, avaliado: true },
-      select: { satisfacao: true },
-    })
-    const mapVal: Record<string, number> = { MUITO_SATISFEITO: 5, SATISFEITO: 4, NEUTRO: 3, INSATISFEITO: 2, MUITO_INSATISFEITO: 1 }
-    const notas = satisfacao.filter(s => s.satisfacao).map(s => mapVal[s.satisfacao!] ?? 3)
-    const mediaSatisfacao = notas.length ? (notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(1) : null
+      const _conn2 = await getConn()
+      const [porSecRows] = await _conn2.execute(
+        `SELECT secretariaDestino, COUNT(*) as total FROM Manifestacao WHERE municipioId = ? AND situacao NOT IN ('ENCERRADA','ARQUIVADA') GROUP BY secretariaDestino ORDER BY total DESC`,
+        [usuario.municipioId]
+      ).finally(() => _conn2.end()) as any[]
+      porSecretaria = (porSecRows as any[]).map((r: any) => ({ secretariaDestino: r.secretariaDestino, _count: { id: Number(r.total) } }))
+    } catch { /* tabela não existe */ }
+
+    try {
+      const satisfacao = await prisma.Manifestacao.findMany({
+        where: { municipioId: usuario.municipioId, avaliado: true },
+        select: { satisfacao: true },
+      })
+      const mapVal: Record<string, number> = { MUITO_SATISFEITO: 5, SATISFEITO: 4, NEUTRO: 3, INSATISFEITO: 2, MUITO_INSATISFEITO: 1 }
+      const notas = satisfacao.filter(s => s.satisfacao).map(s => mapVal[s.satisfacao!] ?? 3)
+      mediaSatisfacao = notas.length ? (notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(1) : null
+    } catch { /* tabela não existe */ }
 
     return NextResponse.json({ kpis: { total, recebidas, emAnalise, aguardando, respondidas, encerradas, vencendo48h, atrasadas }, porTipo, porSecretaria, mediaSatisfacao })
   }
 
   if (id) {
-    const manifestacao = await prisma.Manifestacao.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-    })
+    let manifestacao: any = null
+    try {
+      manifestacao = await prisma.Manifestacao.findFirst({ where: { id, municipioId: usuario.municipioId } })
+    } catch { }
     if (!manifestacao) return NextResponse.json({ erro: 'Manifestação não encontrada' }, { status: 404 })
 
     const hoje = new Date()
-    const diasRestantes = Math.ceil((manifestacao.prazoResposta.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+    const diasRestantes = manifestacao.prazoResposta instanceof Date
+      ? Math.ceil((manifestacao.prazoResposta.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+      : null
 
     return NextResponse.json({ manifestacao, diasRestantes })
   }
@@ -144,24 +155,27 @@ export async function GET(req: NextRequest) {
     where.situacao = { notIn: ['ENCERRADA', 'ARQUIVADA'] }
   }
 
-  const manifestacoes = await prisma.Manifestacao.findMany({
-    where, orderBy: { criadoEm: 'desc' }, take: 200,
-    select: {
-      id: true, protocolo: true, tipo: true, situacao: true, assunto: true,
-      secretariaDestino: true, prioridade: true, prazoResposta: true, prorrogado: true,
-      anonima: true, nomeManifestante: true, lai: true, avaliado: true, satisfacao: true,
-      criadoEm: true,
-    },
-  })
+  let manifestacoes: any[] = []
+  try {
+    manifestacoes = await prisma.Manifestacao.findMany({
+      where, orderBy: { criadoEm: 'desc' }, take: 200,
+      select: {
+        id: true, protocolo: true, tipo: true, situacao: true, assunto: true,
+        secretariaDestino: true, prioridade: true, prazoResposta: true, prorrogado: true,
+        anonima: true, nomeManifestante: true, lai: true, avaliado: true, satisfacao: true,
+        criadoEm: true,
+      },
+    })
+  } catch { /* tabela não existe ainda */ }
 
   // Enriquece com flags de prazo
   const hoje = new Date()
   const em48h = new Date(hoje.getTime() + 48 * 60 * 60 * 1000)
   const enriched = manifestacoes.map(m => ({
     ...m,
-    atrasada: m.prazoResposta < hoje && !['ENCERRADA','ARQUIVADA'].includes(m.situacao),
-    vencendoBreve: m.prazoResposta >= hoje && m.prazoResposta <= em48h && !['ENCERRADA','ARQUIVADA'].includes(m.situacao),
-    diasRestantes: Math.ceil((m.prazoResposta.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)),
+    atrasada: m.prazoResposta instanceof Date && m.prazoResposta < hoje && !['ENCERRADA','ARQUIVADA'].includes(m.situacao),
+    vencendoBreve: m.prazoResposta instanceof Date && m.prazoResposta >= hoje && m.prazoResposta <= em48h && !['ENCERRADA','ARQUIVADA'].includes(m.situacao),
+    diasRestantes: m.prazoResposta instanceof Date ? Math.ceil((m.prazoResposta.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : null,
   }))
 
   return NextResponse.json({ manifestacoes: enriched, total: enriched.length })

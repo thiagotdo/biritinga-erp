@@ -36,55 +36,61 @@ export async function GET(req: NextRequest) {
     const inicioMes  = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
     const inicioAno  = new Date(hoje.getFullYear(), 0, 1)
 
-    const [hoje_agendados, hoje_realizados, mes_total, mes_realizados, ano_realizados, faltasHoje] = await Promise.all([
-      prisma.AtendimentoSuas.count({
-        where: {
-          municipioId: usuario.municipioId,
-          dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
-          situacao: { in: ['AGENDADO', 'REALIZADO'] },
-        },
-      }),
-      prisma.AtendimentoSuas.count({
-        where: {
-          municipioId: usuario.municipioId,
-          dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
-          situacao: 'REALIZADO',
-        },
-      }),
-      prisma.AtendimentoSuas.count({
-        where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioMes } },
-      }),
-      prisma.AtendimentoSuas.count({
-        where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioMes }, situacao: 'REALIZADO' },
-      }),
-      prisma.AtendimentoSuas.count({
-        where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioAno }, situacao: 'REALIZADO' },
-      }),
-      prisma.AtendimentoSuas.count({
-        where: {
-          municipioId: usuario.municipioId,
-          dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
-          situacao: 'FALTOU',
-        },
-      }),
-    ])
+    let hoje_agendados = 0, hoje_realizados = 0, mes_total = 0, mes_realizados = 0, ano_realizados = 0, faltasHoje = 0
+    try {
+      ;[hoje_agendados, hoje_realizados, mes_total, mes_realizados, ano_realizados, faltasHoje] = await Promise.all([
+        prisma.AtendimentoSuas.count({
+          where: {
+            municipioId: usuario.municipioId,
+            dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
+            situacao: { in: ['AGENDADO', 'REALIZADO'] },
+          },
+        }),
+        prisma.AtendimentoSuas.count({
+          where: {
+            municipioId: usuario.municipioId,
+            dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
+            situacao: 'REALIZADO',
+          },
+        }),
+        prisma.AtendimentoSuas.count({
+          where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioMes } },
+        }),
+        prisma.AtendimentoSuas.count({
+          where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioMes }, situacao: 'REALIZADO' },
+        }),
+        prisma.AtendimentoSuas.count({
+          where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioAno }, situacao: 'REALIZADO' },
+        }),
+        prisma.AtendimentoSuas.count({
+          where: {
+            municipioId: usuario.municipioId,
+            dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
+            situacao: 'FALTOU',
+          },
+        }),
+      ])
+    } catch { /* tabela não existe ainda */ }
 
     const taxaPresenca = mes_total > 0 ? (mes_realizados / mes_total * 100).toFixed(1) : '100'
 
     // Próximos agendamentos do dia (sem include — não suportado)
-    const proximosHoje = await prisma.AtendimentoSuas.findMany({
-      where: {
-        municipioId: usuario.municipioId,
-        dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
-        situacao: 'AGENDADO',
-      },
-      select: {
-        id: true, familiaId: true, tipo: true, dataAtendimento: true,
-        tecnicoId: true, unidadeId: true, situacao: true, observacoes: true,
-      },
-      orderBy: { dataAtendimento: 'asc' },
-      take: 10,
-    })
+    let proximosHoje: any[] = []
+    try {
+      proximosHoje = await prisma.AtendimentoSuas.findMany({
+        where: {
+          municipioId: usuario.municipioId,
+          dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
+          situacao: 'AGENDADO',
+        },
+        select: {
+          id: true, familiaId: true, tipo: true, dataAtendimento: true,
+          tecnicoId: true, unidadeId: true, situacao: true, observacoes: true,
+        },
+        orderBy: { dataAtendimento: 'asc' },
+        take: 10,
+      })
+    } catch { /* tabela não existe ainda */ }
 
     return NextResponse.json({
       kpis: {
@@ -96,9 +102,10 @@ export async function GET(req: NextRequest) {
   }
 
   if (id) {
-    const at = await prisma.AtendimentoSuas.findFirst({
-      where: { id, municipioId: usuario.municipioId },
-    })
+    let at: any = null
+    try {
+      at = await prisma.AtendimentoSuas.findFirst({ where: { id, municipioId: usuario.municipioId } })
+    } catch { }
     if (!at) return NextResponse.json({ erro: 'Atendimento não encontrado' }, { status: 404 })
     return NextResponse.json({ atendimento: at })
   }
@@ -121,14 +128,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const atendimentos = await prisma.AtendimentoSuas.findMany({
-    where, orderBy: { dataAtendimento: 'desc' }, take: 200,
-    select: {
-      id: true, familiaId: true, unidadeId: true, tipo: true,
-      dataAtendimento: true, duracaoMinutos: true, tecnicoNome: true,
-      objetivo: true, descricao: true, situacao: true, criadoEm: true,
-    },
-  })
+  let atendimentos: any[] = []
+  try {
+    atendimentos = await prisma.AtendimentoSuas.findMany({
+      where, orderBy: { dataAtendimento: 'desc' }, take: 200,
+      select: {
+        id: true, familiaId: true, unidadeId: true, tipo: true,
+        dataAtendimento: true, duracaoMinutos: true, tecnicoNome: true,
+        objetivo: true, descricao: true, situacao: true, criadoEm: true,
+      },
+    })
+  } catch { /* tabela não existe ainda */ }
 
   return NextResponse.json({ atendimentos, total: atendimentos.length })
 }

@@ -78,20 +78,24 @@ export async function GET(request: NextRequest) {
     const pagina      = Number(searchParams.get('pagina') ?? 1)
     const porPagina   = Math.min(Number(searchParams.get('porPagina') ?? 20), 100)
 
-    const pool = (prisma as any)._pool ?? (prisma as any).__pool
     // Busca individual com histórico completo
     if (id) {
-      const rows = await prisma.$queryRaw`
-        SELECT e.*, d.codigo as dotCodigo, d.descricao as dotDescricao, d.secretaria as dotSecretaria, d.natureza as dotNatureza
-        FROM Empenho e
-        LEFT JOIN Dotacao d ON d.id = e.dotacaoId
-        WHERE e.id = ${id} AND e.municipioId = ${ctx.municipioId}
-        LIMIT 1
-      ` as any[]
+      let rows: any[] = []
+      try {
+        rows = await prisma.$queryRaw`
+          SELECT e.*, d.codigo as dotCodigo, d.descricao as dotDescricao, d.secretaria as dotSecretaria, d.natureza as dotNatureza
+          FROM Empenho e
+          LEFT JOIN Dotacao d ON d.id = e.dotacaoId
+          WHERE e.id = ${id} AND e.municipioId = ${ctx.municipioId}
+          LIMIT 1
+        ` as any[]
+      } catch { /* tabela não existe */ }
       if (!rows.length) return NextResponse.json({ erro: 'Empenho não encontrado' }, { status: 404 })
       const e = rows[0]
-      const liquidacoes = await prisma.$queryRaw`SELECT * FROM Liquidacao WHERE empenhoId = ${id} ORDER BY criadoEm ASC` as any[]
-      const pagamentos  = await prisma.$queryRaw`SELECT * FROM Pagamento  WHERE empenhoId = ${id} ORDER BY dataPagamento ASC` as any[]
+      let liquidacoes: any[] = []
+      try { liquidacoes = await prisma.$queryRaw`SELECT * FROM Liquidacao WHERE empenhoId = ${id} ORDER BY criadoEm ASC` as any[] } catch { }
+      let pagamentos: any[] = []
+      try { pagamentos = await prisma.$queryRaw`SELECT * FROM Pagamento  WHERE empenhoId = ${id} ORDER BY dataPagamento ASC` as any[] } catch { }
       return NextResponse.json({ empenho: { ...e, dotacao: { codigo: e.dotCodigo, descricao: e.dotDescricao, secretaria: e.dotSecretaria, natureza: e.dotNatureza }, liquidacoes, pagamentos } })
     }
 
@@ -110,47 +114,56 @@ export async function GET(request: NextRequest) {
     const whereClause = filtros.join(' AND ')
     const offset = (pagina - 1) * porPagina
 
-    // Usar getPool via db.$queryRaw com template literal manual
     const { getConn } = await import('@/lib/db')
     const conn = await getConn()
     try {
-      const [empenhos] = await conn.execute(`
-        SELECT e.id, e.numero, e.situacao, e.modalidade, e.credorNome, e.credorCpfCnpj,
-               e.valorOriginal, e.valorLiquidado, e.valorPago, e.valorAnulado,
-               e.competencia, e.dataEmissao, e.dataVencimento, e.descricao,
-               e.contratoNumero, e.processoNumero,
-               d.codigo as dotCodigo, d.descricao as dotDescricao, d.secretaria as dotSecretaria
-        FROM Empenho e
-        LEFT JOIN Dotacao d ON d.id = e.dotacaoId
-        WHERE ${whereClause}
-        ORDER BY e.dataEmissao DESC
-        LIMIT ? OFFSET ?
-      `, [...params, porPagina, offset]) as any[]
+      let empenhos: any[] = []
+      let total = 0
+      let totalEmitido = 0, totalLiquidado = 0, totalPago = 0
+      let porSituacao: any[] = []
 
-      const [totalRows] = await conn.execute(
-        `SELECT COUNT(*) as n FROM Empenho e WHERE ${whereClause}`, params
-      ) as any[]
-      const total = Number((totalRows as any[])[0]?.n ?? 0)
+      try {
+        const [empRows] = await conn.execute(`
+          SELECT e.id, e.numero, e.situacao, e.modalidade, e.credorNome, e.credorCpfCnpj,
+                 e.valorOriginal, e.valorLiquidado, e.valorPago, e.valorAnulado,
+                 e.competencia, e.dataEmissao, e.dataVencimento, e.descricao,
+                 e.contratoNumero, e.processoNumero,
+                 d.codigo as dotCodigo, d.descricao as dotDescricao, d.secretaria as dotSecretaria
+          FROM Empenho e
+          LEFT JOIN Dotacao d ON d.id = e.dotacaoId
+          WHERE ${whereClause}
+          ORDER BY e.dataEmissao DESC
+          LIMIT ? OFFSET ?
+        `, [...params, porPagina, offset]) as any[]
+        empenhos = empRows as any[]
 
-      // Totalizadores
-      const baseParams2: any[] = [ctx.municipioId]
-      let filtroBase2 = 'municipioId = ?'
-      if (competencia) { filtroBase2 += ' AND competencia = ?'; baseParams2.push(competencia) }
+        const [totalRows] = await conn.execute(
+          `SELECT COUNT(*) as n FROM Empenho e WHERE ${whereClause}`, params
+        ) as any[]
+        total = Number((totalRows as any[])[0]?.n ?? 0)
 
-      const [totaisRows] = await conn.execute(`
-        SELECT SUM(valorOriginal) as somaOriginal, SUM(valorLiquidado) as somaLiquidado,
-               SUM(valorPago) as somaPago, COUNT(*) as total
-        FROM Empenho WHERE ${filtroBase2}
-      `, baseParams2) as any[]
+        const baseParams2: any[] = [ctx.municipioId]
+        let filtroBase2 = 'municipioId = ?'
+        if (competencia) { filtroBase2 += ' AND competencia = ?'; baseParams2.push(competencia) }
 
-      const [porSitRows] = await conn.execute(`
-        SELECT situacao, COUNT(*) as qtd, SUM(valorOriginal) as soma
-        FROM Empenho WHERE ${filtroBase2} GROUP BY situacao
-      `, baseParams2) as any[]
+        const [totaisRows] = await conn.execute(`
+          SELECT SUM(valorOriginal) as somaOriginal, SUM(valorLiquidado) as somaLiquidado,
+                 SUM(valorPago) as somaPago FROM Empenho WHERE ${filtroBase2}
+        `, baseParams2) as any[]
+        const t = (totaisRows as any[])[0] ?? {}
+        totalEmitido   = Number(t.somaOriginal  ?? 0)
+        totalLiquidado = Number(t.somaLiquidado ?? 0)
+        totalPago      = Number(t.somaPago      ?? 0)
 
-      const t = (totaisRows as any[])[0] ?? {}
+        const [porSitRows] = await conn.execute(
+          `SELECT situacao, COUNT(*) as qtd, SUM(valorOriginal) as soma FROM Empenho WHERE ${filtroBase2} GROUP BY situacao`,
+          baseParams2
+        ) as any[]
+        porSituacao = (porSitRows as any[]).map((s: any) => ({ situacao: s.situacao, total: Number(s.qtd), valor: Number(s.soma ?? 0) }))
+      } catch { /* tabela Empenho não existe ainda — retorna vazio */ }
+
       return NextResponse.json({
-        empenhos: (empenhos as any[]).map((e: any) => ({
+        empenhos: empenhos.map((e: any) => ({
           ...e,
           dotacao: { codigo: e.dotCodigo, descricao: e.dotDescricao, secretaria: e.dotSecretaria },
         })),
@@ -158,17 +171,7 @@ export async function GET(request: NextRequest) {
         pagina,
         porPagina,
         totalPaginas: Math.ceil(total / porPagina),
-        resumo: {
-          totalEmitido:    Number(t.somaOriginal   ?? 0),
-          totalLiquidado:  Number(t.somaLiquidado  ?? 0),
-          totalPago:       Number(t.somaPago        ?? 0),
-          totalEmpenhos:   Number(t.total           ?? 0),
-          porSituacao: (porSitRows as any[]).map((s: any) => ({
-            situacao: s.situacao,
-            total:    Number(s.qtd),
-            valor:    Number(s.soma ?? 0),
-          })),
-        },
+        resumo: { totalEmitido, totalLiquidado, totalPago, totalEmpenhos: total, porSituacao },
       })
     } finally {
       await conn.end()
@@ -191,13 +194,18 @@ export async function POST(request: NextRequest) {
     const dados = EmitirSchema.parse(await request.json())
 
     // Verificar dotação
-    const dotacaoRows = await prisma.$queryRaw`
-      SELECT d.*, o.situacao as orcSituacao, o.exercicio as orcExercicio
-      FROM Dotacao d
-      LEFT JOIN OrcamentoUnidade o ON o.id = d.orcamentoId
-      WHERE d.id = ${dados.dotacaoId} AND d.municipioId = ${ctx.municipioId}
-      LIMIT 1
-    ` as any[]
+    let dotacaoRows: any[] = []
+    try {
+      dotacaoRows = await prisma.$queryRaw`
+        SELECT d.*, o.situacao as orcSituacao, o.exercicio as orcExercicio
+        FROM Dotacao d
+        LEFT JOIN OrcamentoUnidade o ON o.id = d.orcamentoId
+        WHERE d.id = ${dados.dotacaoId} AND d.municipioId = ${ctx.municipioId}
+        LIMIT 1
+      ` as any[]
+    } catch {
+      return NextResponse.json({ erro: 'Módulo de empenho não configurado neste ambiente' }, { status: 503 })
+    }
     const dotacao = dotacaoRows[0]
     if (!dotacao) return NextResponse.json({ erro: 'Dotação não encontrada' }, { status: 404 })
     // Se orcamento não for vigente e existir
