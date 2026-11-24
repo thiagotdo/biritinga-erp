@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { obterUsuario } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
 
     const noticia = await prisma.Noticia.create({
       data: {
+        id:             randomUUID(),
         municipioId:    ctx.municipioId,
         titulo:         data.titulo.trim(),
         slug,
