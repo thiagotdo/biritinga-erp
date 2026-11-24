@@ -12,6 +12,7 @@ import {
   School, BookOpen, Heart, UtensilsCrossed,
   Syringe, Pill, Activity, Building2, Package, UserCheck,
   Briefcase, Car, DollarSign, Fuel, ClipboardList, AlertCircle,
+  ArrowRightLeft, FilePlus2,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ const NAV_ADMIN = [
     { href: '/gestao/frota',        label: 'Gestão de Frota - SEFROTA',           Icon: Car             },
     { href: '/gestao/obras',        label: 'Sec. de Obras e Serviços - SEMOSP',   Icon: HardHat         },
     { href: '/gestao/comunicacao/noticias', label: 'Sec. de Comunicação - SECOM', Icon: Newspaper       },
+    { href: '/gestao/protocolo',            label: 'Protocolo Eletrônico - SEADM', Icon: ArrowRightLeft  },
   ]},
 ]
 
@@ -179,6 +181,11 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
   ]}],
   SEMMA: [{ grupo: 'Sec. de Meio Ambiente - SEMMA', items: [{ href: '/gestao/semma', label: 'Painel SEMMA', Icon: Leaf    }] }],
   SEMOB: [{ grupo: 'Sec. de Mobilidade Urbana - SEMOB', items: [{ href: '/gestao/semob', label: 'Painel SEMOB', Icon: HardHat }] }],
+  PROTOCOLO: [{ grupo: 'Protocolo Eletrônico - SEADM', items: [
+    { href: '/gestao/protocolo',              label: 'Painel Protocolo',  Icon: ArrowRightLeft },
+    { href: '/gestao/protocolo/processos',    label: 'Processos',         Icon: FileText       },
+    { href: '/gestao/protocolo/novo',         label: 'Novo Protocolo',    Icon: FilePlus2      },
+  ]}],
 }
 
 function navPorPerfil(perfil: string, secretaria?: string) {
