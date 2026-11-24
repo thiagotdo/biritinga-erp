@@ -55,11 +55,11 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 - **SEMOSP** (`/api/obras/obra`): 7+ obras reais
 - **SEFROTA** (`/api/frota/veiculo`): 13 veículos reais
 - **SEFIN** (`/api/sefin/orcamento`): LOA 2026 R$28,75M + 13 dotações
-- **SECOM** (`/api/comunicacao/noticias`, `/api/comunicacao/agenda`): 16 notícias + 18 eventos
-- **SEMAD** (`/api/semad/servidores`): 25+ servidores reais (secretários, profissionais saúde, educação, etc.)
-- **Licitações** (`/api/licitacoes/licitacao`): 23+ licitações reais 2026
-- **Transparência despesas** (`/api/transparencia/despesa`): 28 despesas orçamentárias LOA 2026 (Jan-Out)
-- **Folha de pagamento** (`/api/folha/competencia`): 10 competências Jan-Out 2026 (~R$1,87M/mês)
+- **SECOM** (`/api/comunicacao/noticias`, `/api/comunicacao/agenda`): 22 notícias + 23 eventos (atualizado Nov/2026)
+- **SEMAD** (`/api/semad/servidores`): 68 servidores (matrículas até 610, sexo: M/F)
+- **Licitações** (`/api/licitacoes/licitacao`): 35 licitações reais 2026 (01-28/2026 + 90000s)
+- **Transparência despesas** (`/api/transparencia/despesa`): 34 despesas orçamentárias LOA 2026 (Jan-Nov)
+- **Folha de pagamento** (`/api/folha/competencia`): 11 competências Jan-Nov 2026 (~R$1,87-1,99M/mês)
 - **Educação** (`/api/educacao/escola`): 68 escolas cadastradas
 
 ## Tabelas extras criadas via SQL (não no Prisma schema original)
@@ -79,6 +79,7 @@ curl -sc /tmp/erp-cookies.txt -X POST https://erp.biritinga.ba.gov.br/api/auth/l
 - FK `Servidor.cargoId` recriada apontando para `Cargo` (não `cargos`)
 - `fonte` em dotações: VARCHAR curto — usar valores ≤ 10 chars ("PROPRIO", "FUNDEB 70", "RPPS")
 - `regime` em Servidor: usar `CLT` (não `CELETISTA`) — o ENUM aceita `ESTATUTARIO` e `CLT`
+- `sexo` em Servidor: usar `M` ou `F` — não aceita `MASCULINO`/`FEMININO`
 - Tabela `Escola` usa Prisma real (`@/lib/prisma`), não makeModel; model `Turma` não tem campo `ativo`
 - `DespesaOrcamentaria`: tabela existe no MySQL mas NÃO estava em DB_TABLES — foi adicionada. Usar PascalCase `prisma.DespesaOrcamentaria` e passar id/criadoEm/atualizadoEm manualmente
 - `NaturezaDespesa` ENUM: `PESSOAL_ENCARGOS`, `JUROS_ENCARGOS_DIVIDA`, `OUTRAS_CORRENTES`, `INVESTIMENTOS`, `INVERSOES_FINANCEIRAS`, `AMORTIZACAO_DIVIDA`, `RESERVA_CONTINGENCIA`
