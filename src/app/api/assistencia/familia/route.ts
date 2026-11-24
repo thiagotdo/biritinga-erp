@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
   // CPF único por município
   if (d.responsavelCpf) {
     const cpf = d.responsavelCpf.replace(/\D/g, '')
-    const existe = await prisma.familiaReferenciada.findFirst({
+    const existe = await prisma.FamiliaReferenciada.findFirst({
       where: { municipioId: usuario.municipioId, responsavelCpf: cpf },
     })
     if (existe) {

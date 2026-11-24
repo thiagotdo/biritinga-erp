@@ -143,20 +143,20 @@ export async function PATCH(req: NextRequest) {
   const { id, acao, motivo } = await req.json()
   if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const benef = await prisma.beneficioFamilia.findFirst({
+  const benef = await prisma.BeneficioFamilia.findFirst({
     where: { id, municipioId: usuario.municipioId },
   })
   if (!benef) return NextResponse.json({ erro: 'Benefício não encontrado' }, { status: 404 })
 
   if (acao === 'SUSPENDER') {
-    await prisma.beneficioFamilia.update({ where: { id }, data: { situacao: 'SUSPENSO' } })
+    await prisma.BeneficioFamilia.update({ where: { id }, data: { situacao: 'SUSPENSO' } })
   } else if (acao === 'REVOGAR') {
-    await prisma.beneficioFamilia.update({
+    await prisma.BeneficioFamilia.update({
       where: { id },
       data: { situacao: 'CANCELADO', dataRevogacao: new Date(), motivoRevogacao: motivo },
     })
   } else if (acao === 'REATIVAR') {
-    await prisma.beneficioFamilia.update({ where: { id }, data: { situacao: 'ATIVO' } })
+    await prisma.BeneficioFamilia.update({ where: { id }, data: { situacao: 'ATIVO' } })
   } else {
     return NextResponse.json({ erro: 'Ação inválida. Use SUSPENDER, REVOGAR ou REATIVAR' }, { status: 400 })
   }

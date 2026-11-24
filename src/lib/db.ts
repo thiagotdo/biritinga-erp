@@ -440,10 +440,17 @@ const DB_TABLES = [
   'ImovelUrbano', 'Contribuinte', 'GuiaISS', 'DividaAtiva', 'ParcelamentoIPTU',
   // Licitações
   'Licitacao', 'ItemLicitacao', 'Contrato',
+  'LoteLicitacao', 'ParticipanteLicitacao',
   // Portal / Ouvidoria / e-SIC
   'Demanda', 'RespostaDemanda', 'SolicitacaoSIC', 'RespostaSIC',
+  'Manifestacao', 'MovimentacaoManifestacao',
+  'PedidoAcesso', 'RecursoPedido', 'TramitacaoPedido',
   // Transparência
   'PortalTransparencia', 'DespesaOrcamentaria',
+  // Assistência Social (SUAS)
+  'UnidadeSuas', 'FamiliaReferenciada', 'AtendimentoSuas', 'BeneficioFamilia',
+  // SEFIN extra
+  'ReceitaOrcamentaria', 'Folha',
 ] as const
 
 type DbModels = {

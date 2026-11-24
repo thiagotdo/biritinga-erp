@@ -25,7 +25,7 @@ function adicionarDiasUteis(data: Date, dias: number): Date {
 
 async function gerarProtocolo(municipioId: string): Promise<string> {
   const ano = new Date().getFullYear()
-  const count = await prisma.pedidoAcesso.count({
+  const count = await prisma.PedidoAcesso.count({
     where: { municipioId, protocolo: { startsWith: `SIC-${ano}-` } },
   })
   return `SIC-${ano}-${String(count + 1).padStart(4, '0')}`
@@ -33,7 +33,7 @@ async function gerarProtocolo(municipioId: string): Promise<string> {
 
 async function gerarNumeroRecurso(municipioId: string): Promise<string> {
   const ano = new Date().getFullYear()
-  const count = await prisma.recursoPedido.count({
+  const count = await prisma.RecursoPedido.count({
     where: { municipioId, numero: { startsWith: `REC-${ano}-` } },
   })
   return `REC-${ano}-${String(count + 1).padStart(3, '0')}`
@@ -78,30 +78,30 @@ export async function GET(req: NextRequest) {
       porSetor,
       mediaResposta,
     ] = await Promise.all([
-      prisma.pedidoAcesso.count({ where: { municipioId: usuario.municipioId } }),
-      prisma.pedidoAcesso.count({
+      prisma.PedidoAcesso.count({ where: { municipioId: usuario.municipioId } }),
+      prisma.PedidoAcesso.count({
         where: {
           municipioId: usuario.municipioId,
           situacao: { in: ['RECEBIDO','EM_TRAMITACAO','AGUARDANDO_SETOR','PRORROGADO'] },
         },
       }),
-      prisma.pedidoAcesso.count({
+      prisma.PedidoAcesso.count({
         where: {
           municipioId: usuario.municipioId,
           situacao: { in: ['RESPONDIDO','PARCIALMENTE_ATENDIDO'] },
         },
       }),
-      prisma.pedidoAcesso.count({
+      prisma.PedidoAcesso.count({
         where: { municipioId: usuario.municipioId, situacao: 'INDEFERIDO' },
       }),
-      prisma.pedidoAcesso.count({
+      prisma.PedidoAcesso.count({
         where: {
           municipioId: usuario.municipioId,
           situacao: { in: ['RECEBIDO','EM_TRAMITACAO','AGUARDANDO_SETOR','PRORROGADO'] },
           dataLimiteResposta: { lt: hoje },
         },
       }),
-      prisma.pedidoAcesso.count({
+      prisma.PedidoAcesso.count({
         where: {
           municipioId: usuario.municipioId,
           situacao: { in: ['RECEBIDO','EM_TRAMITACAO','AGUARDANDO_SETOR','PRORROGADO'] },
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
     // Art. 11 - 20 dias úteis
     const dataLimiteResposta  = adicionarDiasUteis(dataProtocolo, 20)
 
-    const pedido = await prisma.pedidoAcesso.create({
+    const pedido = await prisma.PedidoAcesso.create({
       data: {
         municipioId:        usuario.municipioId,
         protocolo,
@@ -261,7 +261,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Tramitação inicial automática
-    await prisma.tramitacaoPedido.create({
+    await prisma.TramitacaoPedido.create({
       data: {
         municipioId:  usuario.municipioId,
         pedidoId:     pedido.id,
@@ -289,7 +289,7 @@ export async function POST(req: NextRequest) {
     if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
     const d = val.data
 
-    const pedido = await prisma.pedidoAcesso.findFirst({
+    const pedido = await prisma.PedidoAcesso.findFirst({
       where: { id: d.pedidoId, municipioId: usuario.municipioId },
     })
     if (!pedido) return NextResponse.json({ erro: 'Pedido não encontrado' }, { status: 404 })
@@ -328,7 +328,7 @@ export async function POST(req: NextRequest) {
     if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
     const d = val.data
 
-    const pedido = await prisma.pedidoAcesso.findFirst({
+    const pedido = await prisma.PedidoAcesso.findFirst({
       where: { id: d.pedidoId, municipioId: usuario.municipioId },
     })
     if (!pedido) return NextResponse.json({ erro: 'Pedido não encontrado' }, { status: 404 })
@@ -396,7 +396,7 @@ export async function PATCH(req: NextRequest) {
 
   // ── Ação em recurso ────────────────────────────────────────────────────────
   if (recursoId) {
-    const recurso = await prisma.recursoPedido.findFirst({
+    const recurso = await prisma.RecursoPedido.findFirst({
       where: { id: recursoId, municipioId: usuario.municipioId },
     })
     if (!recurso) return NextResponse.json({ erro: 'Recurso não encontrado' }, { status: 404 })
@@ -447,7 +447,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ erro: `Ação '${acao}' inválida` }, { status: 400 })
   }
 
-  const pedido = await prisma.pedidoAcesso.findFirst({
+  const pedido = await prisma.PedidoAcesso.findFirst({
     where: { id, municipioId: usuario.municipioId },
   })
   if (!pedido) return NextResponse.json({ erro: 'Pedido não encontrado' }, { status: 404 })
@@ -460,7 +460,7 @@ export async function PATCH(req: NextRequest) {
     dataAtualizada.setorDestinatario = extras.setorDestino
 
     // Registrar tramitação
-    await prisma.tramitacaoPedido.create({
+    await prisma.TramitacaoPedido.create({
       data: {
         municipioId:  usuario.municipioId,
         pedidoId:     id,
@@ -532,7 +532,7 @@ export async function PATCH(req: NextRequest) {
     dataAtualizada.situacao = 'ENCERRADO'
   }
 
-  const atualizado = await prisma.pedidoAcesso.update({
+  const atualizado = await prisma.PedidoAcesso.update({
     where: { id },
     data:  dataAtualizada,
   })

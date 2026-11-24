@@ -37,30 +37,30 @@ export async function GET(req: NextRequest) {
     const inicioAno  = new Date(hoje.getFullYear(), 0, 1)
 
     const [hoje_agendados, hoje_realizados, mes_total, mes_realizados, ano_realizados, faltasHoje] = await Promise.all([
-      prisma.atendimentoSuas.count({
+      prisma.AtendimentoSuas.count({
         where: {
           municipioId: usuario.municipioId,
           dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
           situacao: { in: ['AGENDADO', 'REALIZADO'] },
         },
       }),
-      prisma.atendimentoSuas.count({
+      prisma.AtendimentoSuas.count({
         where: {
           municipioId: usuario.municipioId,
           dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
           situacao: 'REALIZADO',
         },
       }),
-      prisma.atendimentoSuas.count({
+      prisma.AtendimentoSuas.count({
         where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioMes } },
       }),
-      prisma.atendimentoSuas.count({
+      prisma.AtendimentoSuas.count({
         where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioMes }, situacao: 'REALIZADO' },
       }),
-      prisma.atendimentoSuas.count({
+      prisma.AtendimentoSuas.count({
         where: { municipioId: usuario.municipioId, dataAtendimento: { gte: inicioAno }, situacao: 'REALIZADO' },
       }),
-      prisma.atendimentoSuas.count({
+      prisma.AtendimentoSuas.count({
         where: {
           municipioId: usuario.municipioId,
           dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
