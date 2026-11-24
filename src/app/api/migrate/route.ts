@@ -249,3 +249,36 @@ export async function GET(req: NextRequest) {
     tableInfo,
   }, { status: errors.length === 0 ? 200 : 207 })
 }
+
+// POST: executa SQL de limpeza/manutenção protegido por token
+export async function POST(req: NextRequest) {
+  const token = req.nextUrl.searchParams.get('token')
+  if (token !== SETUP_TOKEN) {
+    return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
+  }
+
+  const { sqls } = await req.json() as { sqls: string[] }
+  if (!Array.isArray(sqls) || sqls.length === 0) {
+    return NextResponse.json({ erro: 'sqls deve ser array não-vazio' }, { status: 400 })
+  }
+
+  const dbUrl = process.env.DATABASE_URL
+  if (!dbUrl) return NextResponse.json({ erro: 'DATABASE_URL não configurada' }, { status: 500 })
+
+  const cfg = parseDbUrl(dbUrl)
+  const conn = await mysql.createConnection({ ...cfg, ssl: { rejectUnauthorized: false } })
+
+  const results: { sql: string; status: string; affectedRows?: number; error?: string }[] = []
+  for (const sql of sqls) {
+    try {
+      const [result]: any = await conn.execute(sql)
+      results.push({ sql: sql.slice(0, 80), status: 'ok', affectedRows: result.affectedRows ?? 0 })
+    } catch (e: any) {
+      results.push({ sql: sql.slice(0, 80), status: 'erro', error: e.message })
+    }
+  }
+
+  await conn.end()
+  const errors = results.filter(r => r.status === 'erro')
+  return NextResponse.json({ ok: errors.length === 0, results }, { status: errors.length === 0 ? 200 : 207 })
+}
