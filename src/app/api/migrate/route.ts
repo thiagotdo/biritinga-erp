@@ -442,11 +442,16 @@ export async function POST(req: NextRequest) {
   const cfg = parseDbUrl(dbUrl)
   const conn = await mysql.createConnection({ ...cfg, ssl: { rejectUnauthorized: false } })
 
-  const results: { sql: string; status: string; affectedRows?: number; error?: string }[] = []
+  const results: { sql: string; status: string; affectedRows?: number; rows?: any[]; error?: string }[] = []
   for (const sql of sqls) {
     try {
       const [result]: any = await conn.execute(sql)
-      results.push({ sql: sql.slice(0, 80), status: 'ok', affectedRows: result.affectedRows ?? 0 })
+      const isSelect = sql.trim().toUpperCase().startsWith('SELECT') || sql.trim().toUpperCase().startsWith('SHOW')
+      if (isSelect && Array.isArray(result)) {
+        results.push({ sql: sql.slice(0, 80), status: 'ok', rows: result })
+      } else {
+        results.push({ sql: sql.slice(0, 80), status: 'ok', affectedRows: result.affectedRows ?? 0 })
+      }
     } catch (e: any) {
       results.push({ sql: sql.slice(0, 80), status: 'erro', error: e.message })
     }
