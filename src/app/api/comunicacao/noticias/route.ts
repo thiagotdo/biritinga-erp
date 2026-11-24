@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
         autor:          data.autor?.trim() || ctx.nome,
         autorId:        ctx.usuarioId,
         dataPublicacao: data.status === 'PUBLICADA' ? new Date() : null,
+        criadoEm:       new Date(),
+        atualizadoEm:   new Date(),
       },
     })
 
