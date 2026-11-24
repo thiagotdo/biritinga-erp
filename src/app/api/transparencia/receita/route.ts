@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 
 export const runtime = 'nodejs'
@@ -23,65 +23,80 @@ export async function GET(req: NextRequest) {
   const natureza     = searchParams.get('natureza')
 
   if (relatorio === 'DASHBOARD') {
-    const [totaisAno, porNatureza, evolucaoMensal] = await Promise.all([
-      prisma.receitaOrcamentaria.aggregate({
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { previsto: true, arrecadado: true },
-      }),
-      prisma.receitaOrcamentaria.groupBy({
-        by: ['natureza'],
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { previsto: true, arrecadado: true },
-        orderBy: { _sum: { arrecadado: 'desc' } },
-      }),
-      prisma.receitaOrcamentaria.groupBy({
-        by: ['mes', 'competencia'],
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { previsto: true, arrecadado: true },
-        orderBy: { mes: 'asc' },
-      }),
-    ])
+    const conn = await getConn()
+    try {
+      const mid = usuario.municipioId
 
-    // Top 10 receitas por arrecadação
-    const topReceitas = await prisma.receitaOrcamentaria.groupBy({
-      by: ['codigoReceita', 'descricao'],
-      where: { municipioId: usuario.municipioId, exercicio },
-      _sum: { arrecadado: true },
-      orderBy: { _sum: { arrecadado: 'desc' } },
-      take: 10,
-    })
+      const [totaisRows] = await conn.execute(
+        `SELECT SUM(previsto) as previsto, SUM(arrecadado) as arrecadado
+         FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ?`,
+        [mid, exercicio]
+      ) as any[]
+      const t = totaisRows[0] || {}
+      const previsto   = Number(t.previsto ?? 0)
+      const arrecadado = Number(t.arrecadado ?? 0)
+      const pct        = previsto > 0 ? ((arrecadado / previsto) * 100).toFixed(1) : '0'
 
-    const previsto   = Number(totaisAno._sum.previsto ?? 0)
-    const arrecadado = Number(totaisAno._sum.arrecadado ?? 0)
-    const pct        = previsto > 0 ? ((arrecadado / previsto) * 100).toFixed(1) : '0'
+      const [porNaturezaRows] = await conn.execute(
+        `SELECT natureza, SUM(previsto) as previsto, SUM(arrecadado) as arrecadado
+         FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ?
+         GROUP BY natureza ORDER BY SUM(arrecadado) DESC`,
+        [mid, exercicio]
+      ) as any[]
 
-    return NextResponse.json({
-      kpis: { previsto, arrecadado, pct, superavit: arrecadado - previsto },
-      porNatureza: porNatureza.map(r => ({
-        natureza: r.natureza,
-        previsto: Number(r._sum.previsto ?? 0),
-        arrecadado: Number(r._sum.arrecadado ?? 0),
-      })),
-      evolucaoMensal: evolucaoMensal.map(r => ({
-        mes: r.mes, competencia: r.competencia,
-        previsto: Number(r._sum.previsto ?? 0),
-        arrecadado: Number(r._sum.arrecadado ?? 0),
-      })),
-      topReceitas: topReceitas.map(r => ({
-        codigo: r.codigoReceita, descricao: r.descricao,
-        arrecadado: Number(r._sum.arrecadado ?? 0),
-      })),
-    })
+      const [evolucaoRows] = await conn.execute(
+        `SELECT mes, competencia, SUM(previsto) as previsto, SUM(arrecadado) as arrecadado
+         FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ?
+         GROUP BY mes, competencia ORDER BY mes ASC`,
+        [mid, exercicio]
+      ) as any[]
+
+      const [topRows] = await conn.execute(
+        `SELECT codigoReceita, descricao, SUM(arrecadado) as arrecadado
+         FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ?
+         GROUP BY codigoReceita, descricao ORDER BY SUM(arrecadado) DESC LIMIT 10`,
+        [mid, exercicio]
+      ) as any[]
+
+      return NextResponse.json({
+        kpis: { previsto, arrecadado, pct, superavit: arrecadado - previsto },
+        porNatureza: (porNaturezaRows as any[]).map((r: any) => ({
+          natureza: r.natureza,
+          previsto: Number(r.previsto ?? 0),
+          arrecadado: Number(r.arrecadado ?? 0),
+        })),
+        evolucaoMensal: (evolucaoRows as any[]).map((r: any) => ({
+          mes: r.mes, competencia: r.competencia,
+          previsto: Number(r.previsto ?? 0),
+          arrecadado: Number(r.arrecadado ?? 0),
+        })),
+        topReceitas: (topRows as any[]).map((r: any) => ({
+          codigo: r.codigoReceita, descricao: r.descricao,
+          arrecadado: Number(r.arrecadado ?? 0),
+        })),
+      })
+    } finally {
+      await conn.end()
+    }
   }
 
-  const where: any = { municipioId: usuario.municipioId, exercicio }
-  if (competencia) where.competencia = competencia
-  if (natureza)    where.natureza = natureza
+  // Lista filtrada
+  const conn = await getConn()
+  try {
+    const params: any[] = [usuario.municipioId, exercicio]
+    let where = 'municipioId = ? AND exercicio = ?'
+    if (competencia) { where += ' AND competencia = ?'; params.push(competencia) }
+    if (natureza)    { where += ' AND natureza = ?'; params.push(natureza) }
 
-  const receitas = await prisma.receitaOrcamentaria.findMany({
-    where, orderBy: [{ natureza: 'asc' }, { codigoReceita: 'asc' }], take: 500,
-  })
-  return NextResponse.json({ receitas, total: receitas.length })
+    const [receitas] = await conn.execute(
+      `SELECT * FROM ReceitaOrcamentaria WHERE ${where} ORDER BY natureza ASC, codigoReceita ASC LIMIT 500`,
+      params
+    ) as any[]
+
+    return NextResponse.json({ receitas, total: (receitas as any[]).length })
+  } finally {
+    await conn.end()
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -96,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (!rows.length) return NextResponse.json({ erro: 'Nenhum registro' }, { status: 400 })
 
     const criados = await prisma.$transaction(
-      rows.map((r: any) => prisma.receitaOrcamentaria.upsert({
+      rows.map((r: any) => prisma.ReceitaOrcamentaria.upsert({
         where: { municipioId_competencia_codigoReceita: {
           municipioId: usuario.municipioId,
           competencia: r.competencia,
@@ -138,7 +153,7 @@ export async function POST(req: NextRequest) {
   if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
   const d = val.data
 
-  const rec = await prisma.receitaOrcamentaria.upsert({
+  const rec = await prisma.ReceitaOrcamentaria.upsert({
     where: { municipioId_competencia_codigoReceita: {
       municipioId: usuario.municipioId, competencia: d.competencia, codigoReceita: d.codigoReceita,
     }},

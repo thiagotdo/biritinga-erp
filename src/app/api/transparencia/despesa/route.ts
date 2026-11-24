@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { randomUUID } from 'crypto'
 
@@ -27,82 +27,100 @@ export async function GET(req: NextRequest) {
   const credor      = searchParams.get('credor')
 
   if (relatorio === 'DASHBOARD') {
-    const [totais, porNatureza, porOrgao, evolucao] = await Promise.all([
-      prisma.DespesaOrcamentaria.aggregate({
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { orcado: true, empenhado: true, liquidado: true, pago: true },
-      }),
-      prisma.DespesaOrcamentaria.groupBy({
-        by: ['natureza'],
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { orcado: true, pago: true },
-        orderBy: { _sum: { pago: 'desc' } },
-      }),
-      prisma.DespesaOrcamentaria.groupBy({
-        by: ['orgao'],
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { pago: true },
-        orderBy: { _sum: { pago: 'desc' } },
-        take: 8,
-      }),
-      prisma.DespesaOrcamentaria.groupBy({
-        by: ['mes', 'competencia'],
-        where: { municipioId: usuario.municipioId, exercicio },
-        _sum: { empenhado: true, pago: true },
-        orderBy: { mes: 'asc' },
-      }),
-    ])
+    const conn = await getConn()
+    try {
+      const mid = usuario.municipioId
 
-    // Top 10 credores
-    const topCredores = await prisma.DespesaOrcamentaria.groupBy({
-      by: ['credorNome', 'credorCPFCNPJ'],
-      where: { municipioId: usuario.municipioId, exercicio, credorNome: { not: null } },
-      _sum: { pago: true },
-      orderBy: { _sum: { pago: 'desc' } },
-      take: 10,
-    })
+      // Totais gerais
+      const [totaisRows] = await conn.execute(
+        `SELECT SUM(orcado) as orcado, SUM(empenhado) as empenhado, SUM(liquidado) as liquidado, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ?`,
+        [mid, exercicio]
+      ) as any[]
+      const t = totaisRows[0] || {}
+      const orcado    = Number(t.orcado ?? 0)
+      const empenhado = Number(t.empenhado ?? 0)
+      const liquidado = Number(t.liquidado ?? 0)
+      const pago      = Number(t.pago ?? 0)
 
-    const orcado    = Number(totais._sum.orcado ?? 0)
-    const empenhado = Number(totais._sum.empenhado ?? 0)
-    const pago      = Number(totais._sum.pago ?? 0)
+      // Por natureza
+      const [porNaturezaRows] = await conn.execute(
+        `SELECT natureza, SUM(orcado) as orcado, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ?
+         GROUP BY natureza ORDER BY SUM(pago) DESC`,
+        [mid, exercicio]
+      ) as any[]
 
-    return NextResponse.json({
-      kpis: { orcado, empenhado, liquidado: Number(totais._sum.liquidado ?? 0), pago, pctExec: orcado > 0 ? ((pago / orcado) * 100).toFixed(1) : '0' },
-      porNatureza: porNatureza.map(r => ({
-        natureza: r.natureza,
-        orcado: Number(r._sum.orcado ?? 0),
-        pago: Number(r._sum.pago ?? 0),
-      })),
-      porOrgao: porOrgao.map(r => ({
-        orgao: r.orgao,
-        pago: Number(r._sum.pago ?? 0),
-      })),
-      evolucao: evolucao.map(r => ({
-        mes: r.mes, competencia: r.competencia,
-        empenhado: Number(r._sum.empenhado ?? 0),
-        pago: Number(r._sum.pago ?? 0),
-      })),
-      topCredores: topCredores.map(r => ({
-        nome: r.credorNome,
-        cpfCnpj: r.credorCPFCNPJ,
-        pago: Number(r._sum.pago ?? 0),
-      })),
-    })
+      // Por órgão (top 8)
+      const [porOrgaoRows] = await conn.execute(
+        `SELECT orgao, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ?
+         GROUP BY orgao ORDER BY SUM(pago) DESC LIMIT 8`,
+        [mid, exercicio]
+      ) as any[]
+
+      // Evolução mensal
+      const [evolucaoRows] = await conn.execute(
+        `SELECT mes, competencia, SUM(empenhado) as empenhado, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ?
+         GROUP BY mes, competencia ORDER BY mes ASC`,
+        [mid, exercicio]
+      ) as any[]
+
+      // Top credores
+      const [topCredoresRows] = await conn.execute(
+        `SELECT credorNome, credorCPFCNPJ, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ? AND credorNome IS NOT NULL AND credorNome != ''
+         GROUP BY credorNome, credorCPFCNPJ ORDER BY SUM(pago) DESC LIMIT 10`,
+        [mid, exercicio]
+      ) as any[]
+
+      return NextResponse.json({
+        kpis: { orcado, empenhado, liquidado, pago, pctExec: orcado > 0 ? ((pago / orcado) * 100).toFixed(1) : '0' },
+        porNatureza: (porNaturezaRows as any[]).map((r: any) => ({
+          natureza: r.natureza,
+          orcado: Number(r.orcado ?? 0),
+          pago: Number(r.pago ?? 0),
+        })),
+        porOrgao: (porOrgaoRows as any[]).map((r: any) => ({
+          orgao: r.orgao,
+          pago: Number(r.pago ?? 0),
+        })),
+        evolucao: (evolucaoRows as any[]).map((r: any) => ({
+          mes: r.mes, competencia: r.competencia,
+          empenhado: Number(r.empenhado ?? 0),
+          pago: Number(r.pago ?? 0),
+        })),
+        topCredores: (topCredoresRows as any[]).map((r: any) => ({
+          nome: r.credorNome,
+          cpfCnpj: r.credorCPFCNPJ,
+          pago: Number(r.pago ?? 0),
+        })),
+      })
+    } finally {
+      await conn.end()
+    }
   }
 
-  const where: any = { municipioId: usuario.municipioId, exercicio }
-  if (competencia) where.competencia = competencia
-  if (natureza)    where.natureza = natureza
-  if (orgao)       where.orgao = { contains: orgao }
-  if (credor)      where.OR = [
-    { credorNome: { contains: credor } },
-    { credorCPFCNPJ: { contains: credor } },
-  ]
+  // Lista filtrada
+  const conn = await getConn()
+  try {
+    const params: any[] = [usuario.municipioId, exercicio]
+    let where = 'municipioId = ? AND exercicio = ?'
+    if (competencia) { where += ' AND competencia = ?'; params.push(competencia) }
+    if (natureza)    { where += ' AND natureza = ?'; params.push(natureza) }
+    if (orgao)       { where += ' AND orgao LIKE ?'; params.push(`%${orgao}%`) }
+    if (credor)      { where += ' AND (credorNome LIKE ? OR credorCPFCNPJ LIKE ?)'; params.push(`%${credor}%`, `%${credor}%`) }
 
-  const despesas = await prisma.DespesaOrcamentaria.findMany({
-    where, orderBy: [{ orgao: 'asc' }, { competencia: 'asc' }], take: 500,
-  })
-  return NextResponse.json({ despesas, total: despesas.length })
+    const [despesas] = await conn.execute(
+      `SELECT * FROM DespesaOrcamentaria WHERE ${where} ORDER BY orgao ASC, competencia ASC LIMIT 500`,
+      params
+    ) as any[]
+
+    return NextResponse.json({ despesas, total: (despesas as any[]).length })
+  } finally {
+    await conn.end()
+  }
 }
 
 export async function POST(req: NextRequest) {

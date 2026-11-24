@@ -8,7 +8,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+import { prisma, getConn } from '@/lib/db'
 import { extrairContextoRequest, temPermissao } from '@/lib/rbac'
 import { auditLog } from '@/lib/audit'
 import { hashSenha, gerarSenhaTemporaria } from '@/lib/auth/senha'
@@ -53,44 +54,50 @@ export async function GET(request: NextRequest) {
     const pagina    = Number(searchParams.get('pagina') ?? 1)
     const porPagina = Math.min(Number(searchParams.get('porPagina') ?? 20), 100)
 
+    const whereUsuario: any = {
+      municipioId: ctx.municipioId,
+      ativo,
+      ...(perfil     && { perfil:     perfil as any }),
+      ...(secretaria && { secretaria: secretaria }),
+      ...(busca && {
+        OR: [
+          { nome:  { contains: busca } },
+          { email: { contains: busca } },
+          { cpf:   { contains: busca } },
+        ],
+      }),
+    }
+
     const [usuarios, total] = await Promise.all([
-      prisma.usuario.findMany({
-        where: {
-          municipioId: ctx.municipioId,
-          ativo,
-          ...(perfil     && { perfil:     perfil as any }),
-          ...(secretaria && { secretaria: secretaria }),
-          ...(busca && {
-            OR: [
-              { nome:  { contains: busca } },
-              { email: { contains: busca } },
-              { cpf:   { contains: busca } },
-            ],
-          }),
-        },
+      prisma.Usuario.findMany({
+        where: whereUsuario,
         select: {
           id: true, nome: true, email: true, cpf: true,
           perfil: true, secretaria: true, cargo: true, telefone: true,
           avatarUrl: true, ativo: true, ultimoLogin: true, mfaAtivado: true,
           createdAt: true,
-          perfilCustom: { select: { id: true, nome: true } },
-          _count: { select: { sessoes: true } },
         },
         orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
         skip: (pagina - 1) * porPagina,
         take: porPagina,
       }),
-      prisma.usuario.count({
+      prisma.Usuario.count({
         where: { municipioId: ctx.municipioId, ativo, ...(perfil && { perfil: perfil as any }) },
       }),
     ])
 
-    // Resumo por perfil
-    const porPerfil = await prisma.usuario.groupBy({
-      by: ['perfil'],
-      where: { municipioId: ctx.municipioId, ativo: true },
-      _count: { id: true },
-    })
+    // Resumo por perfil via SQL direto (groupBy não suportado pelo makeModel)
+    const _conn = await getConn()
+    let porPerfil: any[] = []
+    try {
+      const [pfRows] = await _conn.execute(
+        `SELECT perfil, COUNT(*) as total FROM Usuario WHERE municipioId = ? AND ativo = 1 GROUP BY perfil ORDER BY perfil`,
+        [ctx.municipioId]
+      ) as any[]
+      porPerfil = (pfRows as any[]).map((r: any) => ({ perfil: r.perfil, total: Number(r.total) }))
+    } finally {
+      await _conn.end()
+    }
 
     return NextResponse.json({
       usuarios,
@@ -98,7 +105,7 @@ export async function GET(request: NextRequest) {
       pagina,
       porPagina,
       totalPaginas: Math.ceil(total / porPagina),
-      resumo: { porPerfil: porPerfil.map(r => ({ perfil: r.perfil, total: r._count.id })) },
+      resumo: { porPerfil },
     })
   } catch (error) {
     console.error('[ADMIN/USUARIOS/GET]', error)
@@ -117,7 +124,7 @@ export async function POST(request: NextRequest) {
     const dados = CriarUsuarioSchema.parse(body)
 
     // Verificar unicidade
-    const existe = await prisma.usuario.findFirst({
+    const existe = await prisma.Usuario.findFirst({
       where: { municipioId: ctx.municipioId, email: dados.email },
     })
     if (existe) {
@@ -128,8 +135,11 @@ export async function POST(request: NextRequest) {
     const senhaTemp = gerarSenhaTemporaria()
     const senhaHash = await hashSenha(senhaTemp)
 
-    const usuario = await prisma.usuario.create({
+    const usuario = await prisma.Usuario.create({
       data: {
+        id: randomUUID(),
+        criadoEm: new Date(),
+        atualizadoEm: new Date(),
         municipioId: ctx.municipioId,
         nome:        dados.nome,
         email:       dados.email,
@@ -182,7 +192,7 @@ export async function PATCH(request: NextRequest) {
     const body  = await request.json()
     const dados = AtualizarUsuarioSchema.parse(body)
 
-    const usuario = await prisma.usuario.findFirst({
+    const usuario = await prisma.Usuario.findFirst({
       where: { id: dados.id, municipioId: ctx.municipioId },
     })
     if (!usuario) return NextResponse.json({ erro: 'Usuário não encontrado' }, { status: 404 })
@@ -215,14 +225,14 @@ export async function PATCH(request: NextRequest) {
     if (dados.acao === 'DESATIVAR') updateData.ativo = false
 
     if (dados.acao === 'REVOGAR_SESSOES') {
-      await prisma.sessao.updateMany({
+      await prisma.Sessao.updateMany({
         where: { usuarioId: dados.id, revokedAt: null },
         data:  { revokedAt: new Date() },
       })
     }
 
     const atualizado = Object.keys(updateData).length > 0
-      ? await prisma.usuario.update({ where: { id: dados.id }, data: updateData })
+      ? await prisma.Usuario.update({ where: { id: dados.id }, data: updateData })
       : usuario
 
     await auditLog({

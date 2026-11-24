@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 
@@ -16,11 +17,8 @@ export async function GET(req: NextRequest) {
   const where: any = { municipioId: usuario.municipioId, ativo: true }
   if (tipo) where.tipo = tipo
 
-  const unidades = await prisma.unidadeSuas.findMany({
+  const unidades = await prisma.UnidadeSuas.findMany({
     where, orderBy: { nome: 'asc' },
-    include: {
-      _count: { select: { familias: { where: { situacao: 'ATIVA' } } } },
-    },
   })
 
   return NextResponse.json({ unidades })
@@ -45,8 +43,8 @@ export async function POST(req: NextRequest) {
   const val = Schema.safeParse(await req.json())
   if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
 
-  const unidade = await prisma.unidadeSuas.create({
-    data: { municipioId: usuario.municipioId, ...val.data },
+  const unidade = await prisma.UnidadeSuas.create({
+    data: { id: randomUUID(), municipioId: usuario.municipioId, criadoEm: new Date(), atualizadoEm: new Date(), ...val.data },
   })
 
   return NextResponse.json({ unidade }, { status: 201 })

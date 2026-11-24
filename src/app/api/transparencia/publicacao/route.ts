@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         { tags: { contains: busca } },
       ]
     }
-    const publicacoes = await prisma.publicacaoTransparencia.findMany({
+    const publicacoes = await prisma.PublicacaoTransparencia.findMany({
       where, orderBy: { publicadoEm: 'desc' }, take: 100,
       select: { id: true, tipo: true, titulo: true, descricao: true, periodo: true, exercicio: true,
         valorTotal: true, urlArquivo: true, nomeArquivo: true, publicadoEm: true },
@@ -48,66 +48,68 @@ export async function GET(req: NextRequest) {
 
   if (relatorio === 'DASHBOARD') {
     const anoAtual = new Date().getFullYear()
-    const [totalPublic, porTipo, porExercicio] = await Promise.all([
-      prisma.publicacaoTransparencia.count({ where: { municipioId: usuario.municipioId, situacao: 'PUBLICADA' } }),
-      prisma.publicacaoTransparencia.groupBy({
-        by: ['tipo'],
-        where: { municipioId: usuario.municipioId },
-        _count: { _all: true },
-        orderBy: { _count: { tipo: 'desc' } },
-      }),
-      prisma.publicacaoTransparencia.groupBy({
-        by: ['exercicio'],
-        where: { municipioId: usuario.municipioId },
-        _count: { _all: true },
-        orderBy: { exercicio: 'desc' },
-      }),
-    ])
+    const conn = await getConn()
+    try {
+      const mid = usuario.municipioId
 
-    // Resumo receitas e despesas do ano
-    const [recSumaryo, despSumary] = await Promise.all([
-      prisma.receitaOrcamentaria.aggregate({
-        where: { municipioId: usuario.municipioId, exercicio: anoAtual },
-        _sum: { previsto: true, arrecadado: true },
-      }),
-      prisma.despesaOrcamentaria.aggregate({
-        where: { municipioId: usuario.municipioId, exercicio: anoAtual },
-        _sum: { orcado: true, empenhado: true, liquidado: true, pago: true },
-      }),
-    ])
+      const [countRows] = await conn.execute(
+        `SELECT COUNT(*) as total FROM PublicacaoTransparencia WHERE municipioId = ? AND situacao = 'PUBLICADA'`,
+        [mid]
+      ) as any[]
+      const totalPublic = Number((countRows as any[])[0]?.total ?? 0)
 
-    // Evolução mensal de arrecadação
-    const recMensal = await prisma.receitaOrcamentaria.groupBy({
-      by: ['mes', 'competencia'],
-      where: { municipioId: usuario.municipioId, exercicio: anoAtual },
-      _sum: { arrecadado: true },
-      orderBy: { mes: 'asc' },
-    })
+      const [porTipoRows] = await conn.execute(
+        `SELECT tipo, COUNT(*) as total FROM PublicacaoTransparencia WHERE municipioId = ? GROUP BY tipo ORDER BY total DESC`,
+        [mid]
+      ) as any[]
 
-    const despMensal = await prisma.despesaOrcamentaria.groupBy({
-      by: ['mes', 'competencia'],
-      where: { municipioId: usuario.municipioId, exercicio: anoAtual },
-      _sum: { pago: true },
-      orderBy: { mes: 'asc' },
-    })
+      const [porExercicioRows] = await conn.execute(
+        `SELECT exercicio, COUNT(*) as total FROM PublicacaoTransparencia WHERE municipioId = ? GROUP BY exercicio ORDER BY exercicio DESC`,
+        [mid]
+      ) as any[]
 
-    return NextResponse.json({
-      kpis: {
-        totalPublic,
-        receitaPrevista: recSumaryo._sum.previsto ?? 0,
-        receitaArrecadada: recSumaryo._sum.arrecadado ?? 0,
-        despesaOrcada: despSumary._sum.orcado ?? 0,
-        despesaPaga: despSumary._sum.pago ?? 0,
-      },
-      porTipo,
-      porExercicio,
-      recMensal: recMensal.map(r => ({ mes: r.mes, competencia: r.competencia, arrecadado: r._sum.arrecadado ?? 0 })),
-      despMensal: despMensal.map(d => ({ mes: d.mes, competencia: d.competencia, pago: d._sum.pago ?? 0 })),
-    })
+      const [recRows] = await conn.execute(
+        `SELECT SUM(previsto) as previsto, SUM(arrecadado) as arrecadado FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ?`,
+        [mid, anoAtual]
+      ) as any[]
+      const rec = (recRows as any[])[0] || {}
+
+      const [despRows] = await conn.execute(
+        `SELECT SUM(orcado) as orcado, SUM(empenhado) as empenhado, SUM(liquidado) as liquidado, SUM(pago) as pago FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ?`,
+        [mid, anoAtual]
+      ) as any[]
+      const desp = (despRows as any[])[0] || {}
+
+      const [recMensalRows] = await conn.execute(
+        `SELECT mes, competencia, SUM(arrecadado) as arrecadado FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ? GROUP BY mes, competencia ORDER BY mes ASC`,
+        [mid, anoAtual]
+      ) as any[]
+
+      const [despMensalRows] = await conn.execute(
+        `SELECT mes, competencia, SUM(pago) as pago FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ? GROUP BY mes, competencia ORDER BY mes ASC`,
+        [mid, anoAtual]
+      ) as any[]
+
+      return NextResponse.json({
+        kpis: {
+          totalPublic,
+          receitaPrevista: Number(rec.previsto ?? 0),
+          receitaArrecadada: Number(rec.arrecadado ?? 0),
+          despesaOrcada: Number(desp.orcado ?? 0),
+          despesaPaga: Number(desp.pago ?? 0),
+        },
+        porTipo: (porTipoRows as any[]).map((r: any) => ({ tipo: r.tipo, _count: { _all: Number(r.total) } })),
+        porExercicio: (porExercicioRows as any[]).map((r: any) => ({ exercicio: r.exercicio, _count: { _all: Number(r.total) } })),
+        recMensal: (recMensalRows as any[]).map((r: any) => ({ mes: r.mes, competencia: r.competencia, arrecadado: Number(r.arrecadado ?? 0) })),
+        despMensal: (despMensalRows as any[]).map((r: any) => ({ mes: r.mes, competencia: r.competencia, pago: Number(r.pago ?? 0) })),
+      })
+    } finally {
+      await conn.end()
+    }
   }
 
   if (id) {
-    const p = await prisma.publicacaoTransparencia.findFirst({ where: { id, municipioId: usuario.municipioId } })
+    const p = await prisma.PublicacaoTransparencia.findFirst({ where: { id, municipioId: usuario.municipioId } })
     if (!p) return NextResponse.json({ erro: 'Não encontrado' }, { status: 404 })
     return NextResponse.json({ publicacao: p })
   }
@@ -120,7 +122,7 @@ export async function GET(req: NextRequest) {
     { tags:   { contains: busca } },
   ]
 
-  const publicacoes = await prisma.publicacaoTransparencia.findMany({
+  const publicacoes = await prisma.PublicacaoTransparencia.findMany({
     where, orderBy: { publicadoEm: 'desc' }, take: 200,
   })
   return NextResponse.json({ publicacoes, total: publicacoes.length })
@@ -147,7 +149,7 @@ export async function POST(req: NextRequest) {
   if (!val.success) return NextResponse.json({ erro: val.error.flatten() }, { status: 400 })
   const d = val.data
 
-  const p = await prisma.publicacaoTransparencia.create({
+  const p = await prisma.PublicacaoTransparencia.create({
     data: {
       municipioId: usuario.municipioId,
       usuarioId: usuario.usuarioId,
@@ -173,21 +175,21 @@ export async function PATCH(req: NextRequest) {
   const { id, acao, ...dados } = await req.json()
   if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const p = await prisma.publicacaoTransparencia.findFirst({ where: { id, municipioId: usuario.municipioId } })
+  const p = await prisma.PublicacaoTransparencia.findFirst({ where: { id, municipioId: usuario.municipioId } })
   if (!p) return NextResponse.json({ erro: 'Publicação não encontrada' }, { status: 404 })
 
   if (acao === 'RETIFICAR') {
-    await prisma.publicacaoTransparencia.update({ where: { id }, data: { situacao: 'RETIFICADA', ...dados } })
+    await prisma.PublicacaoTransparencia.update({ where: { id }, data: { situacao: 'RETIFICADA', ...dados } })
     return NextResponse.json({ sucesso: true })
   }
 
   if (acao === 'REVOGAR') {
-    await prisma.publicacaoTransparencia.update({ where: { id }, data: { situacao: 'REVOGADA' } })
+    await prisma.PublicacaoTransparencia.update({ where: { id }, data: { situacao: 'REVOGADA' } })
     return NextResponse.json({ sucesso: true })
   }
 
   if (acao === 'REPUBLICAR') {
-    await prisma.publicacaoTransparencia.update({ where: { id }, data: { situacao: 'PUBLICADA', publicadoEm: new Date() } })
+    await prisma.PublicacaoTransparencia.update({ where: { id }, data: { situacao: 'PUBLICADA', publicadoEm: new Date() } })
     return NextResponse.json({ sucesso: true })
   }
 

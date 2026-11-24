@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
 
@@ -13,7 +14,7 @@ export const runtime = 'nodejs'
 
 async function gerarNumeroProntuario(municipioId: string): Promise<string> {
   const ano   = new Date().getFullYear()
-  const count = await prisma.familiaReferenciada.count({ where: { municipioId } })
+  const count = await prisma.FamiliaReferenciada.count({ where: { municipioId } })
   return `${ano}-${String(count + 1).padStart(5, '0')}`
 }
 
@@ -30,27 +31,34 @@ export async function GET(req: NextRequest) {
 
   if (relatorio === 'DASHBOARD') {
     const [total, ativas, inativas, bolsaFamilia, bpc, situacaoRua, criancas, idosos, pcd, violencia] = await Promise.all([
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, situacao: 'ATIVA' } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, situacao: 'INATIVA' } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, bolsaFamilia: true } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, bpc: true } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, situacaoRua: true } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, criancas: true } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, idosos: true } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, pcd: true } }),
-      prisma.familiaReferenciada.count({ where: { municipioId: usuario.municipioId, violencia: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, situacao: 'ATIVA' } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, situacao: 'INATIVA' } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, bolsaFamilia: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, bpc: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, situacaoRua: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, criancas: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, idosos: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, pcd: true } }),
+      prisma.FamiliaReferenciada.count({ where: { municipioId: usuario.municipioId, violencia: true } }),
     ])
 
-    const porNivel = await prisma.familiaReferenciada.groupBy({
-      by: ['nivelVulnerabilidade'],
-      where: { municipioId: usuario.municipioId, situacao: 'ATIVA' },
-      _count: true,
-    })
+    // porNivel via SQL direto (groupBy não suportado pelo makeModel)
+    const _conn = await getConn()
+    let porNivelArr: any[] = []
+    try {
+      const [nivelRows] = await _conn.execute(
+        `SELECT nivelVulnerabilidade, COUNT(*) as total FROM FamiliaReferenciada WHERE municipioId = ? AND situacao = 'ATIVA' GROUP BY nivelVulnerabilidade`,
+        [usuario.municipioId]
+      ) as any[]
+      porNivelArr = (nivelRows as any[]).map((r: any) => ({ nivelVulnerabilidade: r.nivelVulnerabilidade, _count: Number(r.total) }))
+    } finally {
+      await _conn.end()
+    }
 
     // Atendimentos do mês
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    const atendMes  = await prisma.atendimentoSuas.count({
+    const atendMes  = await prisma.AtendimentoSuas.count({
       where: {
         municipioId: usuario.municipioId,
         situacao: 'REALIZADO',
@@ -60,24 +68,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       kpis: { total, ativas, inativas, bolsaFamilia, bpc, situacaoRua, criancas, idosos, pcd, violencia, atendMes },
-      porNivel: Object.fromEntries(porNivel.map(p => [p.nivelVulnerabilidade, p._count])),
+      porNivel: Object.fromEntries(porNivelArr.map(p => [p.nivelVulnerabilidade, p._count])),
     })
   }
 
   if (id) {
-    const familia = await prisma.familiaReferenciada.findFirst({
+    const familia = await prisma.FamiliaReferenciada.findFirst({
       where: { id, municipioId: usuario.municipioId },
-      include: {
-        unidade: { select: { nome: true, tipo: true } },
-        atendimentos: {
-          orderBy: { dataAtendimento: 'desc' },
-          take: 20,
-        },
-        beneficios: {
-          where: { situacao: { in: ['ATIVO', 'AGUARDANDO'] } },
-          orderBy: { criadoEm: 'desc' },
-        },
-      },
     })
     if (!familia) return NextResponse.json({ erro: 'Família não encontrada' }, { status: 404 })
 
@@ -107,7 +104,7 @@ export async function GET(req: NextRequest) {
     ]
   }
 
-  const familias = await prisma.familiaReferenciada.findMany({
+  const familias = await prisma.FamiliaReferenciada.findMany({
     where, orderBy: { responsavelNome: 'asc' }, take: 200,
     select: {
       id: true, numeroProntuario: true,
@@ -117,9 +114,7 @@ export async function GET(req: NextRequest) {
       quantidadeMembros: true, rendaFamiliar: true, percapita: true,
       bolsaFamilia: true, bpc: true,
       criancas: true, idosos: true, pcd: true, violencia: true, situacaoRua: true,
-      dataIngresso: true,
-      unidade: { select: { nome: true } },
-      _count: { select: { atendimentos: true, beneficios: true } },
+      dataIngresso: true, unidadeId: true,
     },
   })
 
@@ -195,8 +190,11 @@ export async function POST(req: NextRequest) {
   const numeroProntuario = await gerarNumeroProntuario(usuario.municipioId)
   const { membros, ...dadosFamilia } = d
 
-  const familia = await prisma.familiaReferenciada.create({
+  const familia = await prisma.FamiliaReferenciada.create({
     data: {
+      id: randomUUID(),
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
       municipioId: usuario.municipioId,
       numeroProntuario,
       ...dadosFamilia,
@@ -225,14 +223,14 @@ export async function PATCH(req: NextRequest) {
   const { id, acao, membros, ...dados } = await req.json()
   if (!id) return NextResponse.json({ erro: 'id obrigatório' }, { status: 400 })
 
-  const familia = await prisma.familiaReferenciada.findFirst({
+  const familia = await prisma.FamiliaReferenciada.findFirst({
     where: { id, municipioId: usuario.municipioId },
   })
   if (!familia) return NextResponse.json({ erro: 'Família não encontrada' }, { status: 404 })
 
   if (acao === 'DESLIGAR') {
     const { motivo } = dados
-    await prisma.familiaReferenciada.update({
+    await prisma.FamiliaReferenciada.update({
       where: { id },
       data: {
         situacao: 'DESLIGADA',
@@ -248,7 +246,7 @@ export async function PATCH(req: NextRequest) {
   if (dados.responsavelNis) dados.responsavelNis = dados.responsavelNis.replace(/\D/g, '')
   if (dados.responsavelDatNasc) dados.responsavelDatNasc = new Date(dados.responsavelDatNasc)
 
-  const atualizada = await prisma.familiaReferenciada.update({
+  const atualizada = await prisma.FamiliaReferenciada.update({
     where: { id },
     data: {
       ...dados,

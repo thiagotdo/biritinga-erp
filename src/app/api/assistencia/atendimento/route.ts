@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
@@ -70,15 +71,16 @@ export async function GET(req: NextRequest) {
 
     const taxaPresenca = mes_total > 0 ? (mes_realizados / mes_total * 100).toFixed(1) : '100'
 
-    // Próximos agendamentos do dia
-    const proximosHoje = await prisma.atendimentoSuas.findMany({
+    // Próximos agendamentos do dia (sem include — não suportado)
+    const proximosHoje = await prisma.AtendimentoSuas.findMany({
       where: {
         municipioId: usuario.municipioId,
         dataAtendimento: { gte: inicioDia, lt: new Date(inicioDia.getTime() + 86400000) },
         situacao: 'AGENDADO',
       },
-      include: {
-        familia: { select: { responsavelNome: true, numeroProntuario: true } },
+      select: {
+        id: true, familiaId: true, tipo: true, dataAtendimento: true,
+        tecnicoId: true, unidadeId: true, situacao: true, observacoes: true,
       },
       orderBy: { dataAtendimento: 'asc' },
       take: 10,
@@ -94,12 +96,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (id) {
-    const at = await prisma.atendimentoSuas.findFirst({
+    const at = await prisma.AtendimentoSuas.findFirst({
       where: { id, municipioId: usuario.municipioId },
-      include: {
-        familia: { select: { responsavelNome: true, numeroProntuario: true, bairro: true } },
-        unidade: { select: { nome: true, tipo: true } },
-      },
     })
     if (!at) return NextResponse.json({ erro: 'Atendimento não encontrado' }, { status: 404 })
     return NextResponse.json({ atendimento: at })
@@ -123,11 +121,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const atendimentos = await prisma.atendimentoSuas.findMany({
+  const atendimentos = await prisma.AtendimentoSuas.findMany({
     where, orderBy: { dataAtendimento: 'desc' }, take: 200,
-    include: {
-      familia: { select: { responsavelNome: true, numeroProntuario: true } },
-      unidade: { select: { nome: true } },
+    select: {
+      id: true, familiaId: true, unidadeId: true, tipo: true,
+      dataAtendimento: true, duracaoMinutos: true, tecnicoNome: true,
+      objetivo: true, descricao: true, situacao: true, criadoEm: true,
     },
   })
 
@@ -161,14 +160,17 @@ export async function POST(req: NextRequest) {
   const d = val.data
 
   // Verificar que família pertence ao município
-  const familia = await prisma.familiaReferenciada.findFirst({
+  const familia = await prisma.FamiliaReferenciada.findFirst({
     where: { id: d.familiaId, municipioId: usuario.municipioId },
     select: { responsavelNome: true, numeroProntuario: true },
   })
   if (!familia) return NextResponse.json({ erro: 'Família não encontrada' }, { status: 404 })
 
-  const atendimento = await prisma.atendimentoSuas.create({
+  const atendimento = await prisma.AtendimentoSuas.create({
     data: {
+      id: randomUUID(),
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
       municipioId:    usuario.municipioId,
       ...d,
       dataAtendimento: new Date(d.dataAtendimento),
@@ -193,7 +195,7 @@ export async function PATCH(req: NextRequest) {
   const { id, acao, ...dados } = await req.json()
   if (!id || !acao) return NextResponse.json({ erro: 'id e acao obrigatórios' }, { status: 400 })
 
-  const at = await prisma.atendimentoSuas.findFirst({
+  const at = await prisma.AtendimentoSuas.findFirst({
     where: { id, municipioId: usuario.municipioId },
   })
   if (!at) return NextResponse.json({ erro: 'Atendimento não encontrado' }, { status: 404 })
@@ -221,14 +223,14 @@ export async function PATCH(req: NextRequest) {
 
     // Atualizar nível de vulnerabilidade da família se fornecido
     if (dados.novoNivelVulnerabilidade) {
-      await prisma.familiaReferenciada.update({
+      await prisma.FamiliaReferenciada.update({
         where: { id: at.familiaId },
         data: { nivelVulnerabilidade: dados.novoNivelVulnerabilidade },
       })
     }
   }
 
-  const atualizado = await prisma.atendimentoSuas.update({
+  const atualizado = await prisma.AtendimentoSuas.update({
     where: { id },
     data: atualizacoes,
   })

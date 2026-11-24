@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
 
@@ -108,32 +108,34 @@ export async function GET(req: NextRequest) {
           dataLimiteResposta: { gte: hoje, lte: limite48h },
         },
       }),
-      prisma.pedidoAcesso.groupBy({
-        by: ['situacao'],
-        where: { municipioId: usuario.municipioId },
-        _count: true,
-      }),
-      prisma.pedidoAcesso.groupBy({
-        by: ['setorDestinatario'],
-        where: { municipioId: usuario.municipioId, setorDestinatario: { not: null } },
-        _count: true,
-        orderBy: { _count: { situacao: 'desc' } },
-        take: 10,
-      }),
-      prisma.pedidoAcesso.aggregate({
-        where: {
-          municipioId: usuario.municipioId,
-          diasResposta: { not: null },
-        },
-        _avg: { diasResposta: true },
-      }),
+      (async () => {
+        const c = await getConn()
+        try {
+          const [rows] = await c.execute(`SELECT situacao, COUNT(*) as total FROM PedidoAcesso WHERE municipioId = ? GROUP BY situacao`, [usuario.municipioId]) as any[]
+          return rows
+        } finally { await c.end() }
+      })(),
+      (async () => {
+        const c = await getConn()
+        try {
+          const [rows] = await c.execute(`SELECT setorDestinatario, COUNT(*) as total FROM PedidoAcesso WHERE municipioId = ? AND setorDestinatario IS NOT NULL GROUP BY setorDestinatario ORDER BY total DESC LIMIT 10`, [usuario.municipioId]) as any[]
+          return rows
+        } finally { await c.end() }
+      })(),
+      (async () => {
+        const c = await getConn()
+        try {
+          const [rows] = await c.execute(`SELECT AVG(diasResposta) as avg FROM PedidoAcesso WHERE municipioId = ? AND diasResposta IS NOT NULL`, [usuario.municipioId]) as any[]
+          return rows
+        } finally { await c.end() }
+      })(),
     ])
 
     return NextResponse.json({
       kpis: { total, pendentes, respondidos, indeferidos, atrasados, vencendoHoje },
-      porSituacao,
-      porSetor,
-      mediaRespostaDias: mediaResposta._avg.diasResposta ?? 0,
+      porSituacao: (porSituacao as any[]).map((r: any) => ({ situacao: r.situacao, _count: Number(r.total) })),
+      porSetor: (porSetor as any[]).map((r: any) => ({ setorDestinatario: r.setorDestinatario, _count: Number(r.total) })),
+      mediaRespostaDias: Number((mediaResposta as any[])[0]?.avg ?? 0),
       percentualNoPrazo: total > 0
         ? Math.round(((respondidos - atrasados) / total) * 100)
         : 100,
@@ -142,12 +144,8 @@ export async function GET(req: NextRequest) {
 
   // ── Pedido individual ─────────────────────────────────────────────────────
   if (id) {
-    const pedido = await prisma.pedidoAcesso.findFirst({
+    const pedido = await prisma.PedidoAcesso.findFirst({
       where: { id, municipioId: usuario.municipioId },
-      include: {
-        tramitacoes: { orderBy: { criadoEm: 'asc' } },
-        recursos: { orderBy: { criadoEm: 'asc' } },
-      },
     })
     if (!pedido) return NextResponse.json({ erro: 'Pedido não encontrado' }, { status: 404 })
     return NextResponse.json({ pedido })
@@ -171,12 +169,9 @@ export async function GET(req: NextRequest) {
     { tematico:         { contains: busca } },
   ]
 
-  const pedidos = await prisma.pedidoAcesso.findMany({
+  const pedidos = await prisma.PedidoAcesso.findMany({
     where,
     orderBy: { dataProtocolo: 'desc' },
-    include: {
-      _count: { select: { recursos: true } },
-    },
   })
 
   const hoje = new Date()

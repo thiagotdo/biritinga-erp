@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
 
@@ -41,7 +42,7 @@ const TRANSICOES: Record<string, string[]> = {
 
 async function gerarProtocolo(municipioId: string): Promise<string> {
   const ano   = new Date().getFullYear()
-  const count = await prisma.manifestacao.count({ where: { municipioId } })
+  const count = await prisma.Manifestacao.count({ where: { municipioId } })
   return `OUV-${ano}-${String(count + 1).padStart(5, '0')}`
 }
 
@@ -64,20 +65,20 @@ export async function GET(req: NextRequest) {
     const em7d  = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000)
 
     const [total, recebidas, emAnalise, aguardando, respondidas, encerradas, vencendo48h, atrasadas] = await Promise.all([
-      prisma.manifestacao.count({ where: { municipioId: usuario.municipioId } }),
-      prisma.manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RECEBIDA' } }),
-      prisma.manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'EM_ANALISE' } }),
-      prisma.manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'AGUARDANDO_RESP' } }),
-      prisma.manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RESPONDIDA' } }),
-      prisma.manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'ENCERRADA' } }),
-      prisma.manifestacao.count({
+      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId } }),
+      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RECEBIDA' } }),
+      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'EM_ANALISE' } }),
+      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'AGUARDANDO_RESP' } }),
+      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'RESPONDIDA' } }),
+      prisma.Manifestacao.count({ where: { municipioId: usuario.municipioId, situacao: 'ENCERRADA' } }),
+      prisma.Manifestacao.count({
         where: {
           municipioId: usuario.municipioId,
           situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] },
           prazoResposta: { gte: hoje, lte: em48h },
         },
       }),
-      prisma.manifestacao.count({
+      prisma.Manifestacao.count({
         where: {
           municipioId: usuario.municipioId,
           situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] },
@@ -86,24 +87,24 @@ export async function GET(req: NextRequest) {
       }),
     ])
 
-    // Por tipo
-    const porTipo = await prisma.manifestacao.groupBy({
-      by: ['tipo'],
-      where: { municipioId: usuario.municipioId },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-    })
+    // Por tipo (SQL direto — groupBy não suportado pelo makeModel)
+    const _conn1 = await getConn()
+    const [porTipoRows] = await _conn1.execute(
+      `SELECT tipo, COUNT(*) as total FROM Manifestacao WHERE municipioId = ? GROUP BY tipo ORDER BY total DESC`,
+      [usuario.municipioId]
+    ).finally(() => _conn1.end()) as any[]
+    const porTipo = (porTipoRows as any[]).map((r: any) => ({ tipo: r.tipo, _count: { id: Number(r.total) } }))
 
     // Por secretaria
-    const porSecretaria = await prisma.manifestacao.groupBy({
-      by: ['secretariaDestino'],
-      where: { municipioId: usuario.municipioId, situacao: { notIn: ['ENCERRADA', 'ARQUIVADA'] } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-    })
+    const _conn2 = await getConn()
+    const [porSecRows] = await _conn2.execute(
+      `SELECT secretariaDestino, COUNT(*) as total FROM Manifestacao WHERE municipioId = ? AND situacao NOT IN ('ENCERRADA','ARQUIVADA') GROUP BY secretariaDestino ORDER BY total DESC`,
+      [usuario.municipioId]
+    ).finally(() => _conn2.end()) as any[]
+    const porSecretaria = (porSecRows as any[]).map((r: any) => ({ secretariaDestino: r.secretariaDestino, _count: { id: Number(r.total) } }))
 
     // Satisfação média
-    const satisfacao = await prisma.manifestacao.findMany({
+    const satisfacao = await prisma.Manifestacao.findMany({
       where: { municipioId: usuario.municipioId, avaliado: true },
       select: { satisfacao: true },
     })
@@ -115,12 +116,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (id) {
-    const manifestacao = await prisma.manifestacao.findFirst({
+    const manifestacao = await prisma.Manifestacao.findFirst({
       where: { id, municipioId: usuario.municipioId },
-      include: {
-        movimentacoes: { orderBy: { criadoEm: 'asc' } },
-        respostas:     { orderBy: { criadoEm: 'asc' } },
-      },
     })
     if (!manifestacao) return NextResponse.json({ erro: 'Manifestação não encontrada' }, { status: 404 })
 
@@ -147,7 +144,7 @@ export async function GET(req: NextRequest) {
     where.situacao = { notIn: ['ENCERRADA', 'ARQUIVADA'] }
   }
 
-  const manifestacoes = await prisma.manifestacao.findMany({
+  const manifestacoes = await prisma.Manifestacao.findMany({
     where, orderBy: { criadoEm: 'desc' }, take: 200,
     select: {
       id: true, protocolo: true, tipo: true, situacao: true, assunto: true,
@@ -205,8 +202,11 @@ export async function POST(req: NextRequest) {
   prazo.setDate(prazo.getDate() + PRAZO_DIAS[d.tipo])
   const lai = d.lai || d.tipo === 'SOLICITACAO_INFO'
 
-  const manifestacao = await prisma.manifestacao.create({
+  const manifestacao = await prisma.Manifestacao.create({
     data: {
+      id: randomUUID(),
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
       municipioId: usuario.municipioId,
       protocolo,
       tipo: d.tipo as any,
@@ -242,7 +242,7 @@ export async function PATCH(req: NextRequest) {
   const { id, acao, ...dados } = await req.json()
   if (!id || !acao) return NextResponse.json({ erro: 'id e acao obrigatórios' }, { status: 400 })
 
-  const manifestacao = await prisma.manifestacao.findFirst({ where: { id, municipioId: usuario.municipioId } })
+  const manifestacao = await prisma.Manifestacao.findFirst({ where: { id, municipioId: usuario.municipioId } })
   if (!manifestacao) return NextResponse.json({ erro: 'Manifestação não encontrada' }, { status: 404 })
 
   const permitidos = TRANSICOES[manifestacao.situacao] ?? []
@@ -258,7 +258,7 @@ export async function PATCH(req: NextRequest) {
     const novoPrazo = new Date(manifestacao.prazoResposta)
     novoPrazo.setDate(novoPrazo.getDate() + diasExtra)
 
-    await prisma.manifestacao.update({
+    await prisma.Manifestacao.update({
       where: { id },
       data: { prorrogado: true, prazoApos: novoPrazo },
     })
@@ -267,7 +267,7 @@ export async function PATCH(req: NextRequest) {
 
   if (acao === 'ATRIBUIR') {
     const { atribuidoA, secretariaDestino } = dados
-    await prisma.manifestacao.update({
+    await prisma.Manifestacao.update({
       where: { id },
       data: {
         atribuidoA,
@@ -280,7 +280,7 @@ export async function PATCH(req: NextRequest) {
 
   if (acao === 'AVALIAR') {
     const { satisfacao, comentario } = dados
-    await prisma.manifestacao.update({
+    await prisma.Manifestacao.update({
       where: { id },
       data: {
         avaliado: true,
@@ -293,22 +293,23 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ sucesso: true })
   }
 
-  // Transições de situação
-  await prisma.$transaction(async (tx) => {
-    await tx.manifestacao.update({
-      where: { id },
-      data: { situacao: acao as any },
-    })
-    await tx.movimentacaoManifestacao.create({
-      data: {
-        municipioId: usuario.municipioId,
-        manifestacaoId: id,
-        situacaoDe:    manifestacao.situacao as any,
-        situacaoPara:  acao as any,
-        motivo: dados.motivo,
-        usuarioId: usuario.usuarioId,
-      },
-    })
+  // Transições de situação (sem $transaction — não suportado pelo makeModel)
+  await prisma.Manifestacao.update({
+    where: { id },
+    data: { situacao: acao as any },
+  })
+  await prisma.MovimentacaoManifestacao.create({
+    data: {
+      id: randomUUID(),
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
+      municipioId: usuario.municipioId,
+      manifestacaoId: id,
+      situacaoDe:    manifestacao.situacao as any,
+      situacaoPara:  acao as any,
+      motivo: dados.motivo,
+      usuarioId: usuario.usuarioId,
+    },
   })
 
   await auditLog({

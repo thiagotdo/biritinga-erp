@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma, getConn } from '@/lib/db'
 import { extrairContextoRequest, temPermissao } from '@/lib/rbac'
 
 export const runtime = 'nodejs'
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const exercicio   = Number(searchParams.get('exercicio') ?? new Date().getFullYear())
     const competencia = searchParams.get('competencia')   // filtra por mês específico
 
-    const orcamento = await prisma.orcamento.findFirst({
+    const orcamento = await prisma.OrcamentoUnidade.findFirst({
       where: { municipioId: ctx.municipioId, exercicio },
     })
     if (!orcamento) {
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // ── Execução Orçamentária da Despesa ──────────────────────────────────────
     if (relatorio === 'EXECUCAO') {
-      const dotacoes = await prisma.dotacao.findMany({
+      const dotacoes = await prisma.Dotacao.findMany({
         where: { orcamentoId: orcamento.id, ativo: true },
         select: {
           secretaria: true, natureza: true, descricao: true,
@@ -47,10 +47,10 @@ export async function GET(request: NextRequest) {
           porSecretaria[key] = { secretaria: key, valorAtual: 0, valorEmpenhado: 0, valorLiquidado: 0, valorPago: 0, dotacoes: [] }
         }
         const s = porSecretaria[key]
-        s.valorAtual      += Number(d.valorAtual)
-        s.valorEmpenhado  += Number(d.valorEmpenhado)
-        s.valorLiquidado  += Number(d.valorLiquidado)
-        s.valorPago       += Number(d.valorPago)
+        s.valorAtual      += Number(d.valorAtual ?? 0)
+        s.valorEmpenhado  += Number(d.valorEmpenhado ?? 0)
+        s.valorLiquidado  += Number(d.valorLiquidado ?? 0)
+        s.valorPago       += Number(d.valorPago ?? 0)
         s.dotacoes.push(d)
       }
 
@@ -75,43 +75,43 @@ export async function GET(request: NextRequest) {
 
     // ── Receita Arrecadada ────────────────────────────────────────────────────
     if (relatorio === 'RECEITA') {
-      const previstas = await prisma.receitaPrevista.findMany({
-        where: { orcamentoId: orcamento.id },
-        include: {
-          lancamentos: {
-            where: competencia ? { competencia } : undefined,
-            select: { valor: true, competencia: true, situacao: true },
-          },
-        },
-        orderBy: { natureza: 'asc' },
-      })
+      // Usar DespesaOrcamentaria como proxy de receita se ReceitaPrevista não existir
+      const conn = await getConn()
+      try {
+        const compWhere = competencia ? ' AND competencia = ?' : ''
+        const params: any[] = [ctx.municipioId, exercicio]
+        if (competencia) params.push(competencia)
 
-      const linhas = previstas.map(r => {
-        const arrecadado = r.lancamentos
-          .filter(l => l.situacao === 'ARRECADADA')
-          .reduce((s, l) => s + Number(l.valor), 0)
-        return {
-          codigo:        r.codigo,
-          descricao:     r.descricao,
-          natureza:      r.natureza,
-          valorPrevisto: Number(r.valorPrevisto),
-          arrecadado,
-          saldo:         Number(r.valorPrevisto) - arrecadado,
-          percArrecadado: r.valorPrevisto > 0 ? ((arrecadado / Number(r.valorPrevisto)) * 100).toFixed(1) : '0.0',
-        }
-      })
+        const [rows] = await conn.execute(
+          `SELECT codigoReceita, descricao, natureza, SUM(previsto) as valorPrevisto, SUM(arrecadado) as arrecadado
+           FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ?${compWhere}
+           GROUP BY codigoReceita, descricao, natureza ORDER BY natureza ASC`,
+          params
+        ) as any[]
 
-      const total = linhas.reduce((acc, l) => ({
-        valorPrevisto: acc.valorPrevisto + l.valorPrevisto,
-        arrecadado:    acc.arrecadado    + l.arrecadado,
-      }), { valorPrevisto: 0, arrecadado: 0 })
+        const linhas = (rows as any[]).map(r => ({
+          codigo:         r.codigoReceita,
+          descricao:      r.descricao,
+          natureza:       r.natureza,
+          valorPrevisto:  Number(r.valorPrevisto ?? 0),
+          arrecadado:     Number(r.arrecadado ?? 0),
+          saldo:          Number(r.valorPrevisto ?? 0) - Number(r.arrecadado ?? 0),
+          percArrecadado: r.valorPrevisto > 0 ? ((Number(r.arrecadado) / Number(r.valorPrevisto)) * 100).toFixed(1) : '0.0',
+        }))
 
-      return NextResponse.json({ relatorio: 'RECEITA', exercicio, linhas, total })
+        const total = linhas.reduce((acc, l) => ({
+          valorPrevisto: acc.valorPrevisto + l.valorPrevisto,
+          arrecadado:    acc.arrecadado    + l.arrecadado,
+        }), { valorPrevisto: 0, arrecadado: 0 })
+
+        return NextResponse.json({ relatorio: 'RECEITA', exercicio, linhas, total })
+      } finally {
+        await conn.end()
+      }
     }
 
     // ── Demonstrativo LRF - Despesa com Pessoal ───────────────────────────────
     if (relatorio === 'LRF_PESSOAL') {
-      // Período: 12 meses anteriores ao mês atual (LRF Art. 18/19)
       const hoje      = new Date()
       const meses12: string[] = []
       for (let i = 11; i >= 0; i--) {
@@ -119,50 +119,45 @@ export async function GET(request: NextRequest) {
         meses12.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
       }
 
-      // Buscar empenhos de PESSOAL_ENCARGOS nos últimos 12 meses
-      const empenhosPessoal = await prisma.empenho.aggregate({
-        where: {
-          municipioId: ctx.municipioId,
-          competencia: { in: meses12 },
-          situacao:    { in: ['LIQUIDADO','PAGO'] },
-          dotacao:     { natureza: 'PESSOAL_ENCARGOS' },
-        },
-        _sum: { valorLiquidado: true },
-      })
+      const conn = await getConn()
+      try {
+        const mesPlaceholders = meses12.map(() => '?').join(',')
 
-      const despesaPessoal = Number(empenhosPessoal._sum.valorLiquidado ?? 0)
+        // Despesa com pessoal via DespesaOrcamentaria
+        const [pessoalRows] = await conn.execute(
+          `SELECT SUM(liquidado) as total FROM DespesaOrcamentaria
+           WHERE municipioId = ? AND natureza = 'PESSOAL_ENCARGOS' AND competencia IN (${mesPlaceholders})`,
+          [ctx.municipioId, ...meses12]
+        ) as any[]
+        const despesaPessoal = Number((pessoalRows as any[])[0]?.total ?? 0)
 
-      // Receita Corrente Líquida estimada (últimos 12 meses)
-      const receitaArrecadada = await prisma.lancamentoReceita.aggregate({
-        where: {
-          municipioId: ctx.municipioId,
-          competencia: { in: meses12 },
-          situacao:    'ARRECADADA',
-        },
-        _sum: { valor: true },
-      })
-      const rcl = Number(receitaArrecadada._sum.valor ?? 0)
+        // RCL via ReceitaOrcamentaria
+        const [rclRows] = await conn.execute(
+          `SELECT SUM(arrecadado) as total FROM ReceitaOrcamentaria
+           WHERE municipioId = ? AND competencia IN (${mesPlaceholders})`,
+          [ctx.municipioId, ...meses12]
+        ) as any[]
+        const rcl = Number((rclRows as any[])[0]?.total ?? 0)
 
-      const percentual    = rcl > 0 ? (despesaPessoal / rcl) * 100 : 0
-      const limiteAlerta  = 51.30   // Art. 22 LRF - limite de alerta (90% do limite)
-      const limiteLegal   = 54.00   // Art. 20, III, b LRF - municípios: 54%
+        const percentual    = rcl > 0 ? (despesaPessoal / rcl) * 100 : 0
+        const limiteAlerta  = 51.30
+        const limiteLegal   = 54.00
 
-      return NextResponse.json({
-        relatorio:       'LRF_PESSOAL',
-        periodo:         `${meses12[0]} a ${meses12[11]}`,
-        exercicio,
-        rcl:             rcl,
-        despesaPessoal,
-        percentual:      percentual.toFixed(2),
-        limiteLegal,
-        limiteAlerta,
-        situacao: percentual > limiteLegal
-          ? 'ACIMA_LIMITE'
-          : percentual > limiteAlerta
-          ? 'ALERTA'
-          : 'REGULAR',
-        meses: meses12,
-      })
+        return NextResponse.json({
+          relatorio:       'LRF_PESSOAL',
+          periodo:         `${meses12[0]} a ${meses12[11]}`,
+          exercicio,
+          rcl,
+          despesaPessoal,
+          percentual:      percentual.toFixed(2),
+          limiteLegal,
+          limiteAlerta,
+          situacao: percentual > limiteLegal ? 'ACIMA_LIMITE' : percentual > limiteAlerta ? 'ALERTA' : 'REGULAR',
+          meses: meses12,
+        })
+      } finally {
+        await conn.end()
+      }
     }
 
     // ── Fluxo de Caixa simplificado (mês a mês do exercício) ─────────────────
@@ -172,48 +167,39 @@ export async function GET(request: NextRequest) {
         mesesExercicio.push(`${exercicio}-${String(m).padStart(2, '0')}`)
       }
 
-      const [pagamentos, receitas] = await Promise.all([
-        prisma.pagamento.groupBy({
-          by: ['dataPagamento'],
-          where: {
-            municipioId:  ctx.municipioId,
-            dataPagamento: {
-              gte: new Date(`${exercicio}-01-01`),
-              lte: new Date(`${exercicio}-12-31`),
-            },
-          },
-          _sum: { valor: true },
-        }),
-        prisma.lancamentoReceita.groupBy({
-          by: ['competencia'],
-          where: {
-            municipioId: ctx.municipioId,
-            competencia: { in: mesesExercicio },
-            situacao:    'ARRECADADA',
-          },
-          _sum: { valor: true },
-        }),
-      ])
+      const conn = await getConn()
+      try {
+        const mesPlaceholders = mesesExercicio.map(() => '?').join(',')
 
-      // Agregar pagamentos por mês
-      const pagPorMes: Record<string, number> = {}
-      for (const p of pagamentos) {
-        const mes = `${p.dataPagamento.getFullYear()}-${String(p.dataPagamento.getMonth() + 1).padStart(2, '0')}`
-        pagPorMes[mes] = (pagPorMes[mes] ?? 0) + Number(p._sum.valor ?? 0)
+        const [pagRows] = await conn.execute(
+          `SELECT competencia, SUM(pago) as pago FROM DespesaOrcamentaria
+           WHERE municipioId = ? AND competencia IN (${mesPlaceholders}) GROUP BY competencia`,
+          [ctx.municipioId, ...mesesExercicio]
+        ) as any[]
+
+        const [recRows] = await conn.execute(
+          `SELECT competencia, SUM(arrecadado) as arrecadado FROM ReceitaOrcamentaria
+           WHERE municipioId = ? AND competencia IN (${mesPlaceholders}) GROUP BY competencia`,
+          [ctx.municipioId, ...mesesExercicio]
+        ) as any[]
+
+        const pagPorMes: Record<string, number> = {}
+        for (const p of pagRows as any[]) pagPorMes[p.competencia] = Number(p.pago ?? 0)
+
+        const recPorMes: Record<string, number> = {}
+        for (const r of recRows as any[]) recPorMes[r.competencia] = Number(r.arrecadado ?? 0)
+
+        const fluxo = mesesExercicio.map(mes => ({
+          competencia: mes,
+          receitas:    recPorMes[mes]  ?? 0,
+          despesas:    pagPorMes[mes]  ?? 0,
+          saldo:       (recPorMes[mes] ?? 0) - (pagPorMes[mes] ?? 0),
+        }))
+
+        return NextResponse.json({ relatorio: 'FLUXO', exercicio, fluxo })
+      } finally {
+        await conn.end()
       }
-      const recPorMes: Record<string, number> = {}
-      for (const r of receitas) {
-        recPorMes[r.competencia] = Number(r._sum.valor ?? 0)
-      }
-
-      const fluxo = mesesExercicio.map(mes => ({
-        competencia: mes,
-        receitas:    recPorMes[mes]  ?? 0,
-        despesas:    pagPorMes[mes]  ?? 0,
-        saldo:       (recPorMes[mes] ?? 0) - (pagPorMes[mes] ?? 0),
-      }))
-
-      return NextResponse.json({ relatorio: 'FLUXO', exercicio, fluxo })
     }
 
     return NextResponse.json({ erro: 'Relatório inválido. Use: EXECUCAO, RECEITA, LRF_PESSOAL, FLUXO' }, { status: 400 })

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma, getConn } from '@/lib/db'
 import { extrairContextoRequest } from '@/lib/audit'
 import { temPermissao } from '@/lib/auth/rbac'
 
@@ -18,143 +18,125 @@ export async function GET(request: NextRequest) {
   const exercicio = parseInt(searchParams.get('exercicio') ?? String(new Date().getFullYear()))
   const mes       = searchParams.get('mes') ? parseInt(searchParams.get('mes')!) : undefined
 
-  if (tipo === 'execucao') {
-    // Execução orçamentária: dotação × empenhado × liquidado × pago por unidade
-    const orcamento = await prisma.orcamentoAnual.findFirst({
-      where: { municipioId: ctx.municipioId, exercicio },
-      include: {
-        unidades: {
-          select: {
-            id: true, nomeUnidade: true,
-            dotacaoInicial: true, suplementacao: true, reducao: true,
-            empenhado: true, liquidado: true, pago: true,
-          },
-          orderBy: { nomeUnidade: 'asc' },
-        },
-      },
-    })
+  const conn = await getConn()
+  try {
+    if (tipo === 'execucao') {
+      // Execução orçamentária por secretaria via Dotacao
+      const orcamento = await prisma.OrcamentoUnidade.findFirst({
+        where: { municipioId: ctx.municipioId, exercicio },
+      })
+      if (!orcamento) {
+        return NextResponse.json({ erro: `Orçamento ${exercicio} não encontrado` }, { status: 404 })
+      }
 
-    if (!orcamento) {
-      return NextResponse.json({ erro: `Orçamento ${exercicio} não encontrado` }, { status: 404 })
+      const [dotRows] = await conn.execute(
+        `SELECT secretaria, SUM(valorAtual) as dotacaoAtual, SUM(valorEmpenhado) as empenhado,
+                SUM(valorLiquidado) as liquidado, SUM(valorPago) as pago
+         FROM Dotacao WHERE orcamentoId = ? AND ativo = 1
+         GROUP BY secretaria ORDER BY secretaria ASC`,
+        [orcamento.id]
+      ) as any[]
+
+      const linhas = (dotRows as any[]).map(u => {
+        const dotacaoAtual = Number(u.dotacaoAtual ?? 0)
+        const empenhado    = Number(u.empenhado ?? 0)
+        return {
+          unidade:     u.secretaria ?? 'SEM SECRETARIA',
+          dotacaoAtual,
+          empenhado,
+          liquidado:   Number(u.liquidado ?? 0),
+          pago:        Number(u.pago ?? 0),
+          saldo:       dotacaoAtual - empenhado,
+          pctExecucao: dotacaoAtual > 0 ? (empenhado / dotacaoAtual * 100) : 0,
+        }
+      })
+
+      const totais = linhas.reduce((acc, l) => ({
+        dotacaoAtual:  acc.dotacaoAtual  + l.dotacaoAtual,
+        empenhado:     acc.empenhado     + l.empenhado,
+        liquidado:     acc.liquidado     + l.liquidado,
+        pago:          acc.pago          + l.pago,
+        saldo:         acc.saldo         + l.saldo,
+      }), { dotacaoAtual: 0, empenhado: 0, liquidado: 0, pago: 0, saldo: 0 })
+
+      return NextResponse.json({
+        tipo: 'execucao',
+        exercicio,
+        status: orcamento.situacao,
+        linhas,
+        totais,
+        pctExecucaoGeral: totais.dotacaoAtual > 0 ? (totais.empenhado / totais.dotacaoAtual * 100) : 0,
+      })
     }
 
-    const linhas = orcamento.unidades.map(u => {
-      const dotacaoAtual = Number(u.dotacaoInicial) + Number(u.suplementacao) - Number(u.reducao)
-      const empenhado    = Number(u.empenhado)
-      const liquidado    = Number(u.liquidado)
-      const pago         = Number(u.pago)
-      return {
-        unidade:       u.nomeUnidade,
-        dotacaoAtual,
-        empenhado,
-        liquidado,
-        pago,
-        saldo:         dotacaoAtual - empenhado,
-        pctExecucao:   dotacaoAtual > 0 ? (empenhado / dotacaoAtual * 100) : 0,
-      }
-    })
+    if (tipo === 'balancete') {
+      const mesRef = mes ?? new Date().getMonth() + 1
+      const compMes = `${exercicio}-${String(mesRef).padStart(2, '0')}`
 
-    const totais = linhas.reduce((acc, l) => ({
-      dotacaoAtual:  acc.dotacaoAtual  + l.dotacaoAtual,
-      empenhado:     acc.empenhado     + l.empenhado,
-      liquidado:     acc.liquidado     + l.liquidado,
-      pago:          acc.pago          + l.pago,
-      saldo:         acc.saldo         + l.saldo,
-    }), { dotacaoAtual: 0, empenhado: 0, liquidado: 0, pago: 0, saldo: 0 })
+      const [recMesRows] = await conn.execute(
+        `SELECT SUM(previsto) as previsto, SUM(arrecadado) as arrecadado
+         FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ? AND mes = ?`,
+        [ctx.municipioId, exercicio, mesRef]
+      ) as any[]
 
-    return NextResponse.json({
-      tipo: 'execucao',
-      exercicio,
-      status: orcamento.status,
-      linhas,
-      totais,
-      pctExecucaoGeral: totais.dotacaoAtual > 0 ? (totais.empenhado / totais.dotacaoAtual * 100) : 0,
-    })
-  }
+      const [recAcumRows] = await conn.execute(
+        `SELECT SUM(previsto) as previsto, SUM(arrecadado) as arrecadado
+         FROM ReceitaOrcamentaria WHERE municipioId = ? AND exercicio = ? AND mes <= ?`,
+        [ctx.municipioId, exercicio, mesRef]
+      ) as any[]
 
-  if (tipo === 'balancete') {
-    // Balancete receita × despesa do mês/acumulado
-    const mesRef = mes ?? new Date().getMonth() + 1
+      const [despMesRows] = await conn.execute(
+        `SELECT SUM(empenhado) as empenhado, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ? AND mes = ?`,
+        [ctx.municipioId, exercicio, mesRef]
+      ) as any[]
 
-    const [receitasMes, receitasAcum, empenhosMes, empenhosAcum] = await Promise.all([
-      // Receitas do mês
-      prisma.receita.findMany({
-        where: { municipioId: ctx.municipioId, exercicio, mes: mesRef },
-        select: { natureza: true, valorPrevisto: true, valorArrecadado: true },
-      }),
-      // Receitas acumuladas até o mês
-      prisma.receita.findMany({
-        where: { municipioId: ctx.municipioId, exercicio, mes: { lte: mesRef } },
-        select: { natureza: true, valorPrevisto: true, valorArrecadado: true },
-      }),
-      // Empenhos do mês
-      prisma.empenho.findMany({
-        where: {
-          municipioId: ctx.municipioId, exercicio,
-          status: { not: 'ANULADO' },
-          dataEmissao: {
-            gte: new Date(exercicio, mesRef - 1, 1),
-            lte: new Date(exercicio, mesRef, 0, 23, 59, 59),
-          },
-        },
-        select: { tipoDespesa: true, valorOriginal: true, valorPago: true, valorAnulado: true },
-      }),
-      // Empenhos acumulados até o mês
-      prisma.empenho.findMany({
-        where: {
-          municipioId: ctx.municipioId, exercicio,
-          status: { not: 'ANULADO' },
-          dataEmissao: { lte: new Date(exercicio, mesRef, 0, 23, 59, 59) },
-        },
-        select: { tipoDespesa: true, valorOriginal: true, valorPago: true, valorAnulado: true },
-      }),
-    ])
+      const [despAcumRows] = await conn.execute(
+        `SELECT SUM(empenhado) as empenhado, SUM(pago) as pago
+         FROM DespesaOrcamentaria WHERE municipioId = ? AND exercicio = ? AND mes <= ?`,
+        [ctx.municipioId, exercicio, mesRef]
+      ) as any[]
 
-    const somarReceita = (arr: typeof receitasMes) => ({
-      previsto:    arr.reduce((s, r) => s + Number(r.valorPrevisto), 0),
-      arrecadado:  arr.reduce((s, r) => s + Number(r.valorArrecadado), 0),
-    })
-    const somarEmpenho = (arr: typeof empenhosMes) => ({
-      empenhado: arr.reduce((s, e) => s + Number(e.valorOriginal), 0),
-      pago:      arr.reduce((s, e) => s + Number(e.valorPago), 0),
-    })
+      const rm = (recMesRows as any[])[0] || {}
+      const ra = (recAcumRows as any[])[0] || {}
+      const dm = (despMesRows as any[])[0] || {}
+      const da = (despAcumRows as any[])[0] || {}
 
-    return NextResponse.json({
-      tipo: 'balancete',
-      exercicio,
-      mes: mesRef,
-      receita: {
-        mes:        somarReceita(receitasMes),
-        acumulado:  somarReceita(receitasAcum),
-      },
-      despesa: {
-        mes:        somarEmpenho(empenhosMes),
-        acumulado:  somarEmpenho(empenhosAcum),
-      },
-    })
-  }
-
-  if (tipo === 'transparencia') {
-    // Portal da Transparência - empenhos públicos com dados completos
-    const empenhos = await prisma.empenho.findMany({
-      where: {
-        municipioId: ctx.municipioId,
+      return NextResponse.json({
+        tipo: 'balancete',
         exercicio,
-        status: { not: 'ANULADO' },
-      },
-      select: {
-        numero: true, exercicio: true, dataEmissao: true,
-        descricao: true, tipoDespesa: true, modalidadeLicitacao: true,
-        numeroLicitacao: true, valorOriginal: true, valorPago: true, status: true,
-        fornecedor: { select: { nome: true, cnpjCpf: true } },
-        unidade:    { select: { nomeUnidade: true } },
-      },
-      orderBy: [{ exercicio: 'desc' }, { dataEmissao: 'desc' }],
-      take: 1000,
-    })
+        mes: mesRef,
+        receita: {
+          mes:        { previsto: Number(rm.previsto ?? 0), arrecadado: Number(rm.arrecadado ?? 0) },
+          acumulado:  { previsto: Number(ra.previsto ?? 0), arrecadado: Number(ra.arrecadado ?? 0) },
+        },
+        despesa: {
+          mes:        { empenhado: Number(dm.empenhado ?? 0), pago: Number(dm.pago ?? 0) },
+          acumulado:  { empenhado: Number(da.empenhado ?? 0), pago: Number(da.pago ?? 0) },
+        },
+      })
+    }
 
-    return NextResponse.json({ tipo: 'transparencia', exercicio, dados: empenhos, total: empenhos.length })
+    if (tipo === 'transparencia') {
+      const [rows] = await conn.execute(
+        `SELECT e.numero, e.dataEmissao, e.descricao, e.modalidade, e.licitacaoNumero,
+                e.valorOriginal, e.valorPago, e.situacao, e.credorNome, e.credorCpfCnpj,
+                d.secretaria as unidade
+         FROM Empenho e
+         LEFT JOIN Dotacao d ON d.id = e.dotacaoId
+         WHERE e.municipioId = ? AND YEAR(e.dataEmissao) = ? AND e.situacao != 'ANULADO'
+         ORDER BY e.dataEmissao DESC LIMIT 1000`,
+        [ctx.municipioId, exercicio]
+      ) as any[]
+
+      return NextResponse.json({ tipo: 'transparencia', exercicio, dados: rows, total: (rows as any[]).length })
+    }
+
+    return NextResponse.json({ erro: 'Tipo de relatório inválido. Use: execucao, balancete, transparencia' }, { status: 400 })
+  } catch (error) {
+    console.error('[SEFIN/RELATORIOS/GET]', error)
+    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 })
+  } finally {
+    await conn.end()
   }
-
-  return NextResponse.json({ erro: 'Tipo de relatório inválido. Use: execucao, balancete, transparencia' }, { status: 400 })
 }

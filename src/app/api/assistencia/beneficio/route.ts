@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+import { prisma, getConn } from '@/lib/db'
 import { obterUsuario } from '@/lib/auth'
 import { auditLog } from '@/lib/audit'
 
@@ -23,18 +24,28 @@ export async function GET(req: NextRequest) {
   const relatorio = searchParams.get('relatorio')
 
   if (relatorio === 'CONSOLIDADO') {
-    // Consolidado de benefícios por tipo
-    const consolidado = await prisma.beneficioFamilia.groupBy({
-      by: ['tipo', 'situacao'],
-      where: { municipioId: usuario.municipioId },
-      _count: true,
-      _sum: { valor: true },
-    })
+    // Consolidado de benefícios por tipo/situacao via SQL direto (groupBy não suportado pelo makeModel)
+    const conn = await getConn()
+    let consolidado: any[] = []
+    try {
+      const [rows] = await conn.execute(
+        `SELECT tipo, situacao, COUNT(*) as total, SUM(valor) as soma
+         FROM BeneficioFamilia WHERE municipioId = ? GROUP BY tipo, situacao ORDER BY tipo, situacao`,
+        [usuario.municipioId]
+      ) as any[]
+      consolidado = (rows as any[]).map((r: any) => ({
+        tipo: r.tipo, situacao: r.situacao,
+        _count: Number(r.total),
+        _sum: { valor: r.soma !== null ? Number(r.soma) : null },
+      }))
+    } finally {
+      await conn.end()
+    }
 
     // Benefícios a vencer nos próximos 30 dias
     const em30dias = new Date()
     em30dias.setDate(em30dias.getDate() + 30)
-    const aVencer = await prisma.beneficioFamilia.count({
+    const aVencer = await prisma.BeneficioFamilia.count({
       where: {
         municipioId: usuario.municipioId,
         situacao: 'ATIVO',
@@ -50,10 +61,12 @@ export async function GET(req: NextRequest) {
   if (tipo)      where.tipo      = tipo
   if (situacao)  where.situacao  = situacao
 
-  const beneficios = await prisma.beneficioFamilia.findMany({
+  const beneficios = await prisma.BeneficioFamilia.findMany({
     where, orderBy: { criadoEm: 'desc' }, take: 500,
-    include: {
-      familia: { select: { responsavelNome: true, numeroProntuario: true } },
+    select: {
+      id: true, tipo: true, descricao: true, valor: true, situacao: true,
+      dataConcessao: true, dataVencimento: true, referenciaExterna: true,
+      observacoes: true, familiaId: true, criadoEm: true,
     },
   })
 
@@ -83,14 +96,17 @@ export async function POST(req: NextRequest) {
   const d = val.data
 
   // Verificar que família pertence ao município
-  const familia = await prisma.familiaReferenciada.findFirst({
+  const familia = await prisma.FamiliaReferenciada.findFirst({
     where: { id: d.familiaId, municipioId: usuario.municipioId },
     select: { responsavelNome: true },
   })
   if (!familia) return NextResponse.json({ erro: 'Família não encontrada' }, { status: 404 })
 
-  const beneficio = await prisma.beneficioFamilia.create({
+  const beneficio = await prisma.BeneficioFamilia.create({
     data: {
+      id: randomUUID(),
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
       municipioId: usuario.municipioId,
       ...d,
       dataConcessao:  d.dataConcessao  ? new Date(d.dataConcessao)  : new Date(),
@@ -108,7 +124,7 @@ export async function POST(req: NextRequest) {
   }
   const flags = flagMap[d.tipo]
   if (flags) {
-    await prisma.familiaReferenciada.update({ where: { id: d.familiaId }, data: flags })
+    await prisma.FamiliaReferenciada.update({ where: { id: d.familiaId }, data: flags })
   }
 
   await auditLog({

@@ -7,7 +7,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+import { prisma, getConn } from '@/lib/db'
 import { extrairContextoRequest, temPermissao } from '@/lib/rbac'
 import { auditLog } from '@/lib/audit'
 
@@ -52,7 +53,7 @@ const ParticipanteSchema = z.object({
 
 async function gerarNumeroLicitacao(municipioId: string): Promise<string> {
   const ano   = new Date().getFullYear()
-  const count = await prisma.licitacao.count({ where: { municipioId, numero: { startsWith: `LIC-${ano}` } } })
+  const count = await prisma.Licitacao.count({ where: { municipioId, numero: { startsWith: `LIC-${ano}` } } })
   return `LIC-${ano}-${String(count + 1).padStart(3, '0')}`
 }
 
@@ -89,13 +90,8 @@ export async function GET(request: NextRequest) {
     const porPagina  = Math.min(Number(searchParams.get('porPagina') ?? 20), 100)
 
     if (id) {
-      const lic = await prisma.licitacao.findFirst({
+      const lic = await prisma.Licitacao.findFirst({
         where: { id, municipioId: ctx.municipioId },
-        include: {
-          lotes:        { orderBy: { numero: 'asc' } },
-          participantes:{ orderBy: { classificacao: 'asc' } },
-          _count:       { select: { contrato: true } },
-        },
       })
       if (!lic) return NextResponse.json({ erro: 'Licitação não encontrada' }, { status: 404 })
       return NextResponse.json({ licitacao: lic })
@@ -116,29 +112,35 @@ export async function GET(request: NextRequest) {
     }
 
     const [licitacoes, total] = await Promise.all([
-      prisma.licitacao.findMany({
+      prisma.Licitacao.findMany({
         where,
         select: {
           id: true, numero: true, situacao: true, modalidade: true, tipoObjeto: true,
           criterio: true, objeto: true, valorEstimado: true, valorHomologado: true,
           dataPublicacao: true, dataAbertura: true, dataHomologacao: true,
           processoNumero: true, pregoeiro: true, criadoEm: true,
-          _count: { select: { lotes: true, participantes: true, contrato: true } },
         },
         orderBy: { criadoEm: 'desc' },
         skip: (pagina - 1) * porPagina,
         take: porPagina,
       }),
-      prisma.licitacao.count({ where }),
+      prisma.Licitacao.count({ where }),
     ])
 
-    // Resumo por situação
-    const porSituacao = await prisma.licitacao.groupBy({
-      by: ['situacao'],
-      where: { municipioId: ctx.municipioId },
-      _count: { id: true },
-      _sum:   { valorEstimado: true },
-    })
+    // Resumo por situação via SQL direto (groupBy não suportado pelo makeModel)
+    const _conn = await getConn()
+    let porSituacao: any[] = []
+    try {
+      const [sitRows] = await _conn.execute(
+        `SELECT situacao, COUNT(*) as total, SUM(valorEstimado) as valor FROM Licitacao WHERE municipioId = ? GROUP BY situacao ORDER BY situacao`,
+        [ctx.municipioId]
+      ) as any[]
+      porSituacao = (sitRows as any[]).map((r: any) => ({
+        situacao: r.situacao, total: Number(r.total), valor: Number(r.valor ?? 0),
+      }))
+    } finally {
+      await _conn.end()
+    }
 
     return NextResponse.json({
       licitacoes,
@@ -146,13 +148,7 @@ export async function GET(request: NextRequest) {
       pagina,
       porPagina,
       totalPaginas: Math.ceil(total / porPagina),
-      resumo: {
-        porSituacao: porSituacao.map(s => ({
-          situacao: s.situacao,
-          total:    s._count.id,
-          valor:    Number(s._sum.valorEstimado ?? 0),
-        })),
-      },
+      resumo: { porSituacao },
     })
   } catch (error) {
     console.error('[SEMAD/LICITACAO/GET]', error)
@@ -181,8 +177,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ erro: 'Dispensa/Inexigibilidade requer fundamentação legal (Art. 72/74 Lei 14.133)' }, { status: 422 })
       }
 
-      const licitacao = await prisma.licitacao.create({
+      const licitacao = await prisma.Licitacao.create({
         data: {
+          id: randomUUID(),
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
           municipioId:     ctx.municipioId,
           numero,
           modalidade:      dados.modalidade,
@@ -212,7 +211,7 @@ export async function POST(request: NextRequest) {
     // ── Novo lote ─────────────────────────────────────────────────────────────
     if (body.tipo === 'LOTE') {
       const dados = LoteSchema.parse(body)
-      const lic = await prisma.licitacao.findFirst({
+      const lic = await prisma.Licitacao.findFirst({
         where: { id: dados.licitacaoId, municipioId: ctx.municipioId },
       })
       if (!lic) return NextResponse.json({ erro: 'Licitação não encontrada' }, { status: 404 })
@@ -220,8 +219,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ erro: 'Lotes só podem ser adicionados em licitações em RASCUNHO ou PUBLICADA' }, { status: 422 })
       }
 
-      const lote = await prisma.loteLicitacao.create({
+      const lote = await prisma.LoteLicitacao.create({
         data: {
+          id: randomUUID(),
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
           licitacaoId:  dados.licitacaoId,
           numero:       dados.numero,
           descricao:    dados.descricao,
@@ -237,15 +239,18 @@ export async function POST(request: NextRequest) {
     // ── Novo participante ─────────────────────────────────────────────────────
     if (body.tipo === 'PARTICIPANTE') {
       const dados = ParticipanteSchema.parse(body)
-      const lic = await prisma.licitacao.findFirst({
+      const lic2 = await prisma.Licitacao.findFirst({
         where: { id: dados.licitacaoId, municipioId: ctx.municipioId },
       })
-      if (!lic) return NextResponse.json({ erro: 'Licitação não encontrada' }, { status: 404 })
+      if (!lic2) return NextResponse.json({ erro: 'Licitação não encontrada' }, { status: 404 })
 
-      const participante = await prisma.participanteLicitacao.upsert({
+      const participante = await prisma.ParticipanteLicitacao.upsert({
         where: { licitacaoId_cnpj: { licitacaoId: dados.licitacaoId, cnpj: dados.cnpj } },
         update: { valorProposta: dados.valorProposta, representante: dados.representante },
         create: {
+          id: randomUUID(),
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
           licitacaoId:   dados.licitacaoId,
           nomeEmpresa:   dados.nomeEmpresa,
           cnpj:          dados.cnpj,
@@ -284,12 +289,12 @@ export async function PATCH(request: NextRequest) {
       if (!temPermissao(ctx, 'semad:licitacao:update')) {
         return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
       }
-      const part = await prisma.participanteLicitacao.findFirst({
-        where: { id, licitacao: { municipioId: ctx.municipioId } },
+      const part = await prisma.ParticipanteLicitacao.findFirst({
+        where: { id },
       })
       if (!part) return NextResponse.json({ erro: 'Participante não encontrado' }, { status: 404 })
 
-      await prisma.participanteLicitacao.update({
+      await prisma.ParticipanteLicitacao.update({
         where: { id },
         data: {
           habilitado: acao === 'HABILITAR_PARTICIPANTE',
@@ -305,12 +310,12 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
       }
       // Ordena participantes habilitados pelo valor da proposta, do menor ao maior
-      const participantes = await prisma.participanteLicitacao.findMany({
+      const participantes = await prisma.ParticipanteLicitacao.findMany({
         where: { licitacaoId: id, habilitado: true, valorProposta: { not: null } },
         orderBy: { valorProposta: 'asc' },
       })
       await Promise.all(participantes.map((p, i) =>
-        prisma.participanteLicitacao.update({ where: { id: p.id }, data: { classificacao: i + 1 } })
+        prisma.ParticipanteLicitacao.update({ where: { id: p.id }, data: { classificacao: i + 1 } })
       ))
       return NextResponse.json({ mensagem: `${participantes.length} participantes classificados` })
     }
@@ -320,12 +325,12 @@ export async function PATCH(request: NextRequest) {
       if (!temPermissao(ctx, 'semad:licitacao:homologar')) {
         return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
       }
-      const lic = await prisma.licitacao.findFirst({
+      const lic = await prisma.Licitacao.findFirst({
         where: { id, municipioId: ctx.municipioId },
       })
       if (!lic) return NextResponse.json({ erro: 'Licitação não encontrada' }, { status: 404 })
 
-      await prisma.licitacao.update({
+      await prisma.Licitacao.update({
         where: { id },
         data: {
           situacao:         'HOMOLOGADA',
@@ -350,14 +355,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ erro: 'Sem permissão para esta ação' }, { status: 403 })
     }
 
-    const lic = await prisma.licitacao.findFirst({ where: { id, municipioId: ctx.municipioId } })
+    const lic = await prisma.Licitacao.findFirst({ where: { id, municipioId: ctx.municipioId } })
     if (!lic) return NextResponse.json({ erro: 'Licitação não encontrada' }, { status: 404 })
 
     const dataExtra: Record<string, any> = {}
     if (acao === 'PUBLICAR') dataExtra.dataPublicacao = new Date()
     if (acao === 'ADJUDICAR') dataExtra.dataAdjudicacao = new Date()
 
-    const atualizada = await prisma.licitacao.update({
+    const atualizada = await prisma.Licitacao.update({
       where: { id },
       data: { situacao: transicao.destino as any, ...dataExtra },
     })
