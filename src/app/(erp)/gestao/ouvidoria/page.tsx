@@ -10,14 +10,19 @@ import {
 const fmtData = (d: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 
 const STATUS_COR: Record<string,string> = {
-  RECEBIDA:   'bg-blue-100 text-blue-800',
-  EM_ANALISE: 'bg-yellow-100 text-yellow-800',
-  RESPONDIDA: 'bg-green-100 text-green-800',
-  ENCERRADA:  'bg-gray-100 text-gray-700',
-  CANCELADA:  'bg-red-100 text-red-800',
+  RECEBIDA:    'bg-blue-100 text-blue-800',
+  EM_ANALISE:  'bg-yellow-100 text-yellow-800',
+  ENCAMINHADA: 'bg-orange-100 text-orange-800',
+  EM_RESPOSTA: 'bg-purple-100 text-purple-800',
+  RESPONDIDA:  'bg-green-100 text-green-800',
+  ARQUIVADA:   'bg-gray-100 text-gray-700',
+  ENCERRADA:   'bg-gray-100 text-gray-700',
+  CANCELADA:   'bg-red-100 text-red-800',
 }
 const STATUS_LABEL: Record<string,string> = {
-  RECEBIDA:'Recebida', EM_ANALISE:'Em Análise', RESPONDIDA:'Respondida', ENCERRADA:'Encerrada', CANCELADA:'Cancelada'
+  RECEBIDA:'Recebida', EM_ANALISE:'Em Análise', ENCAMINHADA:'Encaminhada',
+  EM_RESPOSTA:'Em Resposta', RESPONDIDA:'Respondida', ARQUIVADA:'Arquivada',
+  ENCERRADA:'Encerrada', CANCELADA:'Cancelada'
 }
 const TIPO_LABEL: Record<string,string> = {
   RECLAMACAO:'Reclamação', SUGESTAO:'Sugestão', ELOGIO:'Elogio',

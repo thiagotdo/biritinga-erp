@@ -63,6 +63,8 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 - **Transparência despesas** (`/api/transparencia/despesa`): 34 despesas orçamentárias LOA 2026 (Jan-Nov)
 - **Folha de pagamento** (`/api/folha/competencia`): 11 competências Jan-Nov 2026 (~R$1,87-1,99M/mês)
 - **Educação** (`/api/educacao/escola`): 68 escolas cadastradas
+- **Almoxarifado** (`/api/almoxarifado`): 30 itens em `ItemAlmoxarifado`; movimentações em `MovimentacaoConsumo`
+- **Ouvidoria** (`/api/ouvidoria/manifestacao`): 14 manifestações reais Jan-Out/2026
 
 ## Tabelas extras criadas via SQL (não no Prisma schema original)
 - `DespesaOrcamentaria`: criada via /api/migrate; model adicionado ao DB_TABLES em db.ts
@@ -96,3 +98,9 @@ curl -sc /tmp/erp-cookies.txt -X POST https://erp.biritinga.ba.gov.br/api/auth/l
 - `DespesaOrcamentaria`: tabela existe no MySQL mas NÃO estava em DB_TABLES — foi adicionada. Usar PascalCase `prisma.DespesaOrcamentaria` e passar id/criadoEm/atualizadoEm manualmente
 - `NaturezaDespesa` ENUM: `PESSOAL_ENCARGOS`, `JUROS_ENCARGOS_DIVIDA`, `OUTRAS_CORRENTES`, `INVESTIMENTOS`, `INVERSOES_FINANCEIRAS`, `AMORTIZACAO_DIVIDA`, `RESERVA_CONTINGENCIA`
 - Credenciais completas: ver memória do projeto no Claude
+- Tabela `Manifestacao` — schema real (diferente do Prisma):
+  - Colunas: `protocolo` (não `numero`), `situacao` (não `status`), `cidadaoNome` (não `nomeRequerente`), `orgaoRelacionado` (não `setorResponsavel`), `prazoResposta` (não `prazo`) — sem coluna `ano`
+  - `tipo` ENUM: `RECLAMACAO`, `DENUNCIA`, `SUGESTAO`, `ELOGIO`, `SOLICITACAO_LAI`, `PEDIDO_INFORMACAO`, `SOLICITACAO_INFO`, `RECURSO_LAI`
+  - `situacao` ENUM: `RECEBIDA`, `EM_ANALISE`, `ENCAMINHADA`, `EM_RESPOSTA`, `RESPONDIDA`, `ARQUIVADA`, `ENCERRADA`, `CANCELADA`
+  - `prioridade` ENUM: `URGENTE`, `ALTA`, `MEDIA`, `BAIXA`, `NORMAL`
+  - Protocolo auto-gerado: formato `OUV-YYYY/NNNNN`
