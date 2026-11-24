@@ -452,6 +452,12 @@ const DB_TABLES = [
   'UnidadeSuas', 'FamiliaReferenciada', 'AtendimentoSuas', 'BeneficioFamilia',
   // SEFIN extra
   'ReceitaOrcamentaria', 'Folha', 'ExercicioOrcamentario', 'Orcamento',
+  // Protocolo e tramitação
+  'Protocolo', 'Tramitacao',
+  // Almoxarifado
+  'CatalogoMaterial', 'Requisicao', 'EntradaEstoque', 'MovimentacaoEstoque',
+  // Convênios
+  'Convenio',
 ] as const
 
 type DbModels = {
