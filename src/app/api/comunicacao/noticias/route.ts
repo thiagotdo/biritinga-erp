@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     if (tipo)   where.tipo   = tipo
 
     const [noticias, total] = await Promise.all([
-      prisma.noticia.findMany({
+      prisma.Noticia.findMany({
         where, skip, take: limite,
         orderBy: [{ dataPublicacao: 'desc' }, { criadoEm: 'desc' }],
         select: {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
           visualizacoes: true, dataPublicacao: true, criadoEm: true,
         },
       }),
-      prisma.noticia.count({ where }),
+      prisma.Noticia.count({ where }),
     ])
 
     return NextResponse.json({ noticias, total, pagina, limite })
@@ -62,10 +62,10 @@ export async function POST(req: NextRequest) {
 
     // Gerar slug único
     let slug = gerarSlug(data.titulo)
-    const existe = await prisma.noticia.findFirst({ where: { slug, municipioId: ctx.municipioId } })
+    const existe = await prisma.Noticia.findFirst({ where: { slug, municipioId: ctx.municipioId } })
     if (existe) slug = `${slug}-${Date.now().toString(36)}`
 
-    const noticia = await prisma.noticia.create({
+    const noticia = await prisma.Noticia.create({
       data: {
         municipioId:    ctx.municipioId,
         titulo:         data.titulo.trim(),
@@ -100,7 +100,7 @@ export async function PUT(req: NextRequest) {
     const data = await req.json()
     if (!data.id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-    const atual = await prisma.noticia.findFirst({ where: { id: data.id, municipioId: ctx.municipioId } })
+    const atual = await prisma.Noticia.findFirst({ where: { id: data.id, municipioId: ctx.municipioId } })
     if (!atual) return NextResponse.json({ erro: 'Notícia não encontrada' }, { status: 404 })
 
     const update: any = { atualizadoEm: new Date() }
@@ -119,7 +119,7 @@ export async function PUT(req: NextRequest) {
       if (data.status === 'PUBLICADA' && !atual.dataPublicacao) update.dataPublicacao = new Date()
     }
 
-    const noticia = await prisma.noticia.update({ where: { id: data.id }, data: update })
+    const noticia = await prisma.Noticia.update({ where: { id: data.id }, data: update })
     return NextResponse.json({ noticia })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
@@ -135,10 +135,10 @@ export async function DELETE(req: NextRequest) {
     const id = new URL(req.url).searchParams.get('id')
     if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-    const noticia = await prisma.noticia.findFirst({ where: { id, municipioId: ctx.municipioId } })
+    const noticia = await prisma.Noticia.findFirst({ where: { id, municipioId: ctx.municipioId } })
     if (!noticia) return NextResponse.json({ erro: 'Notícia não encontrada' }, { status: 404 })
 
-    await prisma.noticia.delete({ where: { id } })
+    await prisma.Noticia.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
