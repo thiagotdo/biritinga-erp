@@ -460,9 +460,9 @@ const DB_TABLES = [
   // Protocolo tramitação
   'ProtocoloTramitacao', 'ContratoAdm',
   // Convênios
-  'Convenio',
-  // Diárias
-  'Diaria',
+  'Convenio', 'AditivoConvenio',
+  // Diárias e Viagens
+  'Diaria', 'Viagem',
 ] as const
 
 type DbModels = {

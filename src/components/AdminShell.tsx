@@ -13,7 +13,7 @@ import {
   Syringe, Pill, Activity, Building2, Package, UserCheck,
   Briefcase, Car, DollarSign, Fuel, ClipboardList, AlertCircle,
   ArrowRightLeft, FilePlus2,
-  PackagePlus, MessageSquare,
+  PackagePlus, MessageSquare, Plane,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -93,6 +93,7 @@ const NAV_ADMIN = [
     { href: '/gestao/protocolo',            label: 'Protocolo Eletrônico - SEADM', Icon: ArrowRightLeft  },
     { href: '/gestao/almoxarifado',         label: 'Almoxarifado - SEALM',         Icon: PackagePlus     },
     { href: '/gestao/ouvidoria',            label: 'Ouvidoria Municipal',           Icon: MessageSquare   },
+    { href: '/gestao/diarias',              label: 'Diárias e Viagens',             Icon: Plane           },
   ]},
 ]
 
