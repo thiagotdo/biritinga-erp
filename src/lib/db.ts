@@ -456,7 +456,7 @@ const DB_TABLES = [
   'Protocolo', 'Tramitacao',
   // Almoxarifado
   'CatalogoMaterial', 'Requisicao', 'EntradaEstoque', 'MovimentacaoEstoque',
-  'ItemAlmoxarifado',
+  'ItemAlmoxarifado', 'MovimentacaoConsumo',
   // Protocolo tramitação
   'ProtocoloTramitacao', 'ContratoAdm',
   // Convênios

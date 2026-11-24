@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const itemId = searchParams.get('itemId')
   const tipo   = searchParams.get('tipo')
   const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
-  const limit  = 25
+  const limit  = 50
   const offset = (page - 1) * limit
 
   try {
@@ -19,21 +19,21 @@ export async function GET(req: NextRequest) {
     if (itemId) {
       rows = await db.$queryRaw`
         SELECT m.*, i.nome AS itemNome, i.unidade
-        FROM MovimentacaoEstoque m
+        FROM MovimentacaoConsumo m
         JOIN ItemAlmoxarifado i ON i.id = m.itemId
         WHERE m.municipioId = ${municipioId} AND m.itemId = ${itemId}
         ORDER BY m.dataMovimento DESC LIMIT ${limit}`
     } else if (tipo) {
       rows = await db.$queryRaw`
         SELECT m.*, i.nome AS itemNome, i.unidade
-        FROM MovimentacaoEstoque m
+        FROM MovimentacaoConsumo m
         JOIN ItemAlmoxarifado i ON i.id = m.itemId
         WHERE m.municipioId = ${municipioId} AND m.tipo = ${tipo}
         ORDER BY m.dataMovimento DESC LIMIT ${limit} OFFSET ${offset}`
     } else {
       rows = await db.$queryRaw`
         SELECT m.*, i.nome AS itemNome, i.unidade
-        FROM MovimentacaoEstoque m
+        FROM MovimentacaoConsumo m
         JOIN ItemAlmoxarifado i ON i.id = m.itemId
         WHERE m.municipioId = ${municipioId}
         ORDER BY m.dataMovimento DESC LIMIT ${limit} OFFSET ${offset}`
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     const id = randomUUID()
     await db.$queryRaw`
-      INSERT INTO MovimentacaoEstoque
+      INSERT INTO MovimentacaoConsumo
         (id, municipioId, itemId, tipo, quantidade, quantidadeAnterior, quantidadePosterior,
          motivo, fornecedor, numeroNF, setor, solicitante, observacoes, usuarioNome,
          dataMovimento, criadoEm, atualizadoEm)
