@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Listar colunas e ENUMs para diagnóstico
-  const tableNames = ['Veiculo', 'Obra', 'Servidor', 'Licitacao']
+  const tableNames = ['Veiculo', 'Obra', 'Servidor', 'Licitacao', 'Noticia', 'EventoAgenda']
   const tableInfo: Record<string, any[]> = {}
   for (const tbl of tableNames) {
     try {
