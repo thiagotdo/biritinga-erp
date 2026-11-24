@@ -65,11 +65,21 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 - **Educação** (`/api/educacao/escola`): 68 escolas cadastradas
 - **Almoxarifado** (`/api/almoxarifado`): 30 itens em `ItemAlmoxarifado`; movimentações em `MovimentacaoConsumo`
 - **Ouvidoria** (`/api/ouvidoria/manifestacao`): 14 manifestações reais Jan-Out/2026
+- **Diárias e Viagens** (`/api/diarias/viagem`): 22 viagens reais Jan-Dez/2026 em tabela `Viagem` (VIAG-2026/0001 a VIAG-2026/0022)
+- **Convênios e Parcerias** (`/api/convenios/convenio`): 12 convênios reais 2024-2026 em tabela `Convenio` (CONV-2024/001 a CONV-2026/005)
 
 ## Tabelas extras criadas via SQL (não no Prisma schema original)
 - `DespesaOrcamentaria`: criada via /api/migrate; model adicionado ao DB_TABLES em db.ts
 - `Folha`: existia, mas colunas `totalServidores` e `observacoes` foram adicionadas via ALTER TABLE
 - `ProtocoloTramitacao`: criada via /api/migrate para histórico de tramitações do Protocolo
+- `Viagem`: criada via /api/migrate; VIAG-YYYY/NNNN; status: `SOLICITADA`,`APROVADA`,`EM_ANDAMENTO`,`CONCLUIDA`,`CANCELADA`
+
+### Tabela `Convenio` (schema real — diferente do schema planejado)
+- **NÃO tem** colunas `ano`, `tipo`, `convenente`, `valorExecutado`, `dataVigenciaInicio`, `dataVigenciaFim`
+- Colunas reais: `numero`, `objeto`, `concedente`, `proponente`, `valorTotal`, `valorRepasse`, `valorContrapartida`, `valorDesembolsado`
+- Datas: `dataAssinatura`, `dataInicio`, `dataFim`
+- `status` ENUM: `'CELEBRADO','VIGENTE','EM_EXECUCAO','CONCLUIDO','RESCINDIDO','SUSPENSO'`
+- Extras: `programaFederal`, `orgaoConcedente`, `processoSEI`, `linkSIAFI`, `secretariaExecutora`, `situacao`, `descricao`, `observacoes`, `ativo`
 
 ## Tabela `Protocolo` (legada — schema diferente do Prisma)
 - Campos obrigatórios: `solicitanteId` NOT NULL, `categoria` NOT NULL
