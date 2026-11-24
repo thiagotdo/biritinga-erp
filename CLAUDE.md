@@ -58,6 +58,8 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 - **SECOM** (`/api/comunicacao/noticias`, `/api/comunicacao/agenda`): 22 notícias + 23 eventos (atualizado Nov/2026)
 - **SEMAD** (`/api/semad/servidores`): 68 servidores (matrículas até 610, sexo: M/F)
 - **Licitações** (`/api/licitacoes/licitacao`): 35 licitações reais 2026 (01-28/2026 + 90000s)
+- **Contratos** (`/api/licitacoes/contrato`): 12 contratos reais 2026 em `ContratoAdm` (001-012/2026)
+- **Protocolo Eletrônico** (`/api/protocolo/v2`): 18 protocolos reais Jan-Jun/2026 + 10 tramitações
 - **Transparência despesas** (`/api/transparencia/despesa`): 34 despesas orçamentárias LOA 2026 (Jan-Nov)
 - **Folha de pagamento** (`/api/folha/competencia`): 11 competências Jan-Nov 2026 (~R$1,87-1,99M/mês)
 - **Educação** (`/api/educacao/escola`): 68 escolas cadastradas
@@ -65,6 +67,16 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 ## Tabelas extras criadas via SQL (não no Prisma schema original)
 - `DespesaOrcamentaria`: criada via /api/migrate; model adicionado ao DB_TABLES em db.ts
 - `Folha`: existia, mas colunas `totalServidores` e `observacoes` foram adicionadas via ALTER TABLE
+- `ProtocoloTramitacao`: criada via /api/migrate para histórico de tramitações do Protocolo
+
+## Tabela `Protocolo` (legada — schema diferente do Prisma)
+- Campos obrigatórios: `solicitanteId` NOT NULL, `categoria` NOT NULL
+- `status` ENUM: `ABERTO`, `EM_ANALISE`, `DEFERIDO`, `INDEFERIDO`, `CANCELADO`, `ARQUIVADO`
+- `prioridade` ENUM: `NORMAL`, `URGENTE`, `MUITO_URGENTE`
+- `origem` ENUM: `INTERNO`, `BALCAO`, `EMAIL`, `CORREIO`
+- Nova API: `/api/protocolo/v2` (GET/POST/PATCH) — NÃO usar `/api/protocolo/processo` (antiga)
+- Colunas extras adicionadas: `ano`, `tipo`, `setorOrigemNome`, `setorAtualNome`, `observacoes`, `dataAbertura`, `interessado`
+- Coluna `cpfCnpjInteressado` NÃO existe — usar `cpfSolicitante` ou omitir
 
 ## Autenticação para testes curl
 ```bash
