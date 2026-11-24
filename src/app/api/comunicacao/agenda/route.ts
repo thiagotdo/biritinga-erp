@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { obterUsuario } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     if (tipo)   where.tipo   = tipo
 
     const [eventos, total] = await Promise.all([
-      prisma.eventoAgenda.findMany({
+      prisma.EventoAgenda.findMany({
         where, skip, take: limite,
         orderBy: [{ dataInicio: 'desc' }],
         select: {
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
           secretaria: true, destaque: true, publicoEsperado: true,
         },
       }),
-      prisma.eventoAgenda.count({ where }),
+      prisma.EventoAgenda.count({ where }),
     ])
 
     return NextResponse.json({ eventos, total, pagina, limite })
@@ -50,8 +51,9 @@ export async function POST(req: NextRequest) {
     if (!data.titulo?.trim())    return NextResponse.json({ erro: 'Título obrigatório' }, { status: 400 })
     if (!data.dataInicio)        return NextResponse.json({ erro: 'Data de início obrigatória' }, { status: 400 })
 
-    const evento = await prisma.eventoAgenda.create({
+    const evento = await prisma.EventoAgenda.create({
       data: {
+        id:             randomUUID(),
         municipioId:    ctx.municipioId,
         titulo:         data.titulo.trim(),
         descricao:      data.descricao?.trim() ?? null,
@@ -70,6 +72,8 @@ export async function POST(req: NextRequest) {
         destaque:       data.destaque ?? false,
         imagemCapa:     data.imagemCapa ?? null,
         observacoes:    data.observacoes?.trim() ?? null,
+        criadoEm:       new Date(),
+        atualizadoEm:   new Date(),
       },
     })
 
@@ -87,7 +91,7 @@ export async function PUT(req: NextRequest) {
     const data = await req.json()
     if (!data.id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-    const atual = await prisma.eventoAgenda.findFirst({ where: { id: data.id, municipioId: ctx.municipioId } })
+    const atual = await prisma.EventoAgenda.findFirst({ where: { id: data.id, municipioId: ctx.municipioId } })
     if (!atual) return NextResponse.json({ erro: 'Evento não encontrado' }, { status: 404 })
 
     const update: any = { atualizadoEm: new Date() }
@@ -97,7 +101,7 @@ export async function PUT(req: NextRequest) {
     if (data.dataFim)    update.dataFim    = new Date(data.dataFim)
     if (data.publicoEsperado) update.publicoEsperado = Number(data.publicoEsperado)
 
-    const evento = await prisma.eventoAgenda.update({ where: { id: data.id }, data: update })
+    const evento = await prisma.EventoAgenda.update({ where: { id: data.id }, data: update })
     return NextResponse.json({ evento })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
@@ -112,10 +116,10 @@ export async function DELETE(req: NextRequest) {
     const id = new URL(req.url).searchParams.get('id')
     if (!id) return NextResponse.json({ erro: 'ID obrigatório' }, { status: 400 })
 
-    const evento = await prisma.eventoAgenda.findFirst({ where: { id, municipioId: ctx.municipioId } })
+    const evento = await prisma.EventoAgenda.findFirst({ where: { id, municipioId: ctx.municipioId } })
     if (!evento) return NextResponse.json({ erro: 'Evento não encontrado' }, { status: 404 })
 
-    await prisma.eventoAgenda.update({ where: { id }, data: { ativo: false } })
+    await prisma.EventoAgenda.update({ where: { id }, data: { ativo: false } })
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
