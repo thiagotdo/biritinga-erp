@@ -458,6 +458,8 @@ const DB_TABLES = [
   'CatalogoMaterial', 'Requisicao', 'EntradaEstoque', 'MovimentacaoEstoque',
   // Convênios
   'Convenio',
+  // Diárias
+  'Diaria',
 ] as const
 
 type DbModels = {
