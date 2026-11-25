@@ -66,7 +66,7 @@ function aplicarTema(t: TemaConfig) {
 // ─── Mapa de navegação ────────────────────────────────────────────────────────
 
 const NAV_ADMIN = [
-  { grupo: 'Gestão', items: [
+  { grupo: 'Sistema', items: [
     { href: '/admin',                label: 'Visão Geral',      Icon: LayoutDashboard },
     { href: '/admin/usuarios',       label: 'Usuários',         Icon: Users           },
     { href: '/admin/perfis',         label: 'Perfis de Acesso', Icon: ShieldCheck     },
@@ -78,23 +78,27 @@ const NAV_ADMIN = [
     { href: '/admin/ouvidoria',      label: 'Ouvidoria',            Icon: Inbox       },
     { href: '/admin/transparencia',  label: 'Transparência',        Icon: BarChart2   },
   ]},
-  { grupo: 'Secretarias', items: [
-    { href: '/gestao/sefin',               label: 'Finanças — SEFIN',         Icon: Wallet          },
-    { href: '/gestao/semad',               label: 'Administração — SEMAD',    Icon: FolderOpen      },
-    { href: '/gestao/folha',               label: 'Folha de Pagamento — RH',  Icon: DollarSign      },
-    { href: '/gestao/saude',               label: 'Saúde — SEMSA',            Icon: Stethoscope     },
-    { href: '/gestao/educacao',            label: 'Educação — SEDUC',         Icon: GraduationCap   },
-    { href: '/gestao/tributacao',          label: 'Tributação — SETRIB',      Icon: CircleDollarSign},
-    { href: '/gestao/licitacoes',          label: 'Licitações — CPL',         Icon: Landmark        },
-    { href: '/gestao/patrimonio',          label: 'Patrimônio — SEPAT',       Icon: Package         },
-    { href: '/gestao/frota',               label: 'Frota — SEFROTA',          Icon: Car             },
-    { href: '/gestao/obras',               label: 'Obras e Serviços — SEMOSP',Icon: HardHat         },
-    { href: '/gestao/comunicacao/noticias',label: 'Comunicação — SECOM',      Icon: Newspaper       },
-    { href: '/gestao/protocolo',           label: 'Protocolo — SEADM',        Icon: ArrowRightLeft  },
-    { href: '/gestao/almoxarifado',        label: 'Almoxarifado — SEALM',     Icon: PackagePlus     },
-    { href: '/gestao/ouvidoria',           label: 'Ouvidoria Municipal',       Icon: MessageSquare   },
-    { href: '/gestao/diarias',             label: 'Diárias e Viagens',        Icon: Plane           },
-    { href: '/gestao/convenios',           label: 'Convênios e Parcerias',    Icon: Handshake       },
+  { grupo: 'Finanças e Controle', items: [
+    { href: '/gestao/sefin',         label: 'Finanças — SEFIN',     Icon: Wallet          },
+    { href: '/gestao/folha',         label: 'Folha de Pagamento',   Icon: DollarSign      },
+    { href: '/gestao/tributacao',    label: 'Tributação — SETRIB',  Icon: CircleDollarSign},
+    { href: '/gestao/licitacoes',    label: 'Licitações — CPL',     Icon: Landmark        },
+    { href: '/gestao/convenios',     label: 'Convênios',            Icon: Handshake       },
+  ]},
+  { grupo: 'Gestão Administrativa', items: [
+    { href: '/gestao/semad',         label: 'Administração — SEMAD',Icon: FolderOpen      },
+    { href: '/gestao/protocolo',     label: 'Protocolo — SEADM',    Icon: ArrowRightLeft  },
+    { href: '/gestao/almoxarifado',  label: 'Almoxarifado',         Icon: PackagePlus     },
+    { href: '/gestao/patrimonio',    label: 'Patrimônio — SEPAT',   Icon: Package         },
+    { href: '/gestao/frota',         label: 'Frota — SEFROTA',      Icon: Car             },
+    { href: '/gestao/diarias',       label: 'Diárias e Viagens',    Icon: Plane           },
+  ]},
+  { grupo: 'Serviços ao Cidadão', items: [
+    { href: '/gestao/saude',                label: 'Saúde — SEMSA',   Icon: Stethoscope     },
+    { href: '/gestao/educacao',             label: 'Educação — SEDUC',Icon: GraduationCap   },
+    { href: '/gestao/obras',                label: 'Obras — SEMOSP',  Icon: HardHat         },
+    { href: '/gestao/comunicacao/noticias', label: 'Comunicação — SECOM', Icon: Newspaper   },
+    { href: '/gestao/ouvidoria',            label: 'Ouvidoria',       Icon: MessageSquare   },
   ]},
 ]
 
