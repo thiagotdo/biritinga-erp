@@ -1,10 +1,14 @@
 /**
- * GET  /api/sefin/receitas   - lista lançamentos de receita
- * POST /api/sefin/receitas   - cria lançamento
+ * GET  /api/sefin/receitas   - lista receitas orçamentárias (ReceitaOrcamentaria)
+ * POST /api/sefin/receitas   - registra nova receita
+ *
+ * Tabela real: ReceitaOrcamentaria
+ * Colunas: id, municipioId, exercicio (int), mes (int), competencia,
+ *          codigoReceita, natureza ENUM, descricao, fonte, unidadeGestora,
+ *          previsto, arrecadado, criadoEm, atualizadoEm
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 
@@ -17,66 +21,70 @@ export async function GET(req: NextRequest) {
   if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const page      = Math.max(1, parseInt(searchParams.get('page')  ?? '1'))
-  const limit     = Math.min(100, parseInt(searchParams.get('limit') ?? '20'))
-  const skip      = (page - 1) * limit
-  const mes       = searchParams.get('mes')       ?? undefined
-  const exercicio = searchParams.get('exercicio') ?? new Date().getFullYear().toString()
+  const mes       = searchParams.get('mes')       // "2026-11"
+  const exercicio = parseInt(searchParams.get('exercicio') ?? new Date().getFullYear().toString())
 
   try {
-    // Resumo por categoria de receita (previsto x realizado)
+    // Resumo por natureza (previsto x arrecadado)
     const resumo = await db.$queryRaw`
       SELECT
-        rp.descricao,
-        rp.categoria,
-        rp.valorPrevisto,
-        COALESCE(SUM(lr.valor), 0) as valorArrecadado
-      FROM ReceitaPrevista rp
-      LEFT JOIN LancamentoReceita lr ON lr.receitaPrevistaId = rp.id
-        AND YEAR(lr.dataLancamento) = ${parseInt(exercicio)}
-      WHERE rp.municipioId = ${municipioId}
-        AND rp.exercicio = ${parseInt(exercicio)}
-      GROUP BY rp.id
-      ORDER BY rp.categoria, rp.descricao
-    `
+        natureza,
+        descricao,
+        SUM(previsto)    AS totalPrevisto,
+        SUM(arrecadado)  AS totalArrecadado
+      FROM ReceitaOrcamentaria
+      WHERE municipioId = ${municipioId}
+        AND exercicio = ${exercicio}
+      GROUP BY natureza, descricao
+      ORDER BY natureza, descricao`
 
-    // Lançamentos recentes
-    const where: any = { municipioId }
+    // Lançamentos por competência (mês a mês)
+    let lancamentos: any[]
     if (mes) {
-      // Filtrar por mês (ex: "2024-03")
-      const [ano, m] = mes.split('-')
-      where.dataLancamento = {
-        gte: `${ano}-${m}-01`,
-        lte: `${ano}-${m}-31`,
-      }
+      lancamentos = await db.$queryRaw`
+        SELECT *
+        FROM ReceitaOrcamentaria
+        WHERE municipioId = ${municipioId}
+          AND competencia = ${mes}
+        ORDER BY natureza, codigoReceita`
+    } else {
+      lancamentos = await db.$queryRaw`
+        SELECT *
+        FROM ReceitaOrcamentaria
+        WHERE municipioId = ${municipioId}
+          AND exercicio = ${exercicio}
+        ORDER BY mes, natureza, codigoReceita
+        LIMIT 200`
     }
 
-    const lancamentos = await db.LancamentoReceita.findMany({
-      where,
-      orderBy: { dataLancamento: 'desc' },
-      take: limit,
-      skip,
-    })
-
-    const total = await db.LancamentoReceita.count({ where })
-
-    // Totais
-    const totais = await db.$queryRaw`
+    // Totais anuais
+    const [totais]: any[] = await db.$queryRaw`
       SELECT
-        COALESCE(SUM(rp.valorPrevisto), 0)       as totalPrevisto,
-        COALESCE(SUM(lr.valor), 0)               as totalArrecadado
-      FROM ReceitaPrevista rp
-      LEFT JOIN LancamentoReceita lr ON lr.receitaPrevistaId = rp.id
-        AND YEAR(lr.dataLancamento) = ${parseInt(exercicio)}
-      WHERE rp.municipioId = ${municipioId}
-        AND rp.exercicio = ${parseInt(exercicio)}
-    ` as any[]
+        COALESCE(SUM(previsto), 0)   AS totalPrevisto,
+        COALESCE(SUM(arrecadado), 0) AS totalArrecadado,
+        COUNT(*)                     AS totalRegistros
+      FROM ReceitaOrcamentaria
+      WHERE municipioId = ${municipioId}
+        AND exercicio = ${exercicio}`
+
+    // Evolução mensal
+    const evolucao = await db.$queryRaw`
+      SELECT
+        mes,
+        competencia,
+        SUM(previsto)   AS previsto,
+        SUM(arrecadado) AS arrecadado
+      FROM ReceitaOrcamentaria
+      WHERE municipioId = ${municipioId}
+        AND exercicio = ${exercicio}
+      GROUP BY mes, competencia
+      ORDER BY mes`
 
     return NextResponse.json({
       resumo,
       lancamentos,
-      meta: { total, page, limit, pages: Math.ceil(total / limit) },
-      totais: totais[0] ?? { totalPrevisto: 0, totalArrecadado: 0 },
+      evolucao,
+      totais: totais ?? { totalPrevisto: 0, totalArrecadado: 0, totalRegistros: 0 },
     })
   } catch (e: any) {
     console.error('[GET /api/sefin/receitas]', e.message)
@@ -89,28 +97,26 @@ export async function POST(req: NextRequest) {
   if (!municipioId) return NextResponse.json({ erro: 'Sem município' }, { status: 401 })
 
   try {
-    const body = await req.json()
-    const { receitaPrevistaId, contaBancariaId, dataLancamento, valor, descricao, documento, fonte } = body
+    const { exercicio, mes, competencia, codigoReceita, natureza,
+            descricao, fonte, unidadeGestora, previsto, arrecadado } = await req.json()
 
-    if (!dataLancamento || !valor) {
-      return NextResponse.json({ erro: 'Campos obrigatórios: dataLancamento, valor' }, { status: 400 })
-    }
+    if (!exercicio || !mes || !natureza || !descricao)
+      return NextResponse.json({ erro: 'Campos obrigatórios: exercicio, mes, natureza, descricao' }, { status: 400 })
 
-    const lancamento = await db.LancamentoReceita.create({
-      data: {
-        id: randomUUID(),
-        municipioId,
-        receitaPrevistaId: receitaPrevistaId ?? null,
-        contaBancariaId: contaBancariaId ?? null,
-        dataLancamento,
-        valor: parseFloat(valor),
-        descricao: descricao ?? null,
-        documento: documento ?? null,
-        fonte: fonte ?? null,
-      },
-    })
+    const id = crypto.randomUUID()
+    const comp = competencia ?? `${exercicio}-${String(mes).padStart(2,'0')}`
 
-    return NextResponse.json({ ok: true, lancamento }, { status: 201 })
+    await db.$queryRaw`
+      INSERT INTO ReceitaOrcamentaria
+        (id, municipioId, exercicio, mes, competencia, codigoReceita, natureza,
+         descricao, fonte, unidadeGestora, previsto, arrecadado, atualizadoEm)
+      VALUES
+        (${id}, ${municipioId}, ${parseInt(exercicio)}, ${parseInt(mes)}, ${comp},
+         ${codigoReceita ?? ''}, ${natureza}, ${descricao},
+         ${fonte ?? null}, ${unidadeGestora ?? null},
+         ${parseFloat(previsto ?? 0)}, ${parseFloat(arrecadado ?? 0)}, NOW(3))`
+
+    return NextResponse.json({ id }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ erro: e.message }, { status: 500 })
   }
