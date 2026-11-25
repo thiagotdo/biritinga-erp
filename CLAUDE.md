@@ -53,8 +53,8 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 
 ## Módulos e estado dos dados
 - **SEMOSP** (`/api/obras/obra`): 7+ obras reais
-- **SEFROTA** (`/api/frota/veiculo`): 13 veículos reais
-- **SEFIN** (`/api/sefin/orcamento`): LOA 2026 R$28,75M + 13 dotações
+- **SEFROTA** (`/api/frota/veiculo`): 13 veículos reais; `/api/frota/abastecimento`: 24 abastecimentos Jan-Nov/2026
+- **SEFIN** (`/api/sefin/orcamento`): LOA 2026 R$28,75M + 13 dotações; `/api/sefin/empenhos`: 25 empenhos Jan-Nov/2026; `/api/sefin/receitas`: 66 receitas orçamentárias Jan-Nov/2026 (6 fontes × 11 meses)
 - **SECOM** (`/api/comunicacao/noticias`, `/api/comunicacao/agenda`): 22 notícias + 23 eventos (atualizado Nov/2026)
 - **SEMAD** (`/api/semad/servidores`): 68 servidores (matrículas até 610, sexo: M/F)
 - **Licitações** (`/api/licitacoes/licitacao`): 35 licitações reais 2026 (01-28/2026 + 90000s)
@@ -67,6 +67,8 @@ O banco foi criado por migração antiga — colunas diferem do schema.prisma.
 - **Ouvidoria** (`/api/ouvidoria/manifestacao`): 14 manifestações reais Jan-Out/2026
 - **Diárias e Viagens** (`/api/diarias/viagem`): 22 viagens reais Jan-Dez/2026 em tabela `Viagem` (VIAG-2026/0001 a VIAG-2026/0022)
 - **Convênios e Parcerias** (`/api/convenios/convenio`): 12 convênios reais 2024-2026 em tabela `Convenio` (CONV-2024/001 a CONV-2026/005)
+- **Saúde ESF** (`/api/saude/esf`): 8 equipes ESF + 32 registros VisitaACS (out-nov/2026)
+- **Vacinação** (`/api/saude/vacinacao`): 20 registros reais 2026
 
 ## Tabelas extras criadas via SQL (não no Prisma schema original)
 - `DespesaOrcamentaria`: criada via /api/migrate; model adicionado ao DB_TABLES em db.ts
@@ -97,6 +99,9 @@ curl -sc /tmp/erp-cookies.txt -X POST https://erp.biritinga.ba.gov.br/api/auth/l
   -d '{"email":"SEU_EMAIL","senha":"SUA_SENHA"}'
 # Depois: curl -sb /tmp/erp-cookies.txt ...
 ```
+
+## FKs corrigidas via ALTER TABLE
+- `AbastecimentoVeiculo.veiculoId` FK recriada apontando para `Veiculo` (antes apontava para `veiculos` vazia)
 
 ## Bugs conhecidos / padrões
 - Usar `db.$queryRaw` com template literals para INSERT/UPDATE quando há risco de coluna inexistente no schema Prisma
