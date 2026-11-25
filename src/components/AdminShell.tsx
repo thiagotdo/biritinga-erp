@@ -69,6 +69,7 @@ const NAV_ADMIN = [
   { grupo: 'Sistema', items: [
     { href: '/admin',                label: 'Visão Geral',      Icon: LayoutDashboard },
     { href: '/admin/usuarios',       label: 'Usuários',         Icon: Users           },
+    { href: '/admin/secretarias',    label: 'Secretarias',      Icon: Building2       },
     { href: '/admin/perfis',         label: 'Perfis de Acesso', Icon: ShieldCheck     },
     { href: '/admin/configuracoes',  label: 'Configurações',    Icon: Settings        },
   ]},
