@@ -68,23 +68,29 @@ export async function GET(request: NextRequest) {
       }),
     }
 
-    const [usuarios, total] = await Promise.all([
-      prisma.Usuario.findMany({
-        where: whereUsuario,
-        select: {
-          id: true, nome: true, email: true, cpf: true,
-          perfil: true, secretaria: true, cargo: true, telefone: true,
-          avatarUrl: true, ativo: true, ultimoLogin: true, mfaAtivado: true,
-          createdAt: true,
-        },
-        orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
-        skip: (pagina - 1) * porPagina,
-        take: porPagina,
-      }),
-      prisma.Usuario.count({
-        where: { municipioId: ctx.municipioId, ativo, ...(perfil && { perfil: perfil as any }) },
-      }),
+    // Monta condições WHERE dinâmicas via queryRaw para evitar problemas com makeModel
+    const offset = (pagina - 1) * porPagina
+    const ativoInt = ativo ? 1 : 0
+    const buscaLike = busca ? `%${busca}%` : null
+    const [usuariosRaw, totalRaw] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT id, nome, email, cpf, perfil, secretaria, cargo, telefone,
+               avatarUrl, ativo, ultimoLogin, mfaAtivado, createdAt
+        FROM Usuario
+        WHERE municipioId = ${ctx.municipioId}
+          AND ativo = ${ativoInt}
+          ${perfil     ? prisma.$queryRaw`AND perfil = ${perfil}`     : prisma.$queryRaw``}
+          ${secretaria ? prisma.$queryRaw`AND secretaria = ${secretaria}` : prisma.$queryRaw``}
+          ${buscaLike  ? prisma.$queryRaw`AND (nome LIKE ${buscaLike} OR email LIKE ${buscaLike} OR cpf LIKE ${buscaLike})` : prisma.$queryRaw``}
+        ORDER BY ativo DESC, nome ASC
+        LIMIT ${porPagina} OFFSET ${offset}`,
+      prisma.$queryRaw`
+        SELECT COUNT(*) AS n FROM Usuario
+        WHERE municipioId = ${ctx.municipioId} AND ativo = ${ativoInt}
+          ${perfil ? prisma.$queryRaw`AND perfil = ${perfil}` : prisma.$queryRaw``}`,
     ])
+    const usuarios = usuariosRaw as any[]
+    const total = Number((totalRaw as any[])[0]?.n ?? 0)
 
     // Resumo por perfil via SQL direto (groupBy não suportado pelo makeModel)
     const _conn = await getConn()
@@ -135,27 +141,20 @@ export async function POST(request: NextRequest) {
     const senhaTemp = gerarSenhaTemporaria()
     const senhaHash = await hashSenha(senhaTemp)
 
-    const usuario = await prisma.Usuario.create({
-      data: {
-        id: randomUUID(),
-        criadoEm: new Date(),
-        atualizadoEm: new Date(),
-        municipioId: ctx.municipioId,
-        nome:        dados.nome,
-        email:       dados.email,
-        cpf:         dados.cpf,
-        perfil:      dados.perfil,
-        secretaria:  dados.secretaria,
-        cargo:       dados.cargo,
-        telefone:    dados.telefone,
-        senhaHash,
-        perfilId:    dados.perfilId,
-        ativo:       true,
-      },
-      select: {
-        id: true, nome: true, email: true, perfil: true, secretaria: true, createdAt: true,
-      },
-    })
+    const novoId = randomUUID()
+    // Tabela Usuario usa createdAt/updatedAt (não criadoEm/atualizadoEm)
+    await prisma.$queryRaw`
+      INSERT INTO Usuario
+        (id, municipioId, nome, email, cpf, perfil, secretaria, cargo, telefone,
+         senhaHash, perfilId, ativo, mfaAtivado, tentativasFalhas)
+      VALUES
+        (${novoId}, ${ctx.municipioId}, ${dados.nome}, ${dados.email},
+         ${dados.cpf ?? null}, ${dados.perfil}, ${dados.secretaria ?? null},
+         ${dados.cargo ?? null}, ${dados.telefone ?? null},
+         ${senhaHash}, ${dados.perfilId ?? null}, 1, 0, 0)`
+
+    const usuario = { id: novoId, nome: dados.nome, email: dados.email,
+                      perfil: dados.perfil, secretaria: dados.secretaria ?? null }
 
     await auditLog({
       municipioId: ctx.municipioId,
