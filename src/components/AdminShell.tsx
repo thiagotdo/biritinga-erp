@@ -293,7 +293,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <aside style={{
-          width: sidebarOpen ? 272 : 60,
+          width: sidebarOpen ? 302 : 60,
           background: 'var(--cor-primaria)',
           display:'flex', flexDirection:'column', flexShrink:0,
           transition:'width 0.22s ease', overflow:'hidden',
