@@ -463,6 +463,12 @@ const DB_TABLES = [
   'Convenio', 'AditivoConvenio',
   // Diárias e Viagens
   'Diaria', 'Viagem',
+  // Saúde ESF
+  'EquipeESF', 'MembroEquipeESF', 'VisitaACS',
+  // Empenhos SEFIN
+  'Empenho', 'Dotacao',
+  // Vacinação
+  'Vacinacao',
 ] as const
 
 type DbModels = {
