@@ -75,6 +75,7 @@ const NAV_ADMIN = [
   ]},
   { grupo: 'Portal Público', items: [
     { href: '/admin/portal',         label: 'Portal — Visão Geral', Icon: Globe       },
+    { href: '/admin/portal/banners', label: 'Carrossel / Banners',  Icon: Image       },
     { href: '/admin/comunicacao',    label: 'Comunicação',          Icon: Megaphone   },
     { href: '/admin/ouvidoria',      label: 'Ouvidoria',            Icon: Inbox       },
     { href: '/admin/transparencia',  label: 'Transparência',        Icon: BarChart2   },

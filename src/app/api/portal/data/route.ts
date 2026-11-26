@@ -42,6 +42,31 @@ export async function GET(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://erp.biritinga.ba.gov.br'
     const brasaoUrl = mun.brasaoUrl ?? `${appUrl}/brasao.png`
 
+    // Buscar banners do carrossel
+    let bannersRaw: any[] = []
+    try {
+      bannersRaw = await prisma.$queryRaw`
+        SELECT id, titulo, subtitulo, descricao, imageUrl, linkUrl, linkTexto, ordem
+        FROM BannerPortal
+        WHERE municipioId = ${mun.id} AND ativo = 1
+        ORDER BY ordem ASC, criadoEm ASC
+        LIMIT 10
+      ` as any[]
+    } catch (_) {
+      // Tabela ainda não criada em algum ambiente
+    }
+
+    const banners = bannersRaw.map((b: any) => ({
+      id: b.id,
+      titulo: b.titulo,
+      subtitulo: b.subtitulo ?? null,
+      descricao: b.descricao ?? null,
+      imageUrl: b.imageUrl?.startsWith('/') ? `${appUrl}${b.imageUrl}` : b.imageUrl,
+      linkUrl: b.linkUrl ?? null,
+      linkTexto: b.linkTexto ?? 'Saiba mais',
+      ordem: b.ordem,
+    }))
+
     // Buscar notícias publicadas
     const noticias = await prisma.Noticia.findMany({
       where: { municipioId: mun.id, status: 'PUBLICADA', ativo: true },
@@ -124,6 +149,7 @@ export async function GET(req: NextRequest) {
 
     const data = {
       site,
+      banners: banners.length > 0 ? banners : null,
       news: news.length > 0 ? news : null,
       events: events.length > 0 ? events : null,
     }
