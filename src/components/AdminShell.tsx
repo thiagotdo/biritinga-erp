@@ -82,6 +82,7 @@ const NAV_ADMIN = [
   ]},
   { grupo: 'Publicações Oficiais', items: [
     { href: '/admin/dom',            label: 'Diário Oficial — DOM', Icon: BookOpen    },
+    { href: '/admin/pncp',           label: 'PNCP — Contratações',  Icon: Globe       },
   ]},
   { grupo: 'Finanças e Controle', items: [
     { href: '/gestao/sefin',         label: 'Finanças — SEFIN',     Icon: Wallet          },
