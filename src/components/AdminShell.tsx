@@ -80,6 +80,9 @@ const NAV_ADMIN = [
     { href: '/admin/ouvidoria',      label: 'Ouvidoria',            Icon: Inbox       },
     { href: '/admin/transparencia',  label: 'Transparência',        Icon: BarChart2   },
   ]},
+  { grupo: 'Publicações Oficiais', items: [
+    { href: '/admin/dom',            label: 'Diário Oficial — DOM', Icon: BookOpen    },
+  ]},
   { grupo: 'Finanças e Controle', items: [
     { href: '/gestao/sefin',         label: 'Finanças — SEFIN',     Icon: Wallet          },
     { href: '/gestao/folha',         label: 'Folha de Pagamento',   Icon: DollarSign      },
