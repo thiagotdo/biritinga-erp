@@ -13,7 +13,7 @@ import {
   Syringe, Pill, Activity, Building2, Package, UserCheck,
   Briefcase, Car, DollarSign, Fuel, ClipboardList, AlertCircle,
   ArrowRightLeft, FilePlus2,
-  PackagePlus, MessageSquare, Plane, Handshake,
+  PackagePlus, MessageSquare, Plane, Handshake, Scale,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -83,6 +83,7 @@ const NAV_ADMIN = [
   { grupo: 'Publicações Oficiais', items: [
     { href: '/admin/dom',            label: 'Diário Oficial — DOM', Icon: BookOpen    },
     { href: '/admin/pncp',           label: 'PNCP — Contratações',  Icon: Globe       },
+    { href: '/admin/sic',            label: 'SIC/e-SIC — LAI',      Icon: Scale       },
   ]},
   { grupo: 'Finanças e Controle', items: [
     { href: '/gestao/sefin',         label: 'Finanças — SEFIN',     Icon: Wallet          },
