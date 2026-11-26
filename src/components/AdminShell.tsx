@@ -14,6 +14,7 @@ import {
   Briefcase, Car, DollarSign, Fuel, ClipboardList, AlertCircle,
   ArrowRightLeft, FilePlus2,
   PackagePlus, MessageSquare, Plane, Handshake, Scale,
+  Wheat, Home, Trophy, MapPin,
 } from 'lucide-react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -101,11 +102,18 @@ const NAV_ADMIN = [
     { href: '/gestao/diarias',       label: 'Diárias e Viagens',    Icon: Plane           },
   ]},
   { grupo: 'Serviços ao Cidadão', items: [
-    { href: '/gestao/saude',                label: 'Saúde — SEMSA',   Icon: Stethoscope     },
-    { href: '/gestao/educacao',             label: 'Educação — SEDUC',Icon: GraduationCap   },
-    { href: '/gestao/obras',                label: 'Obras — SEMOSP',  Icon: HardHat         },
-    { href: '/gestao/comunicacao/noticias', label: 'Comunicação — SECOM', Icon: Newspaper   },
-    { href: '/gestao/ouvidoria',            label: 'Ouvidoria',       Icon: MessageSquare   },
+    { href: '/gestao/saude',                label: 'Saúde — SEMSA',      Icon: Stethoscope     },
+    { href: '/gestao/educacao',             label: 'Educação — SEDUC',   Icon: GraduationCap   },
+    { href: '/gestao/obras',                label: 'Obras — SEMOSP',     Icon: HardHat         },
+    { href: '/gestao/comunicacao/noticias', label: 'Comunicação — SECOM',Icon: Newspaper       },
+    { href: '/gestao/ouvidoria',            label: 'Ouvidoria',          Icon: MessageSquare   },
+  ]},
+  { grupo: 'Novas Secretarias', items: [
+    { href: '/gestao/pgm',    label: 'Procuradoria — PGM',  Icon: Scale    },
+    { href: '/gestao/semma',  label: 'Meio Ambiente — SEMMA',Icon: Leaf    },
+    { href: '/gestao/seagri', label: 'Agricultura — SEAGRI', Icon: Wheat   },
+    { href: '/gestao/sedhur', label: 'Habitação — SEDHUR',   Icon: Home    },
+    { href: '/gestao/setre',  label: 'Trabalho / Esporte — SETRE', Icon: Trophy },
   ]},
 ]
 
@@ -214,6 +222,25 @@ const NAV_SECRETARIA: Record<string, typeof NAV_ADMIN> = {
     { href: '/gestao/ouvidoria/nova',               label: 'Nova Manifestação',   Icon: FilePlus2     },
     { href: '/gestao/ouvidoria/manifestacoes?tipo=SOLICITACAO_LAI', label: 'Pedidos LAI', Icon: Briefcase },
   ]}],
+  PGM: [{ grupo: 'Procuradoria Geral do Município', items: [
+    { href: '/gestao/pgm',           label: 'Painel PGM',       Icon: Scale    },
+    { href: '/gestao/pgm?filtro=PENDENTE', label: 'Pendentes', Icon: AlertCircle },
+  ]}],
+  SEAGRI: [{ grupo: 'Sec. de Agricultura - SEAGRI', items: [
+    { href: '/gestao/seagri',              label: 'Painel SEAGRI',     Icon: Wheat  },
+    { href: '/gestao/seagri?aba=propriedades', label: 'Propriedades', Icon: MapPin },
+    { href: '/gestao/seagri?aba=ater',    label: 'ATER / Assistência', Icon: Users  },
+  ]}],
+  SEDHUR: [{ grupo: 'Habitação e Urbanismo - SEDHUR', items: [
+    { href: '/gestao/sedhur',              label: 'Painel SEDHUR',       Icon: Home },
+    { href: '/gestao/sedhur?programa=MCMV',label: 'MCMV',               Icon: Building2 },
+    { href: '/gestao/sedhur?programa=REGULARIZACAO', label: 'Regularização', Icon: FileText },
+  ]}],
+  SETRE: [{ grupo: 'Trabalho, Renda e Esporte - SETRE', items: [
+    { href: '/gestao/setre',              label: 'Painel SETRE',       Icon: Trophy  },
+    { href: '/gestao/setre?aba=cursos',   label: 'Cursos',             Icon: GraduationCap },
+    { href: '/gestao/setre?aba=esporte',  label: 'Esporte',            Icon: Trophy  },
+  ]}],
 }
 
 function navPorPerfil(perfil: string, secretaria?: string) {
@@ -291,6 +318,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const navRoute = pathname.startsWith('/gestao/protocolo')   ? NAV_SECRETARIA.PROTOCOLO
                  : pathname.startsWith('/gestao/almoxarifado') ? NAV_SECRETARIA.ALMOXARIFADO
                  : pathname.startsWith('/gestao/ouvidoria')    ? NAV_SECRETARIA.OUVIDORIA
+                 : pathname.startsWith('/gestao/pgm')          ? NAV_SECRETARIA.PGM
+                 : pathname.startsWith('/gestao/seagri')       ? NAV_SECRETARIA.SEAGRI
+                 : pathname.startsWith('/gestao/sedhur')       ? NAV_SECRETARIA.SEDHUR
+                 : pathname.startsWith('/gestao/setre')        ? NAV_SECRETARIA.SETRE
                  : null
   const nav = navRoute ?? navPorPerfil(usuario.perfil, usuario.secretaria)
 
